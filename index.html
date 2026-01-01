@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Compassionate Tech for Animals</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root {
+      --green: #2e7d32;
+      --soft-green: #e8f5e9;
+      --dark: #263238;
+      --muted: #607d8b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--dark);
+      background: #ffffff;
+      line-height: 1.5;
+    }
+
+    header {
+      background: var(--soft-green);
+      padding: 64px 20px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 32px;
+      margin-bottom: 12px;
+      color: var(--green);
+    }
+
+    header p {
+      max-width: 620px;
+      margin: 0 auto;
+      font-size: 16px;
+      color: var(--muted);
+    }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 20px;
+    }
+
+    .projects {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #ffffff;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 20px;
+      color: var(--green);
+    }
+
+    .card p {
+      font-size: 14px;
+      color: var(--muted);
+      flex-grow: 1;
+    }
+
+    .card a {
+      display: inline-block;
+      margin-top: 16px;
+      text-align: center;
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: var(--green);
+      color: white;
+      font-weight: 500;
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 20px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Compassionate Tech for Animals</h1>
+  <p>
+    Building practical, ethical tools that support animal rights,
+    transparency, and informed activism — one project at a time.
+  </p>
+</header>
+
+<main>
+  <section class="projects">
+
+    <div class="card">
+      <h2>Farm Verification Map</h2>
+      <p>
+        A collaborative map that helps activists verify and improve
+        data about industrial animal farms using community input.
+      </p>
+      <a href="/farm-map/index.html">Open map</a>
+    </div>
+
+    <div class="card">
+      <h2>Future Project</h2>
+      <p>
+        A second tool focused on education, awareness, or positive
+        action for animals. Coming soon.
+      </p>
+      <a href="#" onclick="return false;">Coming soon</a>
+    </div>
+
+  </section>
+</main>
+
+<footer>
+  Built with care for animals and the people protecting them.
+</footer>
+
+</body>
+</html>

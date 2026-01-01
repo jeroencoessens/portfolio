@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Farm Verification Map</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <style>
+    :root {
+      --green: #2e7d32;
+      --soft-green: #e8f5e9;
+      --dark: #263238;
+      --muted: #607d8b;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--dark);
+    }
+
+    #map { height: 100%; }
+
+    button {
+      font-family: inherit;
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #f1f3f4;
+      color: var(--dark);
+    }
+
+    /* Export button */
+    .export-controls {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: white;
+      padding: 10px;
+      z-index: 1000;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    }
+
+    /* Cluster toggle */
+    .cluster-toggle {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: white;
+      padding: 10px;
+      z-index: 1000;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    }
+
+    /* Probability control */
+    .leaflet-control.probability-control {
+      background: white;
+      padding: 10px 12px;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+      min-width: 260px;
+    }
+
+    .leaflet-top.leaflet-left .probability-control {
+      margin-left: 56px;
+      margin-top: -64px;
+    }
+
+    .probability-control .title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--green);
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .probability-control .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .probability-control input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      background: #dcdcdc;
+      border-radius: 4px;
+    }
+
+    .probability-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--green);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .probability-control .meta {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* Cluster icon */
+    .cluster-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      color: white;
+      font-weight: 600;
+      text-align: center;
+      line-height: 40px;
+      border: 2px solid rgba(0,0,0,0.25);
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="export-controls">
+  <button onclick="exportVotes()">Export Votes</button>
+</div>
+
+<div class="cluster-toggle">
+  <button id="toggleCluster" class="secondary">Disable clustering</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+/* ---------------- Map setup ---------------- */
+
+const map = L.map('map').setView([16, 106], 6);
+
+const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+const satellite = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Tiles © Esri' }
+);
+
+L.control.layers({ Street: street, Satellite: satellite }).addTo(map);
+
+/* ---------------- Slider control ---------------- */
+
+const ProbabilityControl = L.Control.extend({
+  onAdd() {
+    const div = L.DomUtil.create('div', 'leaflet-control probability-control');
+    div.innerHTML = `
+      <div class="title">Minimum probability</div>
+      <div class="row">
+        <input id="probabilitySlider" type="range" min="0" max="100" value="25">
+        <div id="probabilityMeta" class="meta">25% · 0 shown</div>
+      </div>
+    `;
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+  }
+});
+
+map.addControl(new ProbabilityControl({ position: 'topleft' }));
+
+/* ---------------- Utilities ---------------- */
+
+function getColor(p) {
+  if (p >= 0.9) return '#c62828';
+  if (p >= 0.7) return '#ef6c00';
+  if (p >= 0.5) return '#f9a825';
+  return '#2e7d32';
+}
+
+function popupContent(farm) {
+  const pct = (farm.farm_probability * 100).toFixed(1);
+  return `
+    <strong>Farm ID:</strong> ${farm.ID}<br/>
+    <strong>Probability:</strong> ${pct}%<br/><br/>
+    <button onclick="vote(${farm.ID}, true)">YES</button>
+    <button onclick="vote(${farm.ID}, false)" class="secondary">NO</button>
+  `;
+}
+
+function vote(id, yes) {
+  const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
+  votes[id] = { value: yes ? 'YES' : 'NO', timestamp: new Date().toISOString() };
+  localStorage.setItem('farmVotes', JSON.stringify(votes));
+  alert('Vote saved locally');
+}
+
+/* ---------------- Layers ---------------- */
+
+const clusterGroup = L.markerClusterGroup({
+  iconCreateFunction(cluster) {
+    const maxP = Math.max(...cluster.getAllChildMarkers().map(m => m.farmProbability));
+    return L.divIcon({
+      html: `<div class="cluster-icon" style="background:${getColor(maxP)}">${cluster.getChildCount()}</div>`,
+      className: '',
+      iconSize: [40, 40]
+    });
+  }
+});
+
+const plainLayer = L.layerGroup();
+let clusteringEnabled = true;
+let allMarkers = [];
+
+/* ---------------- Data ---------------- */
+
+fetch('vietnam_json.json')
+  .then(r => r.json())
+  .then(data => {
+    data.Farms.forEach(farm => {
+      const marker = L.circleMarker([farm.Latitude, farm.Longitude], {
+        radius: 9,
+        fillColor: getColor(farm.farm_probability),
+        color: '#2e2e2e',
+        weight: 1,
+        fillOpacity: 0.85
+      });
+
+      marker.farmProbability = farm.farm_probability;
+      marker.bindPopup(popupContent(farm));
+      allMarkers.push(marker);
+    });
+
+    applyFilter(0.25);
+  });
+
+/* ---------------- Filtering ---------------- */
+
+let filterTimeout = null;
+
+function applyFilter(minP) {
+  let count = 0;
+
+  clusterGroup.clearLayers();
+  plainLayer.clearLayers();
+
+  for (const m of allMarkers) {
+    if (m.farmProbability >= minP) {
+      clusterGroup.addLayer(m);
+      plainLayer.addLayer(m);
+      count++;
+    }
+  }
+
+  document.getElementById('probabilityMeta').textContent =
+    `${Math.round(minP * 100)}% · ${count} shown`;
+
+  map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
+  map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
+}
+
+setTimeout(() => {
+  const slider = document.getElementById('probabilitySlider');
+  slider.addEventListener('input', e => {
+    const minP = e.target.value / 100;
+    document.getElementById('probabilityMeta').textContent =
+      `${e.target.value}% · filtering…`;
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => applyFilter(minP), 150);
+  });
+}, 0);
+
+/* ---------------- Toggle clustering ---------------- */
+
+document.getElementById('toggleCluster').onclick = () => {
+  clusteringEnabled = !clusteringEnabled;
+  map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
+  map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
+  document.getElementById('toggleCluster').textContent =
+    clusteringEnabled ? 'Disable clustering' : 'Enable clustering';
+};
+
+/* ---------------- Export ---------------- */
+
+function exportVotes() {
+  const data = localStorage.getItem('farmVotes') || '{}';
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'farm_votes.json';
+  a.click();
+}
+</script>
+
+</body>
+</html>
