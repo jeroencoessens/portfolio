@@ -4,6 +4,9 @@
   "start_url": "/portfolio/farm-map/",
   "scope": "/portfolio/farm-map/",
   "display": "standalone",
+  "description": "Crowdsourced verification of farms using probability-based mapping.",
+  "orientation": "portrait-primary",
+  "id": "/portfolio/farm-map/",
   "background_color": "#ffffff",
   "theme_color": "#2c3e50",
   "icons": [
