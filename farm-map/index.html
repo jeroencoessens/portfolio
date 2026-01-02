@@ -152,7 +152,10 @@
 
 const map = L.map('map', {
   zoomSnap: 0.25,
-  zoomDelta: 0.25
+  zoomDelta: 0.5,
+  inertia: true,
+  inertiaDeceleration: 3000,
+  wheelPxPerZoomLevel: 120
 }).setView([16, 106], 6);
 
 const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -215,8 +218,8 @@ function vote(id, yes) {
 
 const clusterGroup = L.markerClusterGroup({
   chunkedLoading: true,
-  chunkInterval: 50,
-  chunkDelay: 25,
+  chunkInterval: 100,
+  chunkDelay: 50,
   animate: true,
   spiderfyOnEveryZoom: false,
   zoomToBoundsOnClick: true,
@@ -234,17 +237,15 @@ const plainLayer = L.layerGroup();
 let clusteringEnabled = true;
 let allMarkers = [];
 
-/* ---------------- Marker scaling (smooth zoom) ---------------- */
+/* ---------------- Marker sizing ---------------- */
 
-function markerRadiusForZoom(zoom) {
-  return Math.max(5, zoom * 1.4);
+function radiusForZoom(z) {
+  return Math.max(6, z * 1.2);
 }
 
-map.on('zoom', () => {
-  const r = markerRadiusForZoom(map.getZoom());
-  for (const m of allMarkers) {
-    m.setRadius(r);
-  }
+map.on('zoomend', () => {
+  const r = radiusForZoom(map.getZoom());
+  allMarkers.forEach(m => m.setRadius(r));
 });
 
 /* ---------------- Data ---------------- */
@@ -253,15 +254,26 @@ fetch('vietnam_json.json')
   .then(r => r.json())
   .then(data => {
     data.Farms.forEach(farm => {
-      const marker = L.circleMarker([farm.Latitude, farm.Longitude], {
-        radius: markerRadiusForZoom(map.getZoom()),
-        fillColor: getColor(farm.farm_probability),
-        color: '#2e2e2e',
-        weight: 1,
-        fillOpacity: 0.85
-      });
+      const marker = L.circleMarker(
+        [farm.Latitude, farm.Longitude],
+        {
+          renderer: L.canvas(),
+          radius: radiusForZoom(map.getZoom()),
+          fillColor: getColor(farm.farm_probability),
+          color: '#2e2e2e',
+          weight: 1,
+          fillOpacity: 0.85
+        }
+      );
 
       marker.farmProbability = farm.farm_probability;
+
+      /* Hover preview (desktop) */
+      marker.bindTooltip(
+        `ID ${farm.ID}<br>${(farm.farm_probability * 100).toFixed(1)}%`,
+        { direction: 'top', opacity: 0.9 }
+      );
+
       marker.bindPopup(popupContent(farm));
       allMarkers.push(marker);
     });
@@ -269,13 +281,11 @@ fetch('vietnam_json.json')
     applyFilter(0.5);
   });
 
-/* ---------------- Filtering (optimized) ---------------- */
+/* ---------------- Filtering ---------------- */
 
 let filterTimeout = null;
-let currentMinP = 0.5;
 
 function applyFilter(minP) {
-  currentMinP = minP;
   let count = 0;
 
   clusterGroup.clearLayers();
@@ -292,17 +302,8 @@ function applyFilter(minP) {
   document.getElementById('probabilityMeta').textContent =
     `${Math.round(minP * 100)}% · ${count} shown`;
 
-  if (clusteringEnabled) {
-    if (!map.hasLayer(clusterGroup)) {
-      map.removeLayer(plainLayer);
-      map.addLayer(clusterGroup);
-    }
-  } else {
-    if (!map.hasLayer(plainLayer)) {
-      map.removeLayer(clusterGroup);
-      map.addLayer(plainLayer);
-    }
-  }
+  map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
+  map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
 }
 
 /* ---------------- Slider handling ---------------- */
@@ -322,10 +323,8 @@ document.addEventListener('input', e => {
 
 document.getElementById('toggleCluster').onclick = () => {
   clusteringEnabled = !clusteringEnabled;
-
   map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
   map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
-
   document.getElementById('toggleCluster').textContent =
     clusteringEnabled ? 'Disable clustering' : 'Enable clustering';
 };
