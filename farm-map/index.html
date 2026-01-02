@@ -14,16 +14,16 @@
   <style>
     :root {
       --green: #2e7d32;
+      --soft-green: #e8f5e9;
       --dark: #263238;
       --muted: #607d8b;
-      --panel-bg: #ffffff;
-      --shadow: 0 4px 14px rgba(0,0,0,0.12);
     }
 
     html, body {
       height: 100%;
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--dark);
     }
 
     #map { height: 100%; }
@@ -44,63 +44,55 @@
       color: var(--dark);
     }
 
-    /* Floating panels */
-    .panel {
+    .export-controls,
+    .cluster-toggle,
+    .heat-toggle,
+    .legend {
       position: absolute;
-      background: var(--panel-bg);
-      border-radius: 12px;
-      box-shadow: var(--shadow);
+      background: white;
       padding: 10px 12px;
       z-index: 1000;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
       font-size: 12px;
     }
 
     .export-controls { bottom: 12px; right: 12px; }
-    .tools-toggle { bottom: 12px; left: 12px; }
+    .cluster-toggle { bottom: 12px; left: 12px; }
+    .heat-toggle { bottom: 60px; left: 12px; }
 
-    .tools-menu {
-      bottom: 60px;
-      left: 12px;
-      display: none;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .tools-menu.active { display: flex; }
-
-    /* Summary panel */
-    .summary-panel {
-      top: 12px;
+    .legend {
+      bottom: 64px;
       right: 12px;
-      max-width: 220px;
-      display: none;
+      min-width: 160px;
     }
 
-    .summary-panel.active { display: block; }
-
-    .summary-title {
+    .legend-title {
       font-weight: 600;
       color: var(--green);
       margin-bottom: 6px;
       text-align: center;
     }
 
-    .summary-row {
-      margin-bottom: 6px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 4px;
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
     }
 
-    .summary-row:last-child {
-      border-bottom: none;
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
     }
 
-    /* Probability slider */
     .leaflet-control.probability-control {
       background: white;
       padding: 10px 12px;
       border-radius: 12px;
-      box-shadow: var(--shadow);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
       min-width: 260px;
     }
 
@@ -125,10 +117,10 @@
 
     .probability-control input[type="range"] {
       flex: 1;
+      -webkit-appearance: none;
       height: 6px;
       background: #dcdcdc;
       border-radius: 4px;
-      -webkit-appearance: none;
     }
 
     .probability-control input[type="range"]::-webkit-slider-thumb {
@@ -137,6 +129,7 @@
       height: 16px;
       background: var(--green);
       border-radius: 50%;
+      cursor: pointer;
     }
 
     .probability-control .meta {
@@ -161,23 +154,24 @@
 
 <div id="map"></div>
 
-<div class="panel export-controls">
+<div class="export-controls">
   <button onclick="exportVotes()">Export Votes</button>
 </div>
 
-<div class="panel tools-toggle">
-  <button id="toggleTools" class="secondary">Map tools</button>
-</div>
-
-<div class="panel tools-menu" id="toolsMenu">
+<div class="cluster-toggle">
   <button id="toggleCluster" class="secondary">Disable clustering</button>
-  <button id="toggleHeat" class="secondary">Show heatmap</button>
-  <button id="toggleSummary" class="secondary">Show summaries</button>
 </div>
 
-<div class="panel summary-panel" id="summaryPanel">
-  <div class="summary-title">Suspicious regions</div>
-  <div id="summaryContent"></div>
+<div class="heat-toggle">
+  <button id="toggleHeat" class="secondary">Show suspicious areas</button>
+</div>
+
+<div class="legend">
+  <div class="legend-title">Probability</div>
+  <div class="legend-row"><div class="legend-swatch" style="background:#2e7d32"></div> &lt; 50%</div>
+  <div class="legend-row"><div class="legend-swatch" style="background:#f9a825"></div> 50–69%</div>
+  <div class="legend-row"><div class="legend-swatch" style="background:#ef6c00"></div> 70–89%</div>
+  <div class="legend-row"><div class="legend-swatch" style="background:#c62828"></div> ≥ 90%</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -185,13 +179,16 @@
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
 <script>
+/* ---------------- Map setup ---------------- */
+
 const map = L.map('map').setView([16, 106], 6);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-/* Slider */
+/* ---------------- Slider control ---------------- */
+
 const ProbabilityControl = L.Control.extend({
   onAdd() {
     const div = L.DomUtil.create('div', 'leaflet-control probability-control');
@@ -200,12 +197,15 @@ const ProbabilityControl = L.Control.extend({
       <div class="row">
         <input id="probabilitySlider" type="range" min="0" max="100" value="50">
         <div id="probabilityMeta" class="meta">50% · 0 shown</div>
-      </div>`;
+      </div>
+    `;
     L.DomEvent.disableClickPropagation(div);
     return div;
   }
 });
 map.addControl(new ProbabilityControl({ position: 'topleft' }));
+
+/* ---------------- Utilities ---------------- */
 
 function getColor(p) {
   if (p >= 0.9) return '#c62828';
@@ -214,11 +214,15 @@ function getColor(p) {
   return '#2e7d32';
 }
 
+/* ---------------- Layers ---------------- */
+
 const clusterGroup = L.markerClusterGroup({
   iconCreateFunction(cluster) {
-    const maxP = Math.max(...cluster.getAllChildMarkers().map(m => m.farmProbability));
+    const markers = cluster.getAllChildMarkers();
+    const probs = markers.map(m => m.farmProbability);
+    const maxP = Math.max(...probs);
     return L.divIcon({
-      html: `<div class="cluster-icon" style="background:${getColor(maxP)}">${cluster.getChildCount()}</div>`,
+      html: `<div class="cluster-icon" style="background:${getColor(maxP)}">${markers.length}</div>`,
       className: '',
       iconSize: [40, 40]
     });
@@ -228,9 +232,10 @@ const clusterGroup = L.markerClusterGroup({
 const plainLayer = L.layerGroup();
 let clusteringEnabled = true;
 let heatEnabled = false;
-let heatLayer;
 let allMarkers = [];
-let regionStats = {};
+let heatLayer = null;
+
+/* ---------------- Data ---------------- */
 
 fetch('vietnam_json.json')
   .then(r => r.json())
@@ -247,28 +252,53 @@ fetch('vietnam_json.json')
       });
 
       marker.farmProbability = farm.farm_probability;
-      marker.bindPopup(`<strong>ID:</strong> ${farm.ID}<br>${(farm.farm_probability*100).toFixed(1)}%`);
+
+      marker.bindTooltip(
+        `ID ${farm.ID}<br>${(farm.farm_probability * 100).toFixed(1)}%`,
+        { direction: 'top', opacity: 0.9 }
+      );
+
+      marker.bindPopup(`
+        <strong>Farm ID:</strong> ${farm.ID}<br/>
+        <strong>Probability:</strong> ${(farm.farm_probability*100).toFixed(1)}%<br/><br/>
+        <button onclick="vote(${farm.ID}, true)">YES</button>
+        <button onclick="vote(${farm.ID}, false)" class="secondary">NO</button>
+      `);
+
       allMarkers.push(marker);
 
+      /* Heatmap only includes >= 50% */
       if (farm.farm_probability >= 0.5) {
-        heatPoints.push([farm.Latitude, farm.Longitude, farm.farm_probability]);
-        const region = farm.Region || 'Unknown';
-        regionStats[region] ??= { count: 0, sum: 0 };
-        regionStats[region].count++;
-        regionStats[region].sum += farm.farm_probability;
+        heatPoints.push([
+          farm.Latitude,
+          farm.Longitude,
+          farm.farm_probability
+        ]);
       }
     });
 
-    heatLayer = L.heatLayer(heatPoints, { radius: 28, blur: 20 });
+    heatLayer = L.heatLayer(heatPoints, {
+      radius: 28,
+      blur: 20,
+      maxZoom: 8,
+      gradient: {
+        0.5: '#f9a825',
+        0.7: '#ef6c00',
+        1.0: '#c62828'
+      }
+    });
 
     applyFilter(0.5);
-    renderSummary();
   });
 
+/* ---------------- Filtering ---------------- */
+
+let filterTimeout = null;
+
 function applyFilter(minP) {
+  let count = 0;
   clusterGroup.clearLayers();
   plainLayer.clearLayers();
-  let count = 0;
 
   for (const m of allMarkers) {
     if (m.farmProbability >= minP) {
@@ -279,56 +309,38 @@ function applyFilter(minP) {
   }
 
   document.getElementById('probabilityMeta').textContent =
-    `${Math.round(minP*100)}% · ${count} shown`;
+    `${Math.round(minP * 100)}% · ${count} shown`;
 
   map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
   map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
 }
 
-function renderSummary() {
-  const container = document.getElementById('summaryContent');
-  container.innerHTML = '';
+document.getElementById('probabilitySlider').addEventListener('input', e => {
+  const minP = e.target.value / 100;
+  document.getElementById('probabilityMeta').textContent =
+    `${e.target.value}% · filtering…`;
+  clearTimeout(filterTimeout);
+  filterTimeout = setTimeout(() => applyFilter(minP), 150);
+});
 
-  Object.entries(regionStats)
-    .sort((a,b) => b[1].count - a[1].count)
-    .slice(0,5)
-    .forEach(([region, stats]) => {
-      container.innerHTML += `
-        <div class="summary-row">
-          <strong>${region}</strong><br>
-          ${stats.count} farms<br>
-          Avg ${(stats.sum / stats.count * 100).toFixed(1)}%
-        </div>`;
-    });
-}
-
-/* UI toggles */
-document.getElementById('toggleTools').onclick = () =>
-  document.getElementById('toolsMenu').classList.toggle('active');
+/* ---------------- Toggles ---------------- */
 
 document.getElementById('toggleCluster').onclick = () => {
   clusteringEnabled = !clusteringEnabled;
   map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
   map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
+  document.getElementById('toggleCluster').textContent =
+    clusteringEnabled ? 'Disable clustering' : 'Enable clustering';
 };
 
 document.getElementById('toggleHeat').onclick = () => {
   heatEnabled = !heatEnabled;
-  if (heatEnabled) {
-    clusteringEnabled = false;
-    map.removeLayer(clusterGroup);
-    map.addLayer(heatLayer);
-  } else {
-    map.removeLayer(heatLayer);
-    map.addLayer(clusterGroup);
-  }
+  heatEnabled ? map.addLayer(heatLayer) : map.removeLayer(heatLayer);
+  document.getElementById('toggleHeat').textContent =
+    heatEnabled ? 'Hide suspicious areas' : 'Show suspicious areas';
 };
 
-document.getElementById('toggleSummary').onclick = () =>
-  document.getElementById('summaryPanel').classList.toggle('active');
-
-document.getElementById('probabilitySlider').addEventListener('input', e =>
-  applyFilter(e.target.value / 100));
+/* ---------------- Export ---------------- */
 
 function exportVotes() {
   const data = localStorage.getItem('farmVotes') || '{}';
