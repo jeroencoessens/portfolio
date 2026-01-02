@@ -44,7 +44,6 @@
       color: var(--dark);
     }
 
-    /* Export button */
     .export-controls {
       position: absolute;
       bottom: 12px;
@@ -56,7 +55,6 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.12);
     }
 
-    /* Cluster toggle */
     .cluster-toggle {
       position: absolute;
       bottom: 12px;
@@ -68,7 +66,6 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.12);
     }
 
-    /* Probability control */
     .leaflet-control.probability-control {
       background: white;
       padding: 10px 12px;
@@ -119,7 +116,6 @@
       white-space: nowrap;
     }
 
-    /* Cluster icon */
     .cluster-icon {
       width: 40px;
       height: 40px;
@@ -150,13 +146,7 @@
 <script>
 /* ---------------- Map setup ---------------- */
 
-const map = L.map('map', {
-  zoomSnap: 0.25,
-  zoomDelta: 0.5,
-  inertia: true,
-  inertiaDeceleration: 3000,
-  wheelPxPerZoomLevel: 120
-}).setView([16, 106], 6);
+const map = L.map('map').setView([16, 106], 6);
 
 const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap contributors'
@@ -177,8 +167,8 @@ const ProbabilityControl = L.Control.extend({
     div.innerHTML = `
       <div class="title">Minimum probability</div>
       <div class="row">
-        <input id="probabilitySlider" type="range" min="0" max="100" value="50">
-        <div id="probabilityMeta" class="meta">50% · 0 shown</div>
+        <input id="probabilitySlider" type="range" min="0" max="100" value="25">
+        <div id="probabilityMeta" class="meta">25% · 0 shown</div>
       </div>
     `;
     L.DomEvent.disableClickPropagation(div);
@@ -217,12 +207,6 @@ function vote(id, yes) {
 /* ---------------- Layers ---------------- */
 
 const clusterGroup = L.markerClusterGroup({
-  chunkedLoading: true,
-  chunkInterval: 100,
-  chunkDelay: 50,
-  animate: true,
-  spiderfyOnEveryZoom: false,
-  zoomToBoundsOnClick: true,
   iconCreateFunction(cluster) {
     const maxP = Math.max(...cluster.getAllChildMarkers().map(m => m.farmProbability));
     return L.divIcon({
@@ -237,48 +221,45 @@ const plainLayer = L.layerGroup();
 let clusteringEnabled = true;
 let allMarkers = [];
 
-/* ---------------- Marker sizing ---------------- */
-
-function radiusForZoom(z) {
-  return Math.max(6, z * 1.2);
-}
-
-map.on('zoomend', () => {
-  const r = radiusForZoom(map.getZoom());
-  allMarkers.forEach(m => m.setRadius(r));
-});
-
 /* ---------------- Data ---------------- */
 
 fetch('vietnam_json.json')
   .then(r => r.json())
   .then(data => {
     data.Farms.forEach(farm => {
-      const marker = L.circleMarker(
-        [farm.Latitude, farm.Longitude],
-        {
-          renderer: L.canvas(),
-          radius: radiusForZoom(map.getZoom()),
-          fillColor: getColor(farm.farm_probability),
-          color: '#2e2e2e',
-          weight: 1,
-          fillOpacity: 0.85
-        }
-      );
+      const baseRadius = 9;
+      const hoverRadius = 13;
+
+      const marker = L.circleMarker([farm.Latitude, farm.Longitude], {
+        radius: baseRadius,
+        fillColor: getColor(farm.farm_probability),
+        color: '#2e2e2e',
+        weight: 1,
+        fillOpacity: 0.85
+      });
 
       marker.farmProbability = farm.farm_probability;
 
-      /* Hover preview (desktop) */
+      /* Tooltip (only used in plain layer) */
       marker.bindTooltip(
         `ID ${farm.ID}<br>${(farm.farm_probability * 100).toFixed(1)}%`,
         { direction: 'top', opacity: 0.9 }
       );
 
+      /* Hover enlargement */
+      marker.on('mouseover', () => {
+        marker.setRadius(hoverRadius);
+      });
+
+      marker.on('mouseout', () => {
+        marker.setRadius(baseRadius);
+      });
+
       marker.bindPopup(popupContent(farm));
       allMarkers.push(marker);
     });
 
-    applyFilter(0.5);
+    applyFilter(0.25);
   });
 
 /* ---------------- Filtering ---------------- */
@@ -306,25 +287,30 @@ function applyFilter(minP) {
   map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
 }
 
-/* ---------------- Slider handling ---------------- */
-
-document.addEventListener('input', e => {
-  if (e.target.id !== 'probabilitySlider') return;
-
-  const minP = e.target.value / 100;
-  document.getElementById('probabilityMeta').textContent =
-    `${e.target.value}% · filtering…`;
-
-  clearTimeout(filterTimeout);
-  filterTimeout = setTimeout(() => applyFilter(minP), 120);
-});
+setTimeout(() => {
+  const slider = document.getElementById('probabilitySlider');
+  slider.addEventListener('input', e => {
+    const minP = e.target.value / 100;
+    document.getElementById('probabilityMeta').textContent =
+      `${e.target.value}% · filtering…`;
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => applyFilter(minP), 150);
+  });
+}, 0);
 
 /* ---------------- Toggle clustering ---------------- */
 
 document.getElementById('toggleCluster').onclick = () => {
   clusteringEnabled = !clusteringEnabled;
+
   map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
   map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
+
+  /* Disable tooltips while clustered */
+  allMarkers.forEach(m => {
+    clusteringEnabled ? m.closeTooltip() : null;
+  });
+
   document.getElementById('toggleCluster').textContent =
     clusteringEnabled ? 'Disable clustering' : 'Enable clustering';
 };
