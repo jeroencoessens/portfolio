@@ -1,8 +1,8 @@
 {
   "name": "Farm Verification Map",
   "short_name": "FarmMap",
-  "start_url": "/farm-map/index.html",
-  "scope": "/farm-map/",
+  "start_url": "/portfolio/farm-map/",
+  "scope": "/portfolio/farm-map/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2c3e50",
