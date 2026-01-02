@@ -45,7 +45,6 @@
       color: var(--dark);
     }
 
-    /* Collapsible menu */
     .menu-toggle,
     .menu-panel {
       position: absolute;
@@ -73,10 +72,6 @@
       margin-bottom: 8px;
     }
 
-    .menu-panel > *:last-child {
-      margin-bottom: 0;
-    }
-
     .legend-title {
       font-weight: 600;
       color: var(--green);
@@ -95,7 +90,6 @@
       width: 14px;
       height: 14px;
       border-radius: 50%;
-      flex-shrink: 0;
     }
 
     .leaflet-control.probability-control {
@@ -127,25 +121,14 @@
 
     .probability-control input[type="range"] {
       flex: 1;
-      -webkit-appearance: none;
       height: 6px;
       background: #dcdcdc;
       border-radius: 4px;
     }
 
-    .probability-control input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 16px;
-      height: 16px;
-      background: var(--green);
-      border-radius: 50%;
-      cursor: pointer;
-    }
-
     .probability-control .meta {
       font-size: 11px;
       color: var(--muted);
-      white-space: nowrap;
     }
 
     .cluster-icon {
@@ -175,10 +158,10 @@
 
   <div class="legend">
     <div class="legend-title">Probability</div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#2e7d32"></div> &lt; 50%</div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#f9a825"></div> 50–69%</div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#ef6c00"></div> 70–89%</div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#c62828"></div> ≥ 90%</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#2e7d32"></div>&lt; 50%</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#f9a825"></div>50–69%</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#ef6c00"></div>70–89%</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#c62828"></div>≥ 90%</div>
   </div>
 </div>
 
@@ -233,6 +216,7 @@ let clusteringEnabled = true;
 let heatEnabled = false;
 let allMarkers = [];
 let heatLayer;
+let filterTimeout = null;
 
 fetch('vietnam_json.json')
   .then(r => r.json())
@@ -258,8 +242,9 @@ fetch('vietnam_json.json')
       marker.bindPopup(`
         <strong>Farm ID:</strong> ${farm.ID}<br/>
         <strong>Probability:</strong> ${(farm.farm_probability*100).toFixed(1)}%<br/><br/>
-        <button onclick="vote(${farm.ID}, true, ${farm.Latitude}, ${farm.Longitude})">YES</button>
-        <button onclick="vote(${farm.ID}, false, ${farm.Latitude}, ${farm.Longitude})" class="secondary">NO</button>
+        <button onclick="zoomToFarm(${farm.Latitude}, ${farm.Longitude})" class="secondary">Zoom to location</button>
+        <button onclick="vote(${farm.ID}, true)">YES</button>
+        <button onclick="vote(${farm.ID}, false)" class="secondary">NO</button>
       `);
 
       allMarkers.push(marker);
@@ -329,11 +314,14 @@ document.getElementById('toggleHeat').onclick = () => {
 document.getElementById('toggleMenu').onclick = () =>
   document.getElementById('menuPanel').classList.toggle('active');
 
-function vote(id, yes, lat, lng) {
+function zoomToFarm(lat, lng) {
+  map.setView([lat, lng], 16, { animate: true });
+}
+
+function vote(id, yes) {
   const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
   votes[id] = { value: yes ? 'YES' : 'NO', timestamp: new Date().toISOString() };
   localStorage.setItem('farmVotes', JSON.stringify(votes));
-  map.setView([lat, lng], 16, { animate: true });
 }
 
 function exportVotes() {
