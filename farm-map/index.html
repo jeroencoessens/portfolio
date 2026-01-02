@@ -119,11 +119,36 @@
       gap: 10px;
     }
 
+    /* Slider – cohesive green styling */
     .probability-control input[type="range"] {
       flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
       height: 6px;
-      background: #dcdcdc;
+      background: linear-gradient(to right, var(--green), var(--green)) no-repeat,
+                  #dcdcdc;
+      background-size: 50% 100%;
       border-radius: 4px;
+      outline: none;
+    }
+
+    .probability-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--green);
+      cursor: pointer;
+      border: none;
+    }
+
+    .probability-control input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--green);
+      cursor: pointer;
+      border: none;
     }
 
     .probability-control .meta {
@@ -170,13 +195,29 @@
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
 <script>
-const map = L.map('map').setView([16, 106], 6);
+/* ---------------- Base layers ---------------- */
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap contributors'
-}).addTo(map);
+});
 
-/* Slider */
+const satellite = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Tiles © Esri' }
+);
+
+const map = L.map('map', {
+  layers: [street]
+}).setView([16, 106], 6);
+
+L.control.layers(
+  { Street: street, Satellite: satellite },
+  null,
+  { position: 'topright' }
+).addTo(map);
+
+/* ---------------- Slider control ---------------- */
+
 const ProbabilityControl = L.Control.extend({
   onAdd() {
     const div = L.DomUtil.create('div', 'leaflet-control probability-control');
@@ -199,6 +240,8 @@ function getColor(p) {
   return '#2e7d32';
 }
 
+/* ---------------- Layers ---------------- */
+
 const clusterGroup = L.markerClusterGroup({
   iconCreateFunction(cluster) {
     const markers = cluster.getAllChildMarkers();
@@ -217,6 +260,8 @@ let heatEnabled = false;
 let allMarkers = [];
 let heatLayer;
 let filterTimeout = null;
+
+/* ---------------- Data ---------------- */
 
 fetch('vietnam_json.json')
   .then(r => r.json())
@@ -268,6 +313,8 @@ fetch('vietnam_json.json')
     applyFilter(0.5);
   });
 
+/* ---------------- Filtering ---------------- */
+
 function applyFilter(minP) {
   clusterGroup.clearLayers();
   plainLayer.clearLayers();
@@ -290,11 +337,17 @@ function applyFilter(minP) {
 
 document.getElementById('probabilitySlider').addEventListener('input', e => {
   const minP = e.target.value / 100;
+  const slider = e.target;
+  slider.style.backgroundSize = `${e.target.value}% 100%`;
+
   document.getElementById('probabilityMeta').textContent =
     `${e.target.value}% · filtering…`;
+
   clearTimeout(filterTimeout);
   filterTimeout = setTimeout(() => applyFilter(minP), 150);
 });
+
+/* ---------------- Toggles ---------------- */
 
 document.getElementById('toggleCluster').onclick = () => {
   clusteringEnabled = !clusteringEnabled;
