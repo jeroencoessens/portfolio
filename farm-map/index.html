@@ -37,6 +37,7 @@
       padding: 6px 12px;
       font-size: 12px;
       cursor: pointer;
+      width: 100%;
     }
 
     button.secondary {
@@ -44,11 +45,12 @@
       color: var(--dark);
     }
 
-    .export-controls,
-    .cluster-toggle,
-    .heat-toggle,
-    .legend {
+    /* Collapsible menu */
+    .menu-toggle,
+    .menu-panel {
       position: absolute;
+      left: 12px;
+      bottom: 12px;
       background: white;
       padding: 10px 12px;
       z-index: 1000;
@@ -57,14 +59,22 @@
       font-size: 12px;
     }
 
-    .export-controls { bottom: 12px; right: 12px; }
-    .cluster-toggle { bottom: 12px; left: 12px; }
-    .heat-toggle { bottom: 60px; left: 12px; }
+    .menu-panel {
+      bottom: 56px;
+      display: none;
+      min-width: 180px;
+    }
 
-    .legend {
-      bottom: 64px;
-      right: 12px;
-      min-width: 160px;
+    .menu-panel.active {
+      display: block;
+    }
+
+    .menu-panel > * {
+      margin-bottom: 8px;
+    }
+
+    .menu-panel > *:last-child {
+      margin-bottom: 0;
     }
 
     .legend-title {
@@ -154,24 +164,22 @@
 
 <div id="map"></div>
 
-<div class="export-controls">
-  <button onclick="exportVotes()">Export Votes</button>
+<div class="menu-toggle">
+  <button id="toggleMenu" class="secondary">Map menu</button>
 </div>
 
-<div class="cluster-toggle">
+<div class="menu-panel" id="menuPanel">
   <button id="toggleCluster" class="secondary">Disable clustering</button>
-</div>
-
-<div class="heat-toggle">
   <button id="toggleHeat" class="secondary">Show suspicious areas</button>
-</div>
+  <button onclick="exportVotes()">Export votes</button>
 
-<div class="legend">
-  <div class="legend-title">Probability</div>
-  <div class="legend-row"><div class="legend-swatch" style="background:#2e7d32"></div> &lt; 50%</div>
-  <div class="legend-row"><div class="legend-swatch" style="background:#f9a825"></div> 50–69%</div>
-  <div class="legend-row"><div class="legend-swatch" style="background:#ef6c00"></div> 70–89%</div>
-  <div class="legend-row"><div class="legend-swatch" style="background:#c62828"></div> ≥ 90%</div>
+  <div class="legend">
+    <div class="legend-title">Probability</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#2e7d32"></div> &lt; 50%</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#f9a825"></div> 50–69%</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#ef6c00"></div> 70–89%</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#c62828"></div> ≥ 90%</div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -179,16 +187,13 @@
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
 <script>
-/* ---------------- Map setup ---------------- */
-
 const map = L.map('map').setView([16, 106], 6);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-/* ---------------- Slider control ---------------- */
-
+/* Slider */
 const ProbabilityControl = L.Control.extend({
   onAdd() {
     const div = L.DomUtil.create('div', 'leaflet-control probability-control');
@@ -197,15 +202,12 @@ const ProbabilityControl = L.Control.extend({
       <div class="row">
         <input id="probabilitySlider" type="range" min="0" max="100" value="50">
         <div id="probabilityMeta" class="meta">50% · 0 shown</div>
-      </div>
-    `;
+      </div>`;
     L.DomEvent.disableClickPropagation(div);
     return div;
   }
 });
 map.addControl(new ProbabilityControl({ position: 'topleft' }));
-
-/* ---------------- Utilities ---------------- */
 
 function getColor(p) {
   if (p >= 0.9) return '#c62828';
@@ -214,13 +216,10 @@ function getColor(p) {
   return '#2e7d32';
 }
 
-/* ---------------- Layers ---------------- */
-
 const clusterGroup = L.markerClusterGroup({
   iconCreateFunction(cluster) {
     const markers = cluster.getAllChildMarkers();
-    const probs = markers.map(m => m.farmProbability);
-    const maxP = Math.max(...probs);
+    const maxP = Math.max(...markers.map(m => m.farmProbability));
     return L.divIcon({
       html: `<div class="cluster-icon" style="background:${getColor(maxP)}">${markers.length}</div>`,
       className: '',
@@ -233,9 +232,7 @@ const plainLayer = L.layerGroup();
 let clusteringEnabled = true;
 let heatEnabled = false;
 let allMarkers = [];
-let heatLayer = null;
-
-/* ---------------- Data ---------------- */
+let heatLayer;
 
 fetch('vietnam_json.json')
   .then(r => r.json())
@@ -261,19 +258,14 @@ fetch('vietnam_json.json')
       marker.bindPopup(`
         <strong>Farm ID:</strong> ${farm.ID}<br/>
         <strong>Probability:</strong> ${(farm.farm_probability*100).toFixed(1)}%<br/><br/>
-        <button onclick="vote(${farm.ID}, true)">YES</button>
-        <button onclick="vote(${farm.ID}, false)" class="secondary">NO</button>
+        <button onclick="vote(${farm.ID}, true, ${farm.Latitude}, ${farm.Longitude})">YES</button>
+        <button onclick="vote(${farm.ID}, false, ${farm.Latitude}, ${farm.Longitude})" class="secondary">NO</button>
       `);
 
       allMarkers.push(marker);
 
-      /* Heatmap only includes >= 50% */
       if (farm.farm_probability >= 0.5) {
-        heatPoints.push([
-          farm.Latitude,
-          farm.Longitude,
-          farm.farm_probability
-        ]);
+        heatPoints.push([farm.Latitude, farm.Longitude, farm.farm_probability]);
       }
     });
 
@@ -291,14 +283,10 @@ fetch('vietnam_json.json')
     applyFilter(0.5);
   });
 
-/* ---------------- Filtering ---------------- */
-
-let filterTimeout = null;
-
 function applyFilter(minP) {
-  let count = 0;
   clusterGroup.clearLayers();
   plainLayer.clearLayers();
+  let count = 0;
 
   for (const m of allMarkers) {
     if (m.farmProbability >= minP) {
@@ -323,8 +311,6 @@ document.getElementById('probabilitySlider').addEventListener('input', e => {
   filterTimeout = setTimeout(() => applyFilter(minP), 150);
 });
 
-/* ---------------- Toggles ---------------- */
-
 document.getElementById('toggleCluster').onclick = () => {
   clusteringEnabled = !clusteringEnabled;
   map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
@@ -340,7 +326,15 @@ document.getElementById('toggleHeat').onclick = () => {
     heatEnabled ? 'Hide suspicious areas' : 'Show suspicious areas';
 };
 
-/* ---------------- Export ---------------- */
+document.getElementById('toggleMenu').onclick = () =>
+  document.getElementById('menuPanel').classList.toggle('active');
+
+function vote(id, yes, lat, lng) {
+  const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
+  votes[id] = { value: yes ? 'YES' : 'NO', timestamp: new Date().toISOString() };
+  localStorage.setItem('farmVotes', JSON.stringify(votes));
+  map.setView([lat, lng], 16, { animate: true });
+}
 
 function exportVotes() {
   const data = localStorage.getItem('farmVotes') || '{}';
