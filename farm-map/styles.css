@@ -161,7 +161,11 @@ button.secondary {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
   z-index: 2000;
+
+  /* Critical for mobile */
+  pointer-events: auto;
 }
 
 .intro-modal {
@@ -169,8 +173,15 @@ button.secondary {
   padding: 20px 22px;
   border-radius: 16px;
   max-width: 320px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+
   text-align: center;
   box-shadow: 0 8px 28px rgba(0,0,0,0.25);
+
+  /* Prevent touch bleed-through */
+  touch-action: manipulation;
 }
 
 .intro-modal h2 {
@@ -189,4 +200,3 @@ button.secondary {
 .intro-modal button {
   margin-top: 8px;
 }
-
