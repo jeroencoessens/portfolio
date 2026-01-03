@@ -9,7 +9,12 @@ const satellite = L.tileLayer(
   { attribution: 'Tiles © Esri' }
 );
 
-const map = L.map('map', { layers: [street] }).setView([16, 106], 6);
+const map = L.map('map', {
+  layers: [street],
+  zoomAnimation: true,
+  fadeAnimation: true,
+  markerZoomAnimation: true
+}).setView([16, 106], 6);
 
 L.control.layers(
   { Street: street, Satellite: satellite },
@@ -86,7 +91,7 @@ fetch('vietnam_json.json')
 
       marker.bindPopup(`
         <strong>Farm ID:</strong> ${farm.ID}<br/>
-        <strong>Probability:</strong> ${(farm.farm_probability*100).toFixed(1)}%<br/><br/>
+        <strong>Probability:</strong> ${(farm.farm_probability * 100).toFixed(1)}%<br/><br/>
         <button onclick="zoomToFarm(${farm.Latitude}, ${farm.Longitude})" class="secondary">Zoom to location</button>
         <button onclick="vote(${farm.ID}, true)">YES</button>
         <button onclick="vote(${farm.ID}, false)" class="secondary">NO</button>
@@ -154,16 +159,28 @@ document.getElementById('toggleCluster').onclick = () => {
 
 document.getElementById('toggleHeat').onclick = () => {
   heatEnabled = !heatEnabled;
-  heatEnabled ? map.addLayer(heatLayer) : map.removeLayer(heatLayer);
-  toggleHeat.textContent = heatEnabled ? 'Hide suspicious areas' : 'Show suspicious areas';
+
+  if (heatEnabled) {
+    map.addLayer(heatLayer);
+
+    // Critical mobile fix: disable zoom animation while heatmap is visible
+    map.options.zoomAnimation = false;
+  } else {
+    map.removeLayer(heatLayer);
+    map.options.zoomAnimation = true;
+  }
+
+  toggleHeat.textContent = heatEnabled
+    ? 'Hide suspicious areas'
+    : 'Show suspicious areas';
 };
 
-map.on('zoomend moveend', () => {
+/* Force canvas realignment during pinch zoom (mobile) */
+map.on('zoomanim move', () => {
   if (heatEnabled && heatLayer) {
-    heatLayer.redraw();
+    heatLayer._reset();
   }
 });
-
 
 document.getElementById('toggleMenu').onclick = () =>
   document.getElementById('menuPanel').classList.toggle('active');
@@ -204,4 +221,3 @@ introReady.onclick = () => {
   localStorage.setItem('farmMapIntroSeen', 'true');
   introOverlay.style.display = 'none';
 };
-
