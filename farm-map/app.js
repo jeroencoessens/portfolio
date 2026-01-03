@@ -158,6 +158,13 @@ document.getElementById('toggleHeat').onclick = () => {
   toggleHeat.textContent = heatEnabled ? 'Hide suspicious areas' : 'Show suspicious areas';
 };
 
+map.on('zoomend moveend', () => {
+  if (heatEnabled && heatLayer) {
+    heatLayer.redraw();
+  }
+});
+
+
 document.getElementById('toggleMenu').onclick = () =>
   document.getElementById('menuPanel').classList.toggle('active');
 
@@ -183,3 +190,18 @@ function exportVotes() {
   a.download = 'farm_votes.json';
   a.click();
 }
+
+/* ---------------- Intro tutorial ---------------- */
+
+const introOverlay = document.getElementById('introOverlay');
+const introReady = document.getElementById('introReady');
+
+if (!localStorage.getItem('farmMapIntroSeen')) {
+  introOverlay.style.display = 'flex';
+}
+
+introReady.onclick = () => {
+  localStorage.setItem('farmMapIntroSeen', 'true');
+  introOverlay.style.display = 'none';
+};
+
