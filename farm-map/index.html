@@ -17,14 +17,15 @@
 </head>
 <body>
 
+  <!-- Intro tutorial -->
   <div class="intro-overlay" id="introOverlay">
     <div class="intro-modal">
       <h2>Help verify factory farms</h2>
       <p>
-        This map highlights potential animal agriculture farms, we need your help to verify them.
+        This map highlights potential animal agriculture farms. Your input helps confirm them.
       </p>
       <p>
-        Tap a farm, review it using satellite imagery, and confirm if it's an animal farm by voting <strong>YES</strong> or <strong>NO</strong>.
+        Tap a farm, inspect it using satellite imagery, and vote <strong>YES</strong> or <strong>NO</strong>.
       </p>
       <p>
         When finished, use <strong>Export votes</strong> to share your feedback.
@@ -35,21 +36,38 @@
 
   <div id="map"></div>
 
+  <!-- Menu toggle -->
   <div class="menu-toggle">
     <button id="toggleMenu" class="secondary">Map menu</button>
   </div>
 
+  <!-- Menu panel -->
   <div class="menu-panel" id="menuPanel">
     <button id="toggleCluster" class="secondary">Disable clustering</button>
     <button id="toggleHeat" class="secondary">Show suspicious areas</button>
+
+    <!-- NEW -->
+    <button id="toggleZones" class="secondary">
+      High-density zones
+    </button>
+
     <button id="exportVotes">Export votes</button>
 
+    <!-- Legend -->
     <div class="legend">
       <div class="legend-title">Probability</div>
       <div class="legend-row"><div class="legend-swatch green"></div>&lt; 50%</div>
       <div class="legend-row"><div class="legend-swatch yellow"></div>50–69%</div>
       <div class="legend-row"><div class="legend-swatch orange"></div>70–89%</div>
       <div class="legend-row"><div class="legend-swatch red"></div>≥ 90%</div>
+    </div>
+  </div>
+
+  <!-- NEW: Zones panel -->
+  <div class="zones-panel" id="zonesPanel">
+    <div class="zones-title">High-density zones</div>
+    <div id="zonesList" class="zones-list">
+      <!-- Filled dynamically by app.js -->
     </div>
   </div>
 
