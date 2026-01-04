@@ -39,6 +39,8 @@ const ProbabilityControl = L.Control.extend({
 });
 map.addControl(new ProbabilityControl({ position: 'topleft' }));
 
+/* ---------------- Utilities ---------------- */
+
 function getColor(p) {
   if (p >= 0.9) return '#c62828';
   if (p >= 0.7) return '#ef6c00';
@@ -50,9 +52,24 @@ function getColor(p) {
 
 const clusterGroup = L.markerClusterGroup({
   iconCreateFunction(cluster) {
-    const maxP = Math.max(...cluster.getAllChildMarkers().map(m => m.farmProbability));
+    const markers = cluster.getAllChildMarkers();
+    const probs = markers.map(m => m.farmProbability);
+    const maxP = Math.max(...probs);
+
+    const highCount = probs.filter(p => p >= 0.9).length;
+    const minP = Math.min(...probs);
+
+    cluster.bindTooltip(
+      `
+      <strong>${markers.length} farms</strong><br/>
+      Probability: ${(minP * 100).toFixed(0)}–${(maxP * 100).toFixed(0)}%<br/>
+      ≥90%: ${highCount}
+      `,
+      { sticky: true, opacity: 0.95 }
+    );
+
     return L.divIcon({
-      html: `<div class="cluster-icon" style="background:${getColor(maxP)}">${cluster.getChildCount()}</div>`,
+      html: `<div class="cluster-icon" style="background:${getColor(maxP)}">${markers.length}</div>`,
       className: '',
       iconSize: [40, 40]
     });
@@ -60,11 +77,16 @@ const clusterGroup = L.markerClusterGroup({
 });
 
 const plainLayer = L.layerGroup();
+const zoneLayer = L.layerGroup().addTo(map);
+
 let clusteringEnabled = true;
 let heatEnabled = false;
 let allMarkers = [];
 let heatLayer;
 let filterTimeout = null;
+
+/* Exposed for UI listing */
+window.farmZones = [];
 
 /* ---------------- Data ---------------- */
 
@@ -116,7 +138,54 @@ fetch('vietnam_json.json')
     });
 
     applyFilter(0.5);
+    computeHighDensityZones();
   });
+
+/* ---------------- High-density zones ---------------- */
+
+function computeHighDensityZones() {
+  zoneLayer.clearLayers();
+  window.farmZones = [];
+
+  clusterGroup.eachLayer(cluster => {
+    if (!cluster.getAllChildMarkers) return;
+
+    const markers = cluster.getAllChildMarkers();
+    if (markers.length < 5) return;
+
+    const high = markers.filter(m => m.farmProbability >= 0.9);
+    if (high.length < 3) return;
+
+    const center = cluster.getLatLng();
+    const maxP = Math.max(...markers.map(m => m.farmProbability));
+
+    const zone = {
+      latlng: center,
+      total: markers.length,
+      high: high.length,
+      maxProbability: maxP
+    };
+
+    window.farmZones.push(zone);
+
+    L.circle(center, {
+      radius: 3000,
+      color: getColor(maxP),
+      fillColor: getColor(maxP),
+      fillOpacity: 0.15,
+      weight: 1
+    })
+      .bindTooltip(
+        `
+        <strong>High-risk zone</strong><br/>
+        Farms: ${zone.total}<br/>
+        ≥90%: ${zone.high}
+        `,
+        { sticky: true }
+      )
+      .addTo(zoneLayer);
+  });
+}
 
 /* ---------------- Filtering ---------------- */
 
@@ -138,6 +207,8 @@ function applyFilter(minP) {
 
   map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
   map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
+
+  computeHighDensityZones();
 }
 
 document.addEventListener('input', e => {
@@ -162,20 +233,17 @@ document.getElementById('toggleHeat').onclick = () => {
 
   if (heatEnabled) {
     map.addLayer(heatLayer);
-
-    // Critical mobile fix: disable zoom animation while heatmap is visible
     map.options.zoomAnimation = false;
   } else {
     map.removeLayer(heatLayer);
     map.options.zoomAnimation = true;
   }
 
-  toggleHeat.textContent = heatEnabled
-    ? 'Hide suspicious areas'
-    : 'Show suspicious areas';
+  toggleHeat.textContent =
+    heatEnabled ? 'Hide suspicious areas' : 'Show suspicious areas';
 };
 
-/* Force canvas realignment during pinch zoom (mobile) */
+/* Mobile heatmap fix */
 map.on('zoomanim move', () => {
   if (heatEnabled && heatLayer) {
     heatLayer._reset();
@@ -186,6 +254,8 @@ document.getElementById('toggleMenu').onclick = () =>
   document.getElementById('menuPanel').classList.toggle('active');
 
 document.getElementById('exportVotes').onclick = exportVotes;
+
+/* ---------------- Actions ---------------- */
 
 function zoomToFarm(lat, lng) {
   map.setView([lat, lng], 16, { animate: true });
