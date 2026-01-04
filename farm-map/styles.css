@@ -200,3 +200,60 @@ button.secondary {
 .intro-modal button {
   margin-top: 8px;
 }
+
+/* ===============================
+   High-density zones panel
+   =============================== */
+
+.zones-panel {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: white;
+  padding: 12px;
+  z-index: 1000;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  width: 220px;
+  max-height: 45vh;
+  overflow-y: auto;
+  display: none;
+}
+
+.zones-panel.active {
+  display: block;
+}
+
+.zones-title {
+  font-weight: 600;
+  color: var(--green);
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.zones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zone-item {
+  background: var(--soft-green);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.zone-item:hover {
+  background: #dff0e3;
+}
+
+.zone-item strong {
+  display: block;
+  color: var(--dark);
+  margin-bottom: 2px;
+}
+
