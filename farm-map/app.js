@@ -55,9 +55,8 @@ const clusterGroup = L.markerClusterGroup({
     const markers = cluster.getAllChildMarkers();
     const probs = markers.map(m => m.farmProbability);
     const maxP = Math.max(...probs);
-
-    const highCount = probs.filter(p => p >= 0.9).length;
     const minP = Math.min(...probs);
+    const highCount = probs.filter(p => p >= 0.9).length;
 
     cluster.bindTooltip(
       `
@@ -77,10 +76,12 @@ const clusterGroup = L.markerClusterGroup({
 });
 
 const plainLayer = L.layerGroup();
-const zoneLayer = L.layerGroup().addTo(map);
+const zoneLayer = L.layerGroup();
 
 let clusteringEnabled = true;
 let heatEnabled = false;
+let zonesEnabled = false;
+
 let allMarkers = [];
 let heatLayer;
 let filterTimeout = null;
@@ -138,48 +139,62 @@ fetch('vietnam_json.json')
     });
 
     applyFilter(0.5);
-    computeHighDensityZones();
   });
 
-/* ---------------- High-density zones ---------------- */
+/* ---------------- High-density zones (RELATIVE) ---------------- */
 
 function computeHighDensityZones() {
+  if (!zonesEnabled) return;
+
   zoneLayer.clearLayers();
   window.farmZones = [];
+
+  const candidates = [];
 
   clusterGroup.eachLayer(cluster => {
     if (!cluster.getAllChildMarkers) return;
 
     const markers = cluster.getAllChildMarkers();
-    if (markers.length < 5) return;
+    if (markers.length < 6) return;
 
     const high = markers.filter(m => m.farmProbability >= 0.9);
-    if (high.length < 3) return;
+    if (high.length < 2) return;
 
-    const center = cluster.getLatLng();
+    const score = high.length / markers.length;
     const maxP = Math.max(...markers.map(m => m.farmProbability));
 
-    const zone = {
-      latlng: center,
+    candidates.push({
+      center: cluster.getLatLng(),
       total: markers.length,
       high: high.length,
-      maxProbability: maxP
-    };
+      score,
+      maxP
+    });
+  });
 
+  if (!candidates.length) return;
+
+  candidates.sort((a, b) => b.score - a.score);
+
+  const cutoff = Math.max(1, Math.floor(candidates.length * 0.2));
+  const selected = candidates.slice(0, cutoff);
+
+  selected.forEach(zone => {
     window.farmZones.push(zone);
 
-    L.circle(center, {
-      radius: 3000,
-      color: getColor(maxP),
-      fillColor: getColor(maxP),
-      fillOpacity: 0.15,
+    L.circle(zone.center, {
+      radius: 2500 + zone.total * 150,
+      color: getColor(zone.maxP),
+      fillColor: getColor(zone.maxP),
+      fillOpacity: 0.18,
       weight: 1
     })
       .bindTooltip(
         `
-        <strong>High-risk zone</strong><br/>
+        <strong>High-density zone</strong><br/>
         Farms: ${zone.total}<br/>
-        ≥90%: ${zone.high}
+        ≥90%: ${zone.high}<br/>
+        Density score: ${(zone.score * 100).toFixed(0)}%
         `,
         { sticky: true }
       )
@@ -192,6 +207,7 @@ function computeHighDensityZones() {
 function applyFilter(minP) {
   clusterGroup.clearLayers();
   plainLayer.clearLayers();
+
   let count = 0;
 
   allMarkers.forEach(m => {
@@ -215,6 +231,7 @@ document.addEventListener('input', e => {
   if (e.target.id !== 'probabilitySlider') return;
   const value = e.target.value;
   e.target.style.backgroundSize = `${value}% 100%`;
+
   clearTimeout(filterTimeout);
   filterTimeout = setTimeout(() => applyFilter(value / 100), 150);
 });
@@ -225,7 +242,8 @@ document.getElementById('toggleCluster').onclick = () => {
   clusteringEnabled = !clusteringEnabled;
   map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
   map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
-  toggleCluster.textContent = clusteringEnabled ? 'Disable clustering' : 'Enable clustering';
+  toggleCluster.textContent =
+    clusteringEnabled ? 'Disable clustering' : 'Enable clustering';
 };
 
 document.getElementById('toggleHeat').onclick = () => {
@@ -242,6 +260,26 @@ document.getElementById('toggleHeat').onclick = () => {
   toggleHeat.textContent =
     heatEnabled ? 'Hide suspicious areas' : 'Show suspicious areas';
 };
+
+document.getElementById('toggleZones').onclick = () => {
+  zonesEnabled = !zonesEnabled;
+
+  if (zonesEnabled) {
+    map.addLayer(zoneLayer);
+    computeHighDensityZones();
+  } else {
+    zoneLayer.clearLayers();
+    map.removeLayer(zoneLayer);
+  }
+
+  toggleZones.textContent =
+    zonesEnabled ? 'Hide high-density zones' : 'High-density zones';
+};
+
+/* Recompute zones on map movement */
+map.on('moveend zoomend', () => {
+  if (zonesEnabled) computeHighDensityZones();
+});
 
 /* Mobile heatmap fix */
 map.on('zoomanim move', () => {
