@@ -76,7 +76,9 @@ const clusterGroup = L.markerClusterGroup({
 });
 
 const plainLayer = L.layerGroup();
-const zoneLayer = L.layerGroup();
+
+/* Zone layer is ALWAYS attached to the map */
+const zoneLayer = L.layerGroup().addTo(map);
 
 let clusteringEnabled = true;
 let heatEnabled = false;
@@ -88,6 +90,11 @@ let filterTimeout = null;
 
 /* Exposed for UI listing */
 window.farmZones = [];
+
+/* Recompute zones after clustering finishes */
+clusterGroup.on('clusteringend', () => {
+  if (zonesEnabled) computeHighDensityZones();
+});
 
 /* ---------------- Data ---------------- */
 
@@ -141,10 +148,13 @@ fetch('vietnam_json.json')
     applyFilter(0.5);
   });
 
-/* ---------------- High-density zones (FIXED) ---------------- */
+/* ---------------- High-density zones ---------------- */
 
 function computeHighDensityZones() {
-  if (!zonesEnabled) return;
+  if (!zonesEnabled) {
+    zoneLayer.clearLayers();
+    return;
+  }
 
   zoneLayer.clearLayers();
   window.farmZones = [];
@@ -265,11 +275,9 @@ document.getElementById('toggleZones').onclick = () => {
   zonesEnabled = !zonesEnabled;
 
   if (zonesEnabled) {
-    map.addLayer(zoneLayer);
     computeHighDensityZones();
   } else {
     zoneLayer.clearLayers();
-    map.removeLayer(zoneLayer);
   }
 
   toggleZones.textContent =
