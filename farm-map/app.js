@@ -141,7 +141,7 @@ fetch('vietnam_json.json')
     applyFilter(0.5);
   });
 
-/* ---------------- High-density zones (RELATIVE) ---------------- */
+/* ---------------- High-density zones (FIXED) ---------------- */
 
 function computeHighDensityZones() {
   if (!zonesEnabled) return;
@@ -149,52 +149,52 @@ function computeHighDensityZones() {
   zoneLayer.clearLayers();
   window.farmZones = [];
 
-  const candidates = [];
+  const clusters = [];
 
   clusterGroup.eachLayer(cluster => {
     if (!cluster.getAllChildMarkers) return;
 
     const markers = cluster.getAllChildMarkers();
-    if (markers.length < 6) return;
+    if (markers.length < 3) return;
 
-    const high = markers.filter(m => m.farmProbability >= 0.9);
-    if (high.length < 2) return;
+    const probs = markers.map(m => m.farmProbability);
+    const avg = probs.reduce((a, b) => a + b, 0) / probs.length;
+    const high80 = probs.filter(p => p >= 0.8).length;
 
-    const score = high.length / markers.length;
-    const maxP = Math.max(...markers.map(m => m.farmProbability));
+    const score = avg * (high80 / probs.length);
 
-    candidates.push({
+    clusters.push({
       center: cluster.getLatLng(),
       total: markers.length,
-      high: high.length,
-      score,
-      maxP
+      high80,
+      avg,
+      score
     });
   });
 
-  if (!candidates.length) return;
+  if (!clusters.length) return;
 
-  candidates.sort((a, b) => b.score - a.score);
+  clusters.sort((a, b) => b.score - a.score);
 
-  const cutoff = Math.max(1, Math.floor(candidates.length * 0.2));
-  const selected = candidates.slice(0, cutoff);
+  const cutoff = Math.max(1, Math.ceil(clusters.length * 0.3));
+  const selected = clusters.slice(0, cutoff);
 
   selected.forEach(zone => {
     window.farmZones.push(zone);
 
     L.circle(zone.center, {
-      radius: 2500 + zone.total * 150,
-      color: getColor(zone.maxP),
-      fillColor: getColor(zone.maxP),
-      fillOpacity: 0.18,
+      radius: 2000 + zone.total * 120,
+      color: getColor(zone.avg),
+      fillColor: getColor(zone.avg),
+      fillOpacity: 0.2,
       weight: 1
     })
       .bindTooltip(
         `
         <strong>High-density zone</strong><br/>
         Farms: ${zone.total}<br/>
-        ≥90%: ${zone.high}<br/>
-        Density score: ${(zone.score * 100).toFixed(0)}%
+        ≥80%: ${zone.high80}<br/>
+        Avg: ${(zone.avg * 100).toFixed(0)}%
         `,
         { sticky: true }
       )
