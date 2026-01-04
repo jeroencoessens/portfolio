@@ -10,7 +10,7 @@ const satellite = L.tileLayer(
 );
 
 const map = L.map('map', {
-  layers: [street],
+  layers: [satellite],
   zoomAnimation: true,
   fadeAnimation: true,
   markerZoomAnimation: true
@@ -99,18 +99,18 @@ fetch('vietnam_json.json')
 
       allMarkers.push(marker);
 
-      if (farm.farm_probability >= 0.5) {
+      if (farm.farm_probability >= 0.75) {
         heatPoints.push([farm.Latitude, farm.Longitude, farm.farm_probability]);
       }
     });
 
     heatLayer = L.heatLayer(heatPoints, {
-      radius: 28,
+      radius: 20,
       blur: 20,
       maxZoom: 8,
       gradient: {
-        0.5: '#f9a825',
-        0.7: '#ef6c00',
+        0.75: '#f9a825',
+        0.9: '#ef6c00',
         1.0: '#c62828'
       }
     });
