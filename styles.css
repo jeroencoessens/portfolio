@@ -1,5 +1,6 @@
 :root {
       --green: #2e7d32;
+      --youtube: #b7220e;
       --soft-green: #e8f5e9;
       --dark: #263238;
       --muted: #607d8b;
@@ -83,6 +84,18 @@
       padding: 10px 14px;
       border-radius: 6px;
       background: var(--green);
+      color: white;
+      font-weight: 500;
+    }
+
+.card a2 {
+      display: inline-block;
+      margin-top: 16px;
+      text-align: center;
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: var(--youtube);
       color: white;
       font-weight: 500;
     }
