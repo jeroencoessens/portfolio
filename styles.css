@@ -46,27 +46,10 @@ header p {
   padding: 64px 20px;
 }
 
-.header-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;       /* vertical alignment */
-  justify-content: center;   /* centers content horizontally */
-  gap: 24px;
-  flex-wrap: wrap;           /* ensures wrapping on smaller screens */
-}
-
 .site-logo {
   width: 72px;
   height: 72px;
   flex-shrink: 0;
-}
-
-.header-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;  /* align text to left of text area by default */
-  text-align: left;
 }
 
 .header-text h1 {
@@ -82,17 +65,44 @@ header p {
   color: var(--muted);
 }
 
-/* On mobile, center text */
+/* Header layout with logo */
+.header-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;  /* centers horizontally on desktop */
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 0 20px;          /* ensure padding on very small screens */
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;  /* desktop: text left-aligned */
+  text-align: left;
+  flex: 1;                  /* allow text to take available space */
+  min-width: 0;             /* prevents overflow on narrow screens */
+}
+
+/* Mobile: stack and center */
 @media (max-width: 600px) {
   .header-inner {
     flex-direction: column;
+    align-items: center;     /* center logo and text */
     text-align: center;
   }
   .header-text {
     align-items: center;
     text-align: center;
   }
+  .site-logo {
+    width: 56px;
+    height: 56px;
+  }
 }
+
 
 /* Main content */
 main {
@@ -101,12 +111,21 @@ main {
   padding: 48px 20px;
 }
 
-/* Projects grid */
 .projects {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* better for mobile */
+  justify-content: center;  /* centers grid on small screens */
 }
+
+/* Optional: for very small screens (<350px), stack cards fully */
+@media (max-width: 350px) {
+  .projects {
+    grid-template-columns: 1fr;
+    padding: 0 12px;
+  }
+}
+
 
 /* Cards */
 .card {
@@ -223,6 +242,18 @@ main {
 
 .youtube-card .btn-black:hover {
   background: #333333;
+}
+
+.youtube-card .btn + .btn {
+  margin-left: 12px; /* horizontal spacing between buttons on desktop */
+}
+
+/* On mobile, stack buttons vertically */
+@media (max-width: 600px) {
+  .youtube-card .btn + .btn {
+    margin-left: 0;
+    margin-top: 8px;
+  }
 }
 
 /* Footer */
