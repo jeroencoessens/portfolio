@@ -70,12 +70,6 @@
       color: var(--green);
     }
 
-    .card h2.youtube {
-      margin-top: 0;
-      font-size: 20px;
-      color: var(--youtube);
-    }
-
     .card p {
       font-size: 14px;
       color: var(--muted);
@@ -94,16 +88,12 @@
       font-weight: 500;
     }
 
-    .card a.youtube {
-      display: inline-block;
-      margin-top: 16px;
-      text-align: center;
-      text-decoration: none;
-      padding: 10px 14px;
-      border-radius: 6px;
+    .youtube-card h2 {
+      color: var(--youtube);
+    }
+
+    .youtube-card a {
       background: var(--youtube);
-      color: white;
-      font-weight: 500;
     }
 
     footer {
