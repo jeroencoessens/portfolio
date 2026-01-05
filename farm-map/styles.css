@@ -66,6 +66,13 @@ button.secondary {
   margin-top: 8px;
 }
 
+.menu-meta {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 4px;
+}
+
 /* Legend */
 .legend-title {
   font-weight: 600;
