@@ -40,6 +40,46 @@ header p {
   color: var(--muted);
 }
 
+/* Header layout with logo */
+.site-header {
+  background: var(--soft-green);
+  padding: 64px 20px;
+}
+
+.header-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.site-logo {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+
+.header-text h1 {
+  font-size: 32px;
+  margin: 0 0 12px;
+  color: var(--green);
+}
+
+.header-text p {
+  max-width: 620px;
+  margin: 0;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+@media (max-width: 600px) {
+  .header-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
 /* Main content */
 main {
   max-width: 960px;
