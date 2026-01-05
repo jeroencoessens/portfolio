@@ -1,4 +1,4 @@
-console.log('APP VERSION: 0-1: zone ranking');
+console.log('APP VERSION: 0-2: zone ranking');
 /* ---------------- Base layers ---------------- */
 
 const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -147,6 +147,19 @@ fetch('vietnam_json.json')
   });
 
 /* ---------------- High-density zones (ranked + menu-linked) ---------------- */
+function distanceKm(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const lat1 = a.lat * Math.PI / 180;
+  const lat2 = b.lat * Math.PI / 180;
+
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+
+  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
 
 function computeHighDensityZones() {
   if (!zonesEnabled) {
@@ -158,49 +171,70 @@ function computeHighDensityZones() {
   zoneLayer.clearLayers();
   window.farmZones = [];
 
-  const candidates = [];
-
-  clusterGroup.eachLayer(cluster => {
-    if (!cluster.getAllChildMarkers) return;
-
-    const markers = cluster.getAllChildMarkers();
-    if (markers.length < 4) return;
-
-    const high90 = markers.filter(m => m.farmProbability >= 0.9);
-    if (high90.length < 1) return;
-
-    const score = high90.length * Math.log(markers.length + 1);
-
-    candidates.push({
-      center: cluster.getLatLng(),
-      total: markers.length,
-      high90: high90.length,
-      score
-    });
-  });
-
-  if (!candidates.length) {
+  // Only very high probability points
+  const strong = allMarkers.filter(m => m.farmProbability >= 0.9);
+  if (strong.length < 2) {
     renderZonesList();
     return;
   }
 
-  candidates.sort((a, b) => b.score - a.score);
+  const used = new Set();
+  const zones = [];
 
-  candidates.slice(0, 8).forEach((zone, index) => {
+  const RADIUS_KM = 5;     // clustering radius
+  const MIN_POINTS = 2;   // minimum farms to form a zone
+
+  strong.forEach((m, i) => {
+    if (used.has(i)) return;
+
+    const center = m.getLatLng();
+    const members = [m];
+    used.add(i);
+
+    strong.forEach((n, j) => {
+      if (i === j || used.has(j)) return;
+
+      if (distanceKm(center, n.getLatLng()) <= RADIUS_KM) {
+        members.push(n);
+        used.add(j);
+      }
+    });
+
+    if (members.length >= MIN_POINTS) {
+      const lat =
+        members.reduce((s, m) => s + m.getLatLng().lat, 0) / members.length;
+      const lng =
+        members.reduce((s, m) => s + m.getLatLng().lng, 0) / members.length;
+
+      zones.push({
+        center: L.latLng(lat, lng),
+        total: members.length,
+        score: members.length
+      });
+    }
+  });
+
+  if (!zones.length) {
+    renderZonesList();
+    return;
+  }
+
+  zones.sort((a, b) => b.score - a.score);
+
+  zones.slice(0, 8).forEach((zone, index) => {
     const circle = L.circle(zone.center, {
-      radius: 2200 + zone.high90 * 500,
+      radius: 1500 + zone.total * 600,
       color: '#c62828',
       fillColor: '#c62828',
-      fillOpacity: 0.18,
-      weight: 1
+      fillOpacity: 0.22,
+      weight: 2
     });
 
     circle.bindPopup(`
       <div class="zone-popup">
         <strong>High-risk zone #${index + 1}</strong><br/>
-        Farms: ${zone.total}<br/>
-        ≥90%: ${zone.high90}<br/>
-        <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 10)">
+        ≥90% farms: ${zone.total}<br/>
+        <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 11)">
           Zoom into zone
         </button>
       </div>
