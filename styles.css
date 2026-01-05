@@ -70,6 +70,12 @@
       color: var(--green);
     }
 
+    .card h3 {
+      margin-top: 0;
+      font-size: 20px;
+      color: var(--youtube);
+    }
+
     .card p {
       font-size: 14px;
       color: var(--muted);
@@ -88,7 +94,7 @@
       font-weight: 500;
     }
 
-.card a2 {
+    .card a3 {
       display: inline-block;
       margin-top: 16px;
       text-align: center;
