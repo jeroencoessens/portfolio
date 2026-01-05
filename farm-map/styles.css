@@ -257,3 +257,13 @@ button.secondary {
   margin-bottom: 2px;
 }
 
+.zone-rank {
+  font-weight: 700;
+  color: #2e7d32;
+}
+
+.zone-popup button {
+  margin-top: 8px;
+  width: 100%;
+}
+
