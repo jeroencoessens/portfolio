@@ -209,6 +209,22 @@ main {
   background: var(--youtube);
 }
 
+/* 1. Adjust projects grid to 2 per row on desktop */
+.projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+}
+
+/* 2. Black button variant */
+.btn-black {
+  background: #000000;
+}
+
+.btn-black:hover {
+  background: #222222;
+}
+
 /* Footer */
 footer {
   text-align: center;
