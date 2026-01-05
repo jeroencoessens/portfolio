@@ -216,13 +216,13 @@ main {
   gap: 24px;
 }
 
-/* 2. Black button variant */
-.btn-black {
-  background: #000000;
+/* 2. Black (dark gray) button variant inside youtube-card */
+.youtube-card .btn-black {
+  background: #111111;
 }
 
-.btn-black:hover {
-  background: #222222;
+.youtube-card .btn-black:hover {
+  background: #333333;
 }
 
 /* Footer */
