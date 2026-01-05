@@ -244,18 +244,6 @@ main {
   background: #333333;
 }
 
-.youtube-card .btn + .btn {
-  margin-left: 12px; /* horizontal spacing between buttons on desktop */
-}
-
-/* On mobile, stack buttons vertically */
-@media (max-width: 600px) {
-  .youtube-card .btn + .btn {
-    margin-left: 0;
-    margin-top: 8px;
-  }
-}
-
 /* Footer */
 footer {
   text-align: center;
