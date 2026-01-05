@@ -1,4 +1,5 @@
-console.log('APP VERSION: 0-2: zone ranking');
+console.log('APP VERSION: 0-3: zone ranking');
+
 /* ---------------- Base layers ---------------- */
 
 const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -22,6 +23,9 @@ L.control.layers(
   null,
   { position: 'topright' }
 ).addTo(map);
+
+let seedVotes = {};
+let showVotedOverlay = false;
 
 /* ---------------- Slider control ---------------- */
 
@@ -57,13 +61,18 @@ const clusterGroup = L.markerClusterGroup({
     const probs = markers.map(m => m.farmProbability);
     const maxP = Math.max(...probs);
     const minP = Math.min(...probs);
-    const highCount = probs.filter(p => p >= 0.9).length;
+
+    const high90 = markers.filter(m => m.farmProbability >= 0.9).length;
+    const unvotedHigh = markers.filter(
+      m => m.farmProbability >= 0.8 && !m.hasVote
+    ).length;
 
     cluster.bindTooltip(
       `
       <strong>${markers.length} farms</strong><br/>
       Probability: ${(minP * 100).toFixed(0)}–${(maxP * 100).toFixed(0)}%<br/>
-      ≥90%: ${highCount}
+      ≥90%: ${high90}<br/>
+      Needs review (≥80%): ${unvotedHigh}
       `,
       { sticky: true, opacity: 0.95 }
     );
@@ -110,6 +119,9 @@ fetch('vietnam_json.json')
         fillOpacity: 0.85
       });
 
+      marker.farmID = String(farm.ID);
+      marker.hasVote = false;
+      marker.voteSource = null;
       marker.farmProbability = farm.farm_probability;
 
       marker.bindTooltip(
@@ -146,7 +158,16 @@ fetch('vietnam_json.json')
     applyFilter(0.5);
   });
 
-/* ---------------- High-density zones (ranked + menu-linked) ---------------- */
+fetch('votes_seed.json')
+  .then(r => r.json())
+  .then(data => {
+    seedVotes = data;
+    updateVoteStyles();
+  })
+  .catch(() => console.warn('No seed votes found'));
+
+/* ---------------- High-density zones ---------------- */
+
 function distanceKm(a, b) {
   const R = 6371;
   const dLat = (b.lat - a.lat) * Math.PI / 180;
@@ -171,7 +192,6 @@ function computeHighDensityZones() {
   zoneLayer.clearLayers();
   window.farmZones = [];
 
-  // Only very high probability points
   const strong = allMarkers.filter(m => m.farmProbability >= 0.9);
   if (strong.length < 2) {
     renderZonesList();
@@ -180,9 +200,8 @@ function computeHighDensityZones() {
 
   const used = new Set();
   const zones = [];
-
-  const RADIUS_KM = 5;     // clustering radius
-  const MIN_POINTS = 2;   // minimum farms to form a zone
+  const RADIUS_KM = 5;
+  const MIN_POINTS = 2;
 
   strong.forEach((m, i) => {
     if (used.has(i)) return;
@@ -193,7 +212,6 @@ function computeHighDensityZones() {
 
     strong.forEach((n, j) => {
       if (i === j || used.has(j)) return;
-
       if (distanceKm(center, n.getLatLng()) <= RADIUS_KM) {
         members.push(n);
         used.add(j);
@@ -201,25 +219,14 @@ function computeHighDensityZones() {
     });
 
     if (members.length >= MIN_POINTS) {
-      const lat =
-        members.reduce((s, m) => s + m.getLatLng().lat, 0) / members.length;
-      const lng =
-        members.reduce((s, m) => s + m.getLatLng().lng, 0) / members.length;
+      const lat = members.reduce((s, m) => s + m.getLatLng().lat, 0) / members.length;
+      const lng = members.reduce((s, m) => s + m.getLatLng().lng, 0) / members.length;
 
-      zones.push({
-        center: L.latLng(lat, lng),
-        total: members.length,
-        score: members.length
-      });
+      zones.push({ center: L.latLng(lat, lng), total: members.length });
     }
   });
 
-  if (!zones.length) {
-    renderZonesList();
-    return;
-  }
-
-  zones.sort((a, b) => b.score - a.score);
+  zones.sort((a, b) => b.total - a.total);
 
   zones.slice(0, 8).forEach((zone, index) => {
     const circle = L.circle(zone.center, {
@@ -231,13 +238,11 @@ function computeHighDensityZones() {
     });
 
     circle.bindPopup(`
-      <div class="zone-popup">
-        <strong>High-risk zone #${index + 1}</strong><br/>
-        ≥90% farms: ${zone.total}<br/>
-        <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 11)">
-          Zoom into zone
-        </button>
-      </div>
+      <strong>High-risk zone #${index + 1}</strong><br/>
+      ≥90% farms: ${zone.total}<br/>
+      <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 11)">
+        Zoom into zone
+      </button>
     `);
 
     circle.addTo(zoneLayer);
@@ -247,7 +252,7 @@ function computeHighDensityZones() {
   renderZonesList();
 }
 
-/* ---------------- Zones panel rendering ---------------- */
+/* ---------------- Zones panel ---------------- */
 
 function renderZonesList() {
   const panel = document.getElementById('zonesPanel');
@@ -267,21 +272,12 @@ function renderZonesList() {
   window.farmZones.forEach((zone, index) => {
     const item = document.createElement('div');
     item.className = 'zone-item';
-
     item.innerHTML = `
       <div class="zone-rank">Zone #${index + 1}</div>
-      Farms: ${zone.total}<br/>
-      ≥90%: ${zone.high90}
+      Farms: ${zone.total}
     `;
-
-    item.onclick = () => {
-      map.setView(
-        [zone.center.lat, zone.center.lng],
-        Math.max(map.getZoom(), 10),
-        { animate: true }
-      );
-    };
-
+    item.onclick = () =>
+      map.setView([zone.center.lat, zone.center.lng], Math.max(map.getZoom(), 10));
     list.appendChild(item);
   });
 }
@@ -302,6 +298,8 @@ function applyFilter(minP) {
     }
   });
 
+  updateVoteStyles();
+
   document.getElementById('probabilityMeta').textContent =
     `${Math.round(minP * 100)}% · ${count} shown`;
 
@@ -316,39 +314,30 @@ document.addEventListener('input', e => {
   const value = e.target.value;
   e.target.style.backgroundSize = `${value}% 100%`;
   clearTimeout(filterTimeout);
-  filterTimeout = setTimeout(() => applyFilter(value / 100), 150);
+  filterTimeout = setTimeout(() => applyFilter(e.target.value / 100), 150);
 });
 
-/* ---------------- Toggles & actions ---------------- */
+/* ---------------- Toggles ---------------- */
 
 document.getElementById('toggleCluster').onclick = () => {
   clusteringEnabled = !clusteringEnabled;
   map.removeLayer(clusteringEnabled ? plainLayer : clusterGroup);
   map.addLayer(clusteringEnabled ? clusterGroup : plainLayer);
-  toggleCluster.textContent =
-    clusteringEnabled ? 'Disable clustering' : 'Enable clustering';
 };
 
 document.getElementById('toggleHeat').onclick = () => {
   heatEnabled = !heatEnabled;
-
-  if (heatEnabled) {
-    map.addLayer(heatLayer);
-    map.options.zoomAnimation = false;
-  } else {
-    map.removeLayer(heatLayer);
-    map.options.zoomAnimation = true;
-  }
-
-  toggleHeat.textContent =
-    heatEnabled ? 'Hide suspicious areas' : 'Show suspicious areas';
+  heatEnabled ? map.addLayer(heatLayer) : map.removeLayer(heatLayer);
 };
 
 document.getElementById('toggleZones').onclick = () => {
   zonesEnabled = !zonesEnabled;
   computeHighDensityZones();
-  toggleZones.textContent =
-    zonesEnabled ? 'Hide high-density zones' : 'High-density zones';
+};
+
+document.getElementById('toggleVoted').onclick = () => {
+  showVotedOverlay = !showVotedOverlay;
+  updateVoteStyles();
 };
 
 /* Recompute zones on map movement */
@@ -368,16 +357,59 @@ document.getElementById('toggleMenu').onclick = () =>
 
 document.getElementById('exportVotes').onclick = exportVotes;
 
-/* ---------------- Actions ---------------- */
-
-function zoomToFarm(lat, lng) {
-  map.setView([lat, lng], 16, { animate: true });
-}
+/* ---------------- Voting ---------------- */
 
 function vote(id, yes) {
   const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
   votes[id] = { value: yes ? 'YES' : 'NO', timestamp: new Date().toISOString() };
   localStorage.setItem('farmVotes', JSON.stringify(votes));
+  updateVoteStyles();
+}
+
+function updateVoteStyles() {
+  const localVotes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
+
+  allMarkers.forEach(marker => {
+    const voted =
+      !!localVotes[marker.farmID] || !!seedVotes[marker.farmID];
+
+    marker.hasVote = voted;
+
+    const style = {
+      fillColor: getColor(marker.farmProbability),
+      color: '#2e2e2e',
+      weight: 1
+    };
+
+    if (showVotedOverlay && voted) {
+      style.fillColor = '#1976d2';
+      style.color = '#0d47a1';
+    }
+
+    if (!voted && marker.farmProbability >= 0.8 && marker.farmProbability < 0.9) {
+      style.weight = 2;
+      style.color = '#000';
+    }
+
+    marker.setStyle(style);
+  });
+
+  updateUnvotedCounter();
+}
+
+function countUnvotedHigh() {
+  return allMarkers.filter(
+    m => m.farmProbability >= 0.8 && !m.hasVote
+  ).length;
+}
+
+function updateUnvotedCounter() {
+  const el = document.getElementById('unvotedCounter');
+  if (el) el.textContent = `Needs review: ${countUnvotedHigh()}`;
+}
+
+function zoomToFarm(lat, lng) {
+  map.setView([lat, lng], 17, { animate: true });
 }
 
 function exportVotes() {
@@ -390,6 +422,7 @@ function exportVotes() {
   a.download = 'farm_votes.json';
   a.click();
 }
+
 
 /* ---------------- Intro tutorial ---------------- */
 
