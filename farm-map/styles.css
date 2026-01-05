@@ -59,6 +59,13 @@ button.secondary {
   margin-bottom: 8px;
 }
 
+.menu-panel .zones-panel {
+  position: static;
+  box-shadow: none;
+  padding: 0;
+  margin-top: 8px;
+}
+
 /* Legend */
 .legend-title {
   font-weight: 600;
