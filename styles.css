@@ -84,6 +84,38 @@ main {
   flex-grow: 1;
 }
 
+/* Card images (16:9 enforced) */
+.card-image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  background: #f2f2f2;
+}
+
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Placeholder state (optional) */
+.card-image.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 14px;
+  background: #fafafa;
+  border: 1px dashed #ddd;
+}
+
+.youtube-card .card-image {
+  outline: 2px solid rgba(183, 34, 14, 0.15);
+}
+
 /* Buttons: base style */
 .btn {
   display: inline-block;
