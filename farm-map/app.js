@@ -145,11 +145,12 @@ fetch('vietnam_json.json')
     applyFilter(0.5);
   });
 
-/* ---------------- High-density zones (FIXED, RANKED, CLICKABLE) ---------------- */
+/* ---------------- High-density zones (ranked + menu-linked) ---------------- */
 
 function computeHighDensityZones() {
   if (!zonesEnabled) {
     zoneLayer.clearLayers();
+    renderZonesList();
     return;
   }
 
@@ -177,7 +178,10 @@ function computeHighDensityZones() {
     });
   });
 
-  if (!candidates.length) return;
+  if (!candidates.length) {
+    renderZonesList();
+    return;
+  }
 
   candidates.sort((a, b) => b.score - a.score);
 
@@ -203,6 +207,47 @@ function computeHighDensityZones() {
 
     circle.addTo(zoneLayer);
     window.farmZones.push(zone);
+  });
+
+  renderZonesList();
+}
+
+/* ---------------- Zones panel rendering ---------------- */
+
+function renderZonesList() {
+  const panel = document.getElementById('zonesPanel');
+  const list = document.getElementById('zonesList');
+
+  if (!panel || !list) return;
+
+  list.innerHTML = '';
+
+  if (!zonesEnabled || !window.farmZones.length) {
+    panel.classList.remove('active');
+    return;
+  }
+
+  panel.classList.add('active');
+
+  window.farmZones.forEach((zone, index) => {
+    const item = document.createElement('div');
+    item.className = 'zone-item';
+
+    item.innerHTML = `
+      <div class="zone-rank">Zone #${index + 1}</div>
+      Farms: ${zone.total}<br/>
+      ≥90%: ${zone.high90}
+    `;
+
+    item.onclick = () => {
+      map.setView(
+        [zone.center.lat, zone.center.lng],
+        Math.max(map.getZoom(), 10),
+        { animate: true }
+      );
+    };
+
+    list.appendChild(item);
   });
 }
 
@@ -233,7 +278,6 @@ function applyFilter(minP) {
 
 document.addEventListener('input', e => {
   if (e.target.id !== 'probabilitySlider') return;
-
   clearTimeout(filterTimeout);
   filterTimeout = setTimeout(() => applyFilter(e.target.value / 100), 150);
 });
