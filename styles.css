@@ -50,14 +50,23 @@ header p {
   max-width: 960px;
   margin: 0 auto;
   display: flex;
-  align-items: center;
+  align-items: center;       /* vertical alignment */
+  justify-content: center;   /* centers content horizontally */
   gap: 24px;
+  flex-wrap: wrap;           /* ensures wrapping on smaller screens */
 }
 
 .site-logo {
   width: 72px;
   height: 72px;
   flex-shrink: 0;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;  /* align text to left of text area by default */
+  text-align: left;
 }
 
 .header-text h1 {
@@ -73,9 +82,14 @@ header p {
   color: var(--muted);
 }
 
+/* On mobile, center text */
 @media (max-width: 600px) {
   .header-inner {
     flex-direction: column;
+    text-align: center;
+  }
+  .header-text {
+    align-items: center;
     text-align: center;
   }
 }
