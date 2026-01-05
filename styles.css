@@ -70,12 +70,6 @@
       color: var(--green);
     }
 
-    .card h3 {
-      margin-top: 0;
-      font-size: 20px;
-      color: var(--youtube);
-    }
-
     .card p {
       font-size: 14px;
       color: var(--muted);
