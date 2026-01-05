@@ -76,8 +76,6 @@ const clusterGroup = L.markerClusterGroup({
 });
 
 const plainLayer = L.layerGroup();
-
-/* Zone layer is ALWAYS attached to the map */
 const zoneLayer = L.layerGroup().addTo(map);
 
 let clusteringEnabled = true;
@@ -88,10 +86,9 @@ let allMarkers = [];
 let heatLayer;
 let filterTimeout = null;
 
-/* Exposed for UI listing */
 window.farmZones = [];
 
-/* Recompute zones after clustering finishes */
+/* Ensure zones recompute after clustering */
 clusterGroup.on('clusteringend', () => {
   if (zonesEnabled) computeHighDensityZones();
 });
@@ -148,7 +145,7 @@ fetch('vietnam_json.json')
     applyFilter(0.5);
   });
 
-/* ---------------- High-density zones ---------------- */
+/* ---------------- High-density zones (FIXED, RANKED, CLICKABLE) ---------------- */
 
 function computeHighDensityZones() {
   if (!zonesEnabled) {
@@ -159,56 +156,53 @@ function computeHighDensityZones() {
   zoneLayer.clearLayers();
   window.farmZones = [];
 
-  const clusters = [];
+  const candidates = [];
 
   clusterGroup.eachLayer(cluster => {
     if (!cluster.getAllChildMarkers) return;
 
     const markers = cluster.getAllChildMarkers();
-    if (markers.length < 3) return;
+    if (markers.length < 4) return;
 
-    const probs = markers.map(m => m.farmProbability);
-    const avg = probs.reduce((a, b) => a + b, 0) / probs.length;
-    const high80 = probs.filter(p => p >= 0.8).length;
+    const high90 = markers.filter(m => m.farmProbability >= 0.9);
+    if (high90.length < 1) return;
 
-    const score = avg * (high80 / probs.length);
+    const score = high90.length * Math.log(markers.length + 1);
 
-    clusters.push({
+    candidates.push({
       center: cluster.getLatLng(),
       total: markers.length,
-      high80,
-      avg,
+      high90: high90.length,
       score
     });
   });
 
-  if (!clusters.length) return;
+  if (!candidates.length) return;
 
-  clusters.sort((a, b) => b.score - a.score);
+  candidates.sort((a, b) => b.score - a.score);
 
-  const cutoff = Math.max(1, Math.ceil(clusters.length * 0.3));
-  const selected = clusters.slice(0, cutoff);
-
-  selected.forEach(zone => {
-    window.farmZones.push(zone);
-
-    L.circle(zone.center, {
-      radius: 2000 + zone.total * 120,
-      color: getColor(zone.avg),
-      fillColor: getColor(zone.avg),
-      fillOpacity: 0.2,
+  candidates.slice(0, 8).forEach((zone, index) => {
+    const circle = L.circle(zone.center, {
+      radius: 2200 + zone.high90 * 500,
+      color: '#c62828',
+      fillColor: '#c62828',
+      fillOpacity: 0.18,
       weight: 1
-    })
-      .bindTooltip(
-        `
-        <strong>High-density zone</strong><br/>
+    });
+
+    circle.bindPopup(`
+      <div class="zone-popup">
+        <strong>High-risk zone #${index + 1}</strong><br/>
         Farms: ${zone.total}<br/>
-        ≥80%: ${zone.high80}<br/>
-        Avg: ${(zone.avg * 100).toFixed(0)}%
-        `,
-        { sticky: true }
-      )
-      .addTo(zoneLayer);
+        ≥90%: ${zone.high90}<br/>
+        <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 10)">
+          Zoom into zone
+        </button>
+      </div>
+    `);
+
+    circle.addTo(zoneLayer);
+    window.farmZones.push(zone);
   });
 }
 
@@ -239,11 +233,9 @@ function applyFilter(minP) {
 
 document.addEventListener('input', e => {
   if (e.target.id !== 'probabilitySlider') return;
-  const value = e.target.value;
-  e.target.style.backgroundSize = `${value}% 100%`;
 
   clearTimeout(filterTimeout);
-  filterTimeout = setTimeout(() => applyFilter(value / 100), 150);
+  filterTimeout = setTimeout(() => applyFilter(e.target.value / 100), 150);
 });
 
 /* ---------------- Toggles & actions ---------------- */
@@ -273,13 +265,7 @@ document.getElementById('toggleHeat').onclick = () => {
 
 document.getElementById('toggleZones').onclick = () => {
   zonesEnabled = !zonesEnabled;
-
-  if (zonesEnabled) {
-    computeHighDensityZones();
-  } else {
-    zoneLayer.clearLayers();
-  }
-
+  computeHighDensityZones();
   toggleZones.textContent =
     zonesEnabled ? 'Hide high-density zones' : 'High-density zones';
 };
