@@ -1,3 +1,4 @@
+console.log('APP VERSION: 0-1: zone ranking');
 /* ---------------- Base layers ---------------- */
 
 const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -278,8 +279,10 @@ function applyFilter(minP) {
 
 document.addEventListener('input', e => {
   if (e.target.id !== 'probabilitySlider') return;
+  const value = e.target.value;
+  e.target.style.backgroundSize = `${value}% 100%`;
   clearTimeout(filterTimeout);
-  filterTimeout = setTimeout(() => applyFilter(e.target.value / 100), 150);
+  filterTimeout = setTimeout(() => applyFilter(value / 100), 150);
 });
 
 /* ---------------- Toggles & actions ---------------- */
