@@ -251,3 +251,17 @@ footer {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* =========================
+   ADDITION: utility button
+   ========================= */
+
+.btn-outline {
+  background: transparent;
+  color: var(--green);
+  border: 1px solid var(--green);
+}
+
+.btn-outline:hover {
+  background: var(--soft-green);
+}
