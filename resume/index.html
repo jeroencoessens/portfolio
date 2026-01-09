@@ -13,6 +13,29 @@
   <link rel="icon" type="image/png" href="../favicon-32.png" sizes="32x32">
   <link rel="icon" type="image/png" href="../favicon-16.png" sizes="16x16">
   <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+
+  <!-- Print / PDF friendliness -->
+  <style>
+    @media print {
+      header, footer, .btn {
+        display: none;
+      }
+
+      body {
+        color: #000;
+      }
+
+      .card {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        break-inside: avoid;
+      }
+
+      main {
+        padding: 0;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -21,7 +44,8 @@
     <div class="header-text">
       <h1>Resume</h1>
       <p>
-        Experience, skills, and areas of focus.
+        Background, experience, and the transition toward
+        animal-rights-focused technology.
       </p>
 
       <a href="../index.html" class="btn btn-outline">
@@ -34,33 +58,109 @@
 <main>
   <section class="projects">
 
+    <!-- Summary -->
     <div class="card">
-      <h2>Experience</h2>
+      <h2>Summary</h2>
       <p>
-        Summarize your professional experience here.
-        Focus on roles, responsibilities, and outcomes rather
-        than listing everything.
+        I am a developer with a background in game development and
+        interactive entertainment, having worked at studios such as
+        Ubisoft and Nitro Games.
         <br><br>
-        You can later break this into multiple cards if needed.
+        Over time, I have become increasingly focused on using my
+        technical and creative skills for projects that align with
+        ethical values — particularly animal rights, transparency,
+        and education.
+        <br><br>
+        This website represents an intentional shift toward building
+        tools and experiences that contribute positively beyond
+        entertainment.
       </p>
     </div>
 
+    <!-- Timeline -->
     <div class="card">
-      <h2>Skills & Tools</h2>
+      <h2>Experience Timeline</h2>
+
       <p>
-        List the technologies, tools, and domains you work with.
-        Keep it concise and aligned with the kinds of projects
-        shown on the portfolio.
+        <strong>Game & Entertainment Industry</strong>
+        <br>
+        Worked in professional game development environments,
+        contributing to large-scale commercial projects.
+        <br><br>
+        Companies include:
+        <br>
+        – Ubisoft
+        <br>
+        – Nitro Games
+        <br><br>
+        This period built a strong foundation in software development,
+        production pipelines, collaboration across disciplines,
+        and shipping polished user-facing products.
+      </p>
+
+      <p>
+        <strong>Independent & Purpose-Driven Work</strong>
+        <br>
+        Increasing focus on smaller, value-aligned projects where
+        technology is used to inform, visualize, or empower.
+        <br><br>
+        Current efforts explore how tools traditionally used in games
+        — interactivity, visualization, systems thinking — can support
+        animal advocacy and education.
       </p>
     </div>
 
+    <!-- Skills -->
     <div class="card">
-      <h2>Values & Focus</h2>
+      <h2>Skills & Strengths</h2>
       <p>
-        Optional section to explain what kinds of work you are
-        interested in and what you deliberately avoid.
+        <strong>Technical</strong>
+        <br>
+        Game development, software engineering, interactive systems,
+        prototyping, data visualization, tooling.
         <br><br>
-        This aligns well with the ethical framing of your site.
+        <strong>Product & Collaboration</strong>
+        <br>
+        Working within multidisciplinary teams, iterating on user
+        feedback, balancing scope with impact.
+        <br><br>
+        <strong>Transferable Focus</strong>
+        <br>
+        Applying game development skills to non-game contexts:
+        clarity, engagement, and meaningful user experience.
+      </p>
+    </div>
+
+    <!-- Direction -->
+    <div class="card">
+      <h2>Current Direction & Goals</h2>
+      <p>
+        I am actively transitioning away from purely entertainment-driven
+        work toward projects that support animal rights, transparency,
+        and ethical decision-making.
+        <br><br>
+        My goal is to collaborate with organizations, activists, or
+        researchers who need practical, well-designed technical tools
+        rather than marketing-driven products.
+        <br><br>
+        I am especially interested in projects where technology helps
+        people better understand complex systems and their real-world
+        consequences.
+      </p>
+    </div>
+
+    <!-- Links -->
+    <div class="card">
+      <h2>Links</h2>
+      <p>
+        <strong>LinkedIn</strong>
+        <br>
+        <a href="https://www.linkedin.com/in/jeroencoessens/" target="_blank" rel="noopener noreferrer">
+          linkedin.com/in/jeroencoessens
+        </a>
+        <br><br>
+        For a more detailed employment history and specific roles,
+        LinkedIn currently serves as the authoritative source.
       </p>
     </div>
 
