@@ -15,9 +15,7 @@ const map = L.map('map', {
   layers: [satellite],
   zoomAnimation: true,
   fadeAnimation: true,
-  markerZoomAnimation: true,
-  maxZoom: 20,
-  zoomSnap: 0.25
+  markerZoomAnimation: true
 }).setView([16, 106], 6);
 
 L.control.layers(
