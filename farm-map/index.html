@@ -45,19 +45,28 @@
   <div class="menu-panel" id="menuPanel">
     <button id="toggleCluster" class="secondary">Disable clustering</button>
     <button id="toggleHeat" class="secondary">Show suspicious areas</button>
-
-    <!-- NEW -->
-    <button id="toggleZones" class="secondary">
-      High-density zones
-    </button>
-
-    <button id="toggleVoted" class="secondary">
-  Show reviewed farms
-</button>
+    <button id="toggleZones" class="secondary">High-density zones</button>
+    <button id="toggleVoted" class="secondary">Show reviewed farms</button>
 
 <div id="unvotedCounter" class="menu-meta">
   Needs review: –
 </div>
+
+    <div class="contribution-panel" id="contributionPanel">
+  <div class="contribution-title">Your impact</div>
+
+  <div class="contribution-row">
+    <strong id="userTier">–</strong>
+    <span id="userScore">0 points</span>
+  </div>
+
+  <div class="contribution-meta">
+    <div>Votes: <span id="userVotes">0</span></div>
+    <div>High-confidence: <span id="userHigh">0</span></div>
+    <div>Model: <span id="modelVersion">v0.1</span></div>
+  </div>
+</div>
+
 
     <button id="exportVotes">Export votes</button>
 
