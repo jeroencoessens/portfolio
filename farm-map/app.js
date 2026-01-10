@@ -470,10 +470,9 @@ function vote(id, yes) {
   updateVoteStyles();
   renderContributionPanel();
 
-  const marker = allMarkers.find(m => m.farmID === String(id));
-if (marker) {
-  marker.setPopupContent(renderVotePopup(marker));
-}
+  if (marker) {
+    marker.setPopupContent(renderVotePopup(marker));
+  }
 }
 
 function updateVoteStyles() {
