@@ -27,6 +27,20 @@ L.control.layers(
 let seedVotes = {};
 let showVotedOverlay = false;
 
+// -- MODEL VERSION ---
+const MODEL_VERSION = 'v0.1';
+
+const TIERS = [
+  { name: 'Observer', min: 0 },
+  { name: 'Verifier', min: 10 },
+  { name: 'Investigator', min: 50 },
+  { name: 'Field Auditor', min: 200 }
+];
+
+function getTier(score) {
+  return [...TIERS].reverse().find(t => score >= t.min).name;
+}
+
 /* ---------------- Slider control ---------------- */
 
 const ProbabilityControl = L.Control.extend({
@@ -51,6 +65,39 @@ function getColor(p) {
   if (p >= 0.7) return '#ef6c00';
   if (p >= 0.5) return '#f9a825';
   return '#2e7d32';
+}
+
+function loadUserData() {
+  let data = localStorage.getItem('userData');
+
+  if (!data) {
+    data = {
+      totalVotes: 0,
+      highConfidenceVotes: 0,
+      firstTimeVotes: 0,
+      score: 0,
+      firstSeen: new Date().toISOString().slice(0, 10),
+      lastActive: new Date().toISOString().slice(0, 10)
+    };
+    localStorage.setItem('userData', JSON.stringify(data));
+    return data;
+  }
+
+  return JSON.parse(data);
+}
+
+function saveUserData(data) {
+  data.lastActive = new Date().toISOString().slice(0, 10);
+  localStorage.setItem('userData', JSON.stringify(data));
+}
+
+function calculateVoteScore(marker, isFirstVote) {
+  let score = 1; // base
+
+  if (marker.farmProbability >= 0.9) score += 2;
+  if (isFirstVote) score += 1;
+
+  return score;
 }
 
 /* ---------------- Layers ---------------- */
@@ -165,6 +212,8 @@ fetch('votes_seed.json')
     updateVoteStyles();
   })
   .catch(() => console.warn('No seed votes found'));
+
+renderContributionPanel();
 
 /* ---------------- High-density zones ---------------- */
 
@@ -361,9 +410,34 @@ document.getElementById('exportVotes').onclick = exportVotes;
 
 function vote(id, yes) {
   const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
-  votes[id] = { value: yes ? 'YES' : 'NO', timestamp: new Date().toISOString() };
+  const isFirstVote = !votes[id];
+
+  votes[id] = {
+    value: yes ? 'YES' : 'NO',
+    timestamp: new Date().toISOString()
+  };
+
   localStorage.setItem('farmVotes', JSON.stringify(votes));
+
+  const userData = loadUserData();
+  const marker = allMarkers.find(m => m.farmID === String(id));
+
+  userData.totalVotes += 1;
+
+  if (marker.farmProbability >= 0.9) {
+    userData.highConfidenceVotes += 1;
+  }
+
+  if (isFirstVote) {
+    userData.firstTimeVotes += 1;
+  }
+
+  userData.score += calculateVoteScore(marker, isFirstVote);
+
+  saveUserData(userData);
+
   updateVoteStyles();
+  renderContributionPanel();
 }
 
 function updateVoteStyles() {
@@ -437,3 +511,25 @@ introReady.onclick = () => {
   localStorage.setItem('farmMapIntroSeen', 'true');
   introOverlay.style.display = 'none';
 };
+
+/* ---------------- Contribution panel ---------------- */
+
+function renderContributionPanel() {
+  const data = loadUserData();
+
+  document.getElementById('userTier').textContent =
+    getTier(data.score);
+
+  document.getElementById('userScore').textContent =
+    `${data.score} points`;
+
+  document.getElementById('userVotes').textContent =
+    data.totalVotes;
+
+  document.getElementById('userHigh').textContent =
+    data.highConfidenceVotes;
+
+  document.getElementById('modelVersion').textContent =
+    MODEL_VERSION;
+}
+
