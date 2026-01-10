@@ -15,7 +15,9 @@ const map = L.map('map', {
   layers: [satellite],
   zoomAnimation: true,
   fadeAnimation: true,
-  markerZoomAnimation: true
+  markerZoomAnimation: true,
+  maxZoom: 20,
+  zoomSnap: 0.25
 }).setView([16, 106], 6);
 
 L.control.layers(
@@ -60,6 +62,9 @@ map.addControl(new ProbabilityControl({ position: 'topleft' }));
 
 /* ---------------- Utilities ---------------- */
 
+const USER_VOTED_COLOR = '#1976d2';
+const USER_VOTED_BORDER = '#0d47a1';
+
 function getColor(p) {
   if (p >= 0.9) return '#c62828';
   if (p >= 0.7) return '#ef6c00';
@@ -98,6 +103,36 @@ function calculateVoteScore(marker, isFirstVote) {
   if (isFirstVote) score += 1;
 
   return score;
+}
+
+function renderVotePopup(marker) {
+  const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
+  const vote = votes[marker.farmID];
+
+  const votedBlock = vote
+    ? `
+      <div style="font-weight:600; color:#2e7d32; margin-bottom:6px;">
+        VOTED (${vote.value})
+      </div>
+      <button onclick="cancelVote('${marker.farmID}')" class="secondary">
+        Cancel vote
+      </button>
+    `
+    : `
+      <button onclick="vote(${marker.farmID}, true)">YES</button>
+      <button onclick="vote(${marker.farmID}, false)" class="secondary">NO</button>
+    `;
+
+  return `
+    <strong>Farm ID:</strong> ${marker.farmID}<br/>
+    <strong>Probability:</strong> ${(marker.farmProbability * 100).toFixed(1)}%<br/><br/>
+    <button onclick="zoomToFarm(${marker.getLatLng().lat}, ${marker.getLatLng().lng})" class="secondary">
+      Zoom to location
+    </button>
+    <div style="margin-top:8px;">
+      ${votedBlock}
+    </div>
+  `;
 }
 
 /* ---------------- Layers ---------------- */
@@ -176,13 +211,9 @@ fetch('vietnam_json.json')
         { direction: 'top', opacity: 0.9 }
       );
 
-      marker.bindPopup(`
-        <strong>Farm ID:</strong> ${farm.ID}<br/>
-        <strong>Probability:</strong> ${(farm.farm_probability * 100).toFixed(1)}%<br/><br/>
-        <button onclick="zoomToFarm(${farm.Latitude}, ${farm.Longitude})" class="secondary">Zoom to location</button>
-        <button onclick="vote(${farm.ID}, true)">YES</button>
-        <button onclick="vote(${farm.ID}, false)" class="secondary">NO</button>
-      `);
+     marker.bindPopup(() => renderVotePopup(marker), {
+  offset: L.point(0, -50)
+});
 
       allMarkers.push(marker);
 
@@ -438,32 +469,46 @@ function vote(id, yes) {
 
   updateVoteStyles();
   renderContributionPanel();
+
+  const marker = allMarkers.find(m => m.farmID === String(id));
+if (marker) {
+  marker.setPopupContent(renderVotePopup(marker));
+}
 }
 
 function updateVoteStyles() {
   const localVotes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
 
   allMarkers.forEach(marker => {
-    const voted =
-      !!localVotes[marker.farmID] || !!seedVotes[marker.farmID];
+    const userVoted = !!localVotes[marker.farmID];
+    const seedVoted = !!seedVotes[marker.farmID];
 
-    marker.hasVote = voted;
+    marker.hasVote = userVoted || seedVoted;
 
     const style = {
-      fillColor: getColor(marker.farmProbability),
-      color: '#2e2e2e',
-      weight: 1
-    };
+  fillColor: getColor(marker.farmProbability),
+  color: '#2e2e2e',
+  weight: 1
+};
 
-    if (showVotedOverlay && voted) {
-      style.fillColor = '#1976d2';
-      style.color = '#0d47a1';
-    }
+/* User-voted farms: always blue */
+if (userVoted) {
+  style.fillColor = USER_VOTED_COLOR;
+  style.color = USER_VOTED_BORDER;
+  style.weight = 2;
+}
 
-    if (!voted && marker.farmProbability >= 0.8 && marker.farmProbability < 0.9) {
-      style.weight = 2;
-      style.color = '#000';
-    }
+/* Optional overlay toggle (kept intact) */
+if (showVotedOverlay && marker.hasVote && !userVoted) {
+  style.fillColor = '#1976d2';
+  style.color = '#0d47a1';
+}
+
+/* Needs-review emphasis (only if unvoted) */
+if (!marker.hasVote && marker.farmProbability >= 0.8 && marker.farmProbability < 0.9) {
+  style.weight = 2;
+  style.color = '#000';
+}
 
     marker.setStyle(style);
   });
@@ -497,6 +542,21 @@ function exportVotes() {
   a.click();
 }
 
+function cancelVote(id) {
+  const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
+  if (!votes[id]) return;
+
+  delete votes[id];
+  localStorage.setItem('farmVotes', JSON.stringify(votes));
+
+  updateVoteStyles();
+  renderContributionPanel();
+
+  const marker = allMarkers.find(m => m.farmID === String(id));
+  if (marker) {
+    marker.setPopupContent(renderVotePopup(marker));
+  }
+}
 
 /* ---------------- Intro tutorial ---------------- */
 
