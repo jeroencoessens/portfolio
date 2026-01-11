@@ -309,16 +309,20 @@ function computeHighDensityZones() {
   zones.slice(0, 8).forEach((zone, index) => {
     const circle = L.circle(zone.center, {
       radius: 1500 + zone.total * 600,
-      color: '#c62828',
-      fillColor: '#c62828',
-      fillOpacity: 0.22,
+      color: '#9c27b0',
+      fillColor: '#9c27b0',
+      fillOpacity: 0.35,
       weight: 2
     });
 
     circle.bindPopup(`
       <strong>High-risk zone #${index + 1}</strong><br/>
       ≥90% farms: ${zone.total}<br/>
-      <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 11)">
+      <p>This is a high-density zone with multiple high-probability farms. Explore this area in detail.</p>
+      <button onclick="window.location.href='../farm-map-tinder/index.html'" style="margin-top: 8px; width: 100%;">
+        Explore Zone
+      </button>
+      <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 11)" class="secondary" style="margin-top: 8px; width: 100%;">
         Zoom into zone
       </button>
     `);
