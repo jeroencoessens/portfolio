@@ -18,6 +18,7 @@ const map = L.map('map', {
 
 let farms = [];
 let currentIndex = 0;
+let currentMarker = null; // Marker for currently displayed farm
 
 function loadZoneData() {
   const zoneDataStr = localStorage.getItem('tinderZoneData');
@@ -106,9 +107,42 @@ function showFarm(index) {
     duration: 0.5
   });
   
+  // Update marker for current farm
+  updateFarmMarker(farm);
+  
   // Update navigation buttons
   document.getElementById('prevBtn').disabled = index === 0;
   document.getElementById('nextBtn').disabled = index === farms.length - 1;
+}
+
+function updateFarmMarker(farm) {
+  // Remove existing marker if any
+  if (currentMarker) {
+    map.removeLayer(currentMarker);
+    currentMarker = null;
+  }
+  
+  // Create custom icon with farm info
+  const icon = L.divIcon({
+    className: 'farm-marker',
+    html: `
+      <div class="farm-marker-content">
+        <div class="farm-marker-id">ID: ${farm.id}</div>
+        <div class="farm-marker-prob">${(farm.probability * 100).toFixed(1)}%</div>
+      </div>
+    `,
+    iconSize: [120, 50],
+    iconAnchor: [60, 50], // Center horizontally, anchor at bottom
+    popupAnchor: [0, -50]
+  });
+  
+  // Create marker positioned slightly above the farm location
+  // Offset by ~0.001 degrees (roughly 100m) to the north
+  const markerLat = farm.lat + 0.001;
+  currentMarker = L.marker([markerLat, farm.lng], {
+    icon: icon,
+    zIndexOffset: 1000 // Ensure it's on top
+  }).addTo(map);
 }
 
 function updateTotalCount() {

@@ -11,6 +11,39 @@ html, body {
   width: 100%;
 }
 
+/* Farm marker */
+.farm-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.farm-marker-content {
+  background: white;
+  border: 2px solid var(--green);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dark);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.farm-marker-id {
+  color: var(--green);
+  font-weight: 700;
+  margin-bottom: 2px;
+  font-size: 11px;
+}
+
+.farm-marker-prob {
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 /* Navigation buttons */
 .nav-btn {
   position: fixed;
