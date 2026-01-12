@@ -11,6 +11,11 @@ const satellite = L.tileLayer(
   { attribution: 'Tiles © Esri' }
 );
 
+const labeled = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Tiles © Esri' }
+);
+
 const map = L.map('map', {
   layers: [satellite],
   zoomAnimation: true,
@@ -19,7 +24,7 @@ const map = L.map('map', {
 }).setView([16, 106], 6);
 
 L.control.layers(
-  { Street: street, Satellite: satellite },
+  { Street: street, Labeled: labeled, Satellite: satellite },
   null,
   { position: 'topright' }
 ).addTo(map);
