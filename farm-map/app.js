@@ -93,6 +93,51 @@ function getPointsToNextTier(score) {
   return pointsNeeded > 0 ? pointsNeeded : 0;
 }
 
+/* ---------------- Zone Navigation ---------------- */
+
+window.loadZoneForTinder = function(zoneIndex) {
+  console.log('loadZoneForTinder called with index:', zoneIndex);
+  console.log('window.farmZones length:', window.farmZones?.length);
+  
+  if (!window.farmZones || !Array.isArray(window.farmZones)) {
+    console.error('window.farmZones is not available or not an array');
+    alert('Error: Zone data not initialized. Please enable zones first.');
+    return;
+  }
+  
+  if (zoneIndex < 0 || zoneIndex >= window.farmZones.length) {
+    console.error('Invalid zone index:', zoneIndex, 'out of', window.farmZones.length);
+    alert('Error: Invalid zone index.');
+    return;
+  }
+  
+  const zone = window.farmZones[zoneIndex];
+  console.log('Selected zone:', zone);
+  console.log('Zone has farms?', !!zone?.farms);
+  console.log('Farms length:', zone?.farms?.length);
+  
+  if (zone && zone.farms && Array.isArray(zone.farms) && zone.farms.length > 0) {
+    console.log('Storing farms data:', zone.farms.length, 'farms');
+    // Store zone data in localStorage for tinder page
+    try {
+      localStorage.setItem('tinderZoneData', JSON.stringify(zone.farms));
+      console.log('Data stored successfully, navigating...');
+      window.location.href = '../farm-map-tinder/index.html';
+    } catch (e) {
+      console.error('Error storing data:', e);
+      alert('Error storing zone data: ' + e.message);
+    }
+  } else {
+    console.error('Zone or farms data missing or invalid:', { 
+      hasZone: !!zone, 
+      hasFarms: !!zone?.farms,
+      isArray: Array.isArray(zone?.farms),
+      farmsLength: zone?.farms?.length 
+    });
+    alert('Error: Zone data not available or empty. Please try selecting a different zone.');
+  }
+};
+
 /* ---------------- Slider control ---------------- */
 
 const ProbabilityControl = L.Control.extend({
@@ -430,21 +475,53 @@ function computeHighDensityZones() {
       weight: 2
     });
 
-    circle.bindPopup(`
+    const popupContent = `
       <strong>High-risk zone #${index + 1}</strong><br/>
       ≥90% farms: ${zone.total}<br/>
       <p>This is a high-density zone with multiple high-probability farms. Explore this area in detail.</p>
-      <button onclick="loadZoneForTinder(${index})" style="margin-top: 8px; width: 100%;">
+      <button id="exploreZoneBtn-${index}" style="margin-top: 8px; width: 100%;">
         Explore Zone
       </button>
-      <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 11)" class="secondary" style="margin-top: 8px; width: 100%;">
+      <button id="zoomZoneBtn-${index}" class="secondary" style="margin-top: 8px; width: 100%;">
         Zoom into zone
       </button>
-    `);
+    `;
+    
+    circle.bindPopup(popupContent);
+    
+    // Add event listeners when popup opens
+    circle.on('popupopen', function() {
+      const exploreBtn = document.getElementById(`exploreZoneBtn-${index}`);
+      const zoomBtn = document.getElementById(`zoomZoneBtn-${index}`);
+      
+      if (exploreBtn) {
+        exploreBtn.onclick = () => {
+          if (window.loadZoneForTinder) {
+            window.loadZoneForTinder(index);
+          } else {
+            console.error('loadZoneForTinder function not found');
+            alert('Error: Function not available. Please refresh the page.');
+          }
+        };
+      }
+      
+      if (zoomBtn) {
+        zoomBtn.onclick = () => {
+          map.setView([zone.center.lat, zone.center.lng], 11);
+        };
+      }
+    });
 
     circle.addTo(zoneLayer);
     // Store color with zone for panel display (include farms data)
-    window.farmZones.push({ ...zone, color: zoneColor, index: index, farms: zone.farms });
+    const zoneToStore = { ...zone, color: zoneColor, index: index, farms: zone.farms };
+    console.log(`Storing zone ${index}:`, {
+      total: zoneToStore.total,
+      farmsCount: zoneToStore.farms?.length,
+      hasFarms: !!zoneToStore.farms,
+      farms: zoneToStore.farms
+    });
+    window.farmZones.push(zoneToStore);
   });
 
   renderZonesList();
@@ -546,15 +623,6 @@ document.getElementById('toggleVoted').onclick = () => {
 document.getElementById('closeZonesPanel').onclick = () => {
   document.getElementById('zonesPanel').classList.remove('active');
 };
-
-function loadZoneForTinder(zoneIndex) {
-  const zone = window.farmZones[zoneIndex];
-  if (zone && zone.farms) {
-    // Store zone data in localStorage for tinder page
-    localStorage.setItem('tinderZoneData', JSON.stringify(zone.farms));
-    window.location.href = '../farm-map-tinder/index.html';
-  }
-}
 
 /* Recompute zones on map movement */
 map.on('moveend zoomend', () => {

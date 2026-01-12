@@ -21,7 +21,10 @@ let currentIndex = 0;
 
 function loadZoneData() {
   const zoneDataStr = localStorage.getItem('tinderZoneData');
+  console.log('Loading zone data from localStorage:', zoneDataStr ? 'Found' : 'Not found');
+  
   if (!zoneDataStr) {
+    console.error('No zone data found in localStorage');
     alert('No zone data found. Please select a zone from the main map.');
     window.location.href = '../farm-map/index.html';
     return;
@@ -29,22 +32,26 @@ function loadZoneData() {
 
   try {
     farms = JSON.parse(zoneDataStr);
+    console.log('Parsed farms data:', farms.length, 'farms');
     
-    // Shuffle farms for random order
-    farms = shuffleArray([...farms]);
-    
-    if (farms.length === 0) {
+    if (!Array.isArray(farms) || farms.length === 0) {
+      console.error('Invalid farms data:', farms);
       alert('No farms found in this zone.');
       window.location.href = '../farm-map/index.html';
       return;
     }
-
+    
+    // Shuffle farms for random order
+    farms = shuffleArray([...farms]);
+    console.log('Shuffled farms:', farms.length);
+    
     // Initialize display
     updateTotalCount();
     showFarm(0);
   } catch (e) {
     console.error('Error loading zone data:', e);
-    alert('Error loading zone data.');
+    console.error('Raw data:', zoneDataStr);
+    alert('Error loading zone data: ' + e.message);
     window.location.href = '../farm-map/index.html';
   }
 }
