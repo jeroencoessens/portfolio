@@ -39,6 +39,11 @@ let showVotedOverlay = false;
 // -- MODEL VERSION ---
 const MODEL_VERSION = 'v0.1';
 
+// -- DATA LOADING ---
+const INITIAL_MIN_PROBABILITY = 0.4; // Only load farms with 40%+ probability initially
+let allFarmData = null; // Store all farm data for later loading
+let allDataLoaded = false; // Track if all data has been loaded
+
 const TIERS = [
   { name: 'Observer', min: 0 },
   { name: 'Verifier', min: 10 },
@@ -232,53 +237,87 @@ clusterGroup.on('clusteringend', () => {
 
 /* ---------------- Data ---------------- */
 
+function createMarkerFromFarm(farm) {
+  const marker = L.circleMarker([farm.Latitude, farm.Longitude], {
+    radius: 9,
+    fillColor: getColor(farm.farm_probability),
+    color: '#2e2e2e',
+    weight: 1,
+    fillOpacity: 0.85
+  });
+
+  marker.farmID = String(farm.ID);
+  marker.hasVote = false;
+  marker.voteSource = null;
+  marker.farmProbability = farm.farm_probability;
+
+  marker.bindTooltip(
+    `ID ${farm.ID}<br>${(farm.farm_probability * 100).toFixed(1)}%`,
+    { direction: 'top', opacity: 0.9 }
+  );
+
+  marker.bindPopup(() => renderVotePopup(marker), {
+    offset: L.point(0, -50)
+  });
+
+  return marker;
+}
+
+function loadFarms(farms, minProbability = 0) {
+  farms.forEach(farm => {
+    if (farm.farm_probability >= minProbability) {
+      const marker = createMarkerFromFarm(farm);
+      allMarkers.push(marker);
+    }
+  });
+
+  // Rebuild heat layer with all loaded markers
+  const heatPoints = [];
+  allMarkers.forEach(marker => {
+    if (marker.farmProbability >= 0.75) {
+      const latlng = marker.getLatLng();
+      heatPoints.push([latlng.lat, latlng.lng, marker.farmProbability]);
+    }
+  });
+
+  // Update or create heat layer
+  if (heatLayer) {
+    map.removeLayer(heatLayer);
+  }
+  heatLayer = L.heatLayer(heatPoints, {
+    radius: 20,
+    blur: 20,
+    maxZoom: 8,
+    gradient: {
+      0.75: '#f9a825',
+      0.9: '#ef6c00',
+      1.0: '#c62828'
+    }
+  });
+
+  // Re-add heat layer if it was enabled
+  if (heatEnabled && heatLayer) {
+    map.addLayer(heatLayer);
+  }
+
+  applyFilter(0.5);
+}
+
 fetch('vietnam_json.json')
   .then(r => r.json())
   .then(data => {
-    const heatPoints = [];
-
-    data.Farms.forEach(farm => {
-      const marker = L.circleMarker([farm.Latitude, farm.Longitude], {
-        radius: 9,
-        fillColor: getColor(farm.farm_probability),
-        color: '#2e2e2e',
-        weight: 1,
-        fillOpacity: 0.85
-      });
-
-      marker.farmID = String(farm.ID);
-      marker.hasVote = false;
-      marker.voteSource = null;
-      marker.farmProbability = farm.farm_probability;
-
-      marker.bindTooltip(
-        `ID ${farm.ID}<br>${(farm.farm_probability * 100).toFixed(1)}%`,
-        { direction: 'top', opacity: 0.9 }
-      );
-
-     marker.bindPopup(() => renderVotePopup(marker), {
-  offset: L.point(0, -50)
-});
-
-      allMarkers.push(marker);
-
-      if (farm.farm_probability >= 0.75) {
-        heatPoints.push([farm.Latitude, farm.Longitude, farm.farm_probability]);
-      }
-    });
-
-    heatLayer = L.heatLayer(heatPoints, {
-      radius: 20,
-      blur: 20,
-      maxZoom: 8,
-      gradient: {
-        0.75: '#f9a825',
-        0.9: '#ef6c00',
-        1.0: '#c62828'
-      }
-    });
-
-    applyFilter(0.5);
+    // Store all farm data for later loading
+    allFarmData = data;
+    
+    // Initially only load farms with 40%+ probability
+    loadFarms(data.Farms, INITIAL_MIN_PROBABILITY);
+    
+    // Update slider min to match initial load
+    const slider = document.getElementById('probabilitySlider');
+    if (slider) {
+      slider.min = Math.round(INITIAL_MIN_PROBABILITY * 100);
+      slider.style.backgroundSize = '50% 100%';
+    }
   });
 
 fetch('votes_seed.json')
@@ -512,6 +551,34 @@ document.getElementById('toggleMenu').onclick = () =>
   document.getElementById('menuPanel').classList.toggle('active');
 
 document.getElementById('exportVotes').onclick = exportVotes;
+
+document.getElementById('loadAllData').onclick = () => {
+  if (allDataLoaded || !allFarmData) return;
+  
+  // Load remaining farms (those below INITIAL_MIN_PROBABILITY)
+  const remainingFarms = allFarmData.Farms.filter(
+    farm => farm.farm_probability < INITIAL_MIN_PROBABILITY
+  );
+  
+  loadFarms(remainingFarms, 0);
+  allDataLoaded = true;
+  
+  // Update slider to allow going down to 0
+  const slider = document.getElementById('probabilitySlider');
+  if (slider) {
+    slider.min = 0;
+  }
+  
+  // Update button state
+  const loadButton = document.getElementById('loadAllData');
+  if (loadButton) {
+    loadButton.disabled = true;
+    loadButton.textContent = 'All data loaded';
+    loadButton.classList.add('disabled');
+  }
+  
+  applyFilter(0.5);
+};
 
 /* ---------------- Voting ---------------- */
 
