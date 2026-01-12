@@ -246,6 +246,22 @@ renderContributionPanel();
 
 /* ---------------- High-density zones ---------------- */
 
+function getZoneColor(index, totalZones) {
+  // Generate purple gradient from brightest (index 0) to darkest (index 7)
+  // Using purple shades from Material Design palette
+  const purpleShades = [
+    '#BA68C8', // purple 300 - brightest
+    '#AB47BC', // purple 400
+    '#9C27B0', // purple 500
+    '#8E24AA', // purple 600
+    '#7B1FA2', // purple 700
+    '#6A1B9A', // purple 800
+    '#4A148C', // purple 900
+    '#38006B'  // darkest purple
+  ];
+  return purpleShades[Math.min(index, purpleShades.length - 1)];
+}
+
 function distanceKm(a, b) {
   const R = 6371;
   const dLat = (b.lat - a.lat) * Math.PI / 180;
@@ -307,10 +323,11 @@ function computeHighDensityZones() {
   zones.sort((a, b) => b.total - a.total);
 
   zones.slice(0, 8).forEach((zone, index) => {
+    const zoneColor = getZoneColor(index, zones.length);
     const circle = L.circle(zone.center, {
       radius: 1500 + zone.total * 600,
-      color: '#9c27b0',
-      fillColor: '#9c27b0',
+      color: zoneColor,
+      fillColor: zoneColor,
       fillOpacity: 0.35,
       weight: 2
     });
@@ -328,7 +345,8 @@ function computeHighDensityZones() {
     `);
 
     circle.addTo(zoneLayer);
-    window.farmZones.push(zone);
+    // Store color with zone for panel display
+    window.farmZones.push({ ...zone, color: zoneColor, index: index });
   });
 
   renderZonesList();
@@ -354,8 +372,13 @@ function renderZonesList() {
   window.farmZones.forEach((zone, index) => {
     const item = document.createElement('div');
     item.className = 'zone-item';
+    // Use the stored color or fallback to default
+    const zoneIndex = zone.index !== undefined ? zone.index : index;
+    const zoneColor = zone.color || getZoneColor(zoneIndex, window.farmZones.length);
+    item.style.background = zoneColor;
+    item.style.color = 'white';
     item.innerHTML = `
-      <div class="zone-rank">Zone #${index + 1}</div>
+      <div class="zone-rank">Zone #${zoneIndex + 1}</div>
       Farms: ${zone.total}
     `;
     item.onclick = () =>
@@ -420,6 +443,10 @@ document.getElementById('toggleZones').onclick = () => {
 document.getElementById('toggleVoted').onclick = () => {
   showVotedOverlay = !showVotedOverlay;
   updateVoteStyles();
+};
+
+document.getElementById('closeZonesPanel').onclick = () => {
+  document.getElementById('zonesPanel').classList.remove('active');
 };
 
 /* Recompute zones on map movement */
