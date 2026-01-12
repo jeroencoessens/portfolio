@@ -402,7 +402,19 @@ function computeHighDensityZones() {
       const lat = members.reduce((s, m) => s + m.getLatLng().lat, 0) / members.length;
       const lng = members.reduce((s, m) => s + m.getLatLng().lng, 0) / members.length;
 
-      zones.push({ center: L.latLng(lat, lng), total: members.length });
+      // Store farm data for tinder page
+      const farmData = members.map(m => ({
+        id: m.farmID,
+        lat: m.getLatLng().lat,
+        lng: m.getLatLng().lng,
+        probability: m.farmProbability
+      }));
+
+      zones.push({ 
+        center: L.latLng(lat, lng), 
+        total: members.length,
+        farms: farmData
+      });
     }
   });
 
@@ -422,7 +434,7 @@ function computeHighDensityZones() {
       <strong>High-risk zone #${index + 1}</strong><br/>
       ≥90% farms: ${zone.total}<br/>
       <p>This is a high-density zone with multiple high-probability farms. Explore this area in detail.</p>
-      <button onclick="window.location.href='../farm-map-tinder/index.html'" style="margin-top: 8px; width: 100%;">
+      <button onclick="loadZoneForTinder(${index})" style="margin-top: 8px; width: 100%;">
         Explore Zone
       </button>
       <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 11)" class="secondary" style="margin-top: 8px; width: 100%;">
@@ -431,8 +443,8 @@ function computeHighDensityZones() {
     `);
 
     circle.addTo(zoneLayer);
-    // Store color with zone for panel display
-    window.farmZones.push({ ...zone, color: zoneColor, index: index });
+    // Store color with zone for panel display (include farms data)
+    window.farmZones.push({ ...zone, color: zoneColor, index: index, farms: zone.farms });
   });
 
   renderZonesList();
@@ -534,6 +546,15 @@ document.getElementById('toggleVoted').onclick = () => {
 document.getElementById('closeZonesPanel').onclick = () => {
   document.getElementById('zonesPanel').classList.remove('active');
 };
+
+function loadZoneForTinder(zoneIndex) {
+  const zone = window.farmZones[zoneIndex];
+  if (zone && zone.farms) {
+    // Store zone data in localStorage for tinder page
+    localStorage.setItem('tinderZoneData', JSON.stringify(zone.farms));
+    window.location.href = '../farm-map-tinder/index.html';
+  }
+}
 
 /* Recompute zones on map movement */
 map.on('moveend zoomend', () => {

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Zone Verification - Farm Tinder</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!-- Leaflet styles -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="../farm-map/styles.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div id="map"></div>
+
+  <!-- Navigation buttons -->
+  <button id="prevBtn" class="nav-btn nav-btn-left">‹</button>
+  <button id="nextBtn" class="nav-btn nav-btn-right">›</button>
+
+  <!-- Voting panel -->
+  <div class="voting-panel">
+    <div class="farm-info">
+      <div class="farm-id">Farm ID: <span id="farmId">–</span></div>
+      <div class="farm-probability">Probability: <span id="farmProbability">–</span>%</div>
+    </div>
+    <div class="voting-instructions">
+      Decide if this location is a farm or not
+    </div>
+    <div class="voting-buttons">
+      <button id="voteNo" class="vote-btn vote-no">NO</button>
+      <button id="voteYes" class="vote-btn vote-yes">YES</button>
+    </div>
+    <div class="progress-info">
+      <span id="currentIndex">0</span> / <span id="totalFarms">0</span>
+    </div>
+  </div>
+
+  <!-- Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- App logic -->
+  <script src="app.js"></script>
+</body>
+</html>

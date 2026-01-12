@@ -1,0 +1,176 @@
+/* Tinder-specific styles */
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+#map {
+  height: 100%;
+  width: 100%;
+}
+
+/* Navigation buttons */
+.nav-btn {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--green);
+  color: var(--green);
+  font-size: 32px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  transition: all 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.nav-btn:hover {
+  background: var(--green);
+  color: white;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.nav-btn-left {
+  left: 20px;
+}
+
+.nav-btn-right {
+  right: 20px;
+}
+
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Voting panel */
+.voting-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 20px;
+  z-index: 1000;
+  box-shadow: 0 -4px 14px rgba(0,0,0,0.15);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+}
+
+.farm-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.farm-id,
+.farm-probability {
+  font-weight: 600;
+  color: var(--dark);
+}
+
+.farm-id span,
+.farm-probability span {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.voting-instructions {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.voting-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.vote-btn {
+  flex: 1;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.vote-yes {
+  background: var(--green);
+  color: white;
+}
+
+.vote-yes:hover {
+  background: #1b5e20;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
+}
+
+.vote-no {
+  background: #f1f3f4;
+  color: var(--dark);
+}
+
+.vote-no:hover {
+  background: #e0e0e0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.vote-btn:active {
+  transform: translateY(0);
+}
+
+.progress-info {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .nav-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 28px;
+  }
+
+  .nav-btn-left {
+    left: 12px;
+  }
+
+  .nav-btn-right {
+    right: 12px;
+  }
+
+  .voting-panel {
+    padding: 16px;
+  }
+
+  .vote-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+}
