@@ -27,6 +27,18 @@
       <p>
         Tap a farm, inspect it using satellite imagery, and vote <strong>YES</strong> or <strong>NO</strong>.
       </p>
+      <div class="tiers-info">
+        <p style="margin-bottom: 8px; font-weight: 600; color: var(--green);">Earn points and climb tiers:</p>
+        <div class="tier-list">
+          <div class="tier-item"><strong>Observer</strong> (0+ points)</div>
+          <div class="tier-item"><strong>Verifier</strong> (10+ points)</div>
+          <div class="tier-item"><strong>Investigator</strong> (50+ points)</div>
+          <div class="tier-item"><strong>Field Auditor</strong> (200+ points)</div>
+        </div>
+        <p style="margin-top: 8px; font-size: 12px; color: var(--muted);">
+          High-confidence votes earn bonus points!
+        </p>
+      </div>
       <p>
         When finished, use <strong>Export votes</strong> to share your feedback.
       </p>
@@ -64,6 +76,8 @@
     <div>Votes: <span id="userVotes">0</span></div>
     <div>High-confidence: <span id="userHigh">0</span></div>
     <div>Model: <span id="modelVersion">v0.1</span></div>
+    <div>Reset: <span id="resetTime">–</span></div>
+    <div id="nextTierContainer">Next tier: <span id="nextTierPoints">–</span></div>
   </div>
 </div>
 

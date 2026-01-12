@@ -50,6 +50,43 @@ function getTier(score) {
   return [...TIERS].reverse().find(t => score >= t.min).name;
 }
 
+function getTimeUntilReset() {
+  const resetDate = new Date('2026-07-01T00:00:00');
+  const now = new Date();
+  const diff = resetDate - now;
+  
+  if (diff <= 0) return 'Reset complete';
+  
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  } else if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else {
+    return `${minutes}m`;
+  }
+}
+
+function getPointsToNextTier(score) {
+  // Find current tier
+  const currentTier = [...TIERS].reverse().find(t => score >= t.min);
+  const currentTierIndex = TIERS.findIndex(t => t.name === currentTier.name);
+  
+  // Check if user is at highest tier
+  if (currentTierIndex === TIERS.length - 1) {
+    return null; // Highest tier, no next tier
+  }
+  
+  // Get next tier
+  const nextTier = TIERS[currentTierIndex + 1];
+  const pointsNeeded = nextTier.min - score;
+  
+  return pointsNeeded > 0 ? pointsNeeded : 0;
+}
+
 /* ---------------- Slider control ---------------- */
 
 const ProbabilityControl = L.Control.extend({
@@ -628,5 +665,32 @@ function renderContributionPanel() {
 
   document.getElementById('modelVersion').textContent =
     MODEL_VERSION;
+
+  // Update reset time
+  const resetTimeElement = document.getElementById('resetTime');
+  if (resetTimeElement) {
+    resetTimeElement.textContent = getTimeUntilReset();
+  }
+
+  // Update points to next tier
+  const nextTierPointsElement = document.getElementById('nextTierPoints');
+  if (nextTierPointsElement) {
+    const pointsNeeded = getPointsToNextTier(data.score);
+    if (pointsNeeded === null) {
+      nextTierPointsElement.textContent = '';
+      nextTierPointsElement.parentElement.style.display = 'none';
+    } else {
+      nextTierPointsElement.parentElement.style.display = 'block';
+      nextTierPointsElement.textContent = `${pointsNeeded} points`;
+    }
+  }
 }
+
+// Update reset time every minute
+setInterval(() => {
+  const resetTimeElement = document.getElementById('resetTime');
+  if (resetTimeElement) {
+    resetTimeElement.textContent = getTimeUntilReset();
+  }
+}, 60000);
 
