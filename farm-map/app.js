@@ -51,11 +51,12 @@ function getTier(score) {
 }
 
 function getTimeUntilReset() {
-  const resetDate = new Date('2026-07-01T00:00:00');
+  // July 1st 2026 0:00 UTC
+  const resetDate = new Date(Date.UTC(2026, 6, 1, 0, 0, 0)); // Month is 0-indexed, so 6 = July
   const now = new Date();
-  const diff = resetDate - now;
+  const diff = resetDate.getTime() - now.getTime();
   
-  if (diff <= 0) return 'Reset complete';
+  if (diff <= 0) return 'Update complete';
   
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -651,37 +652,59 @@ introReady.onclick = () => {
 function renderContributionPanel() {
   const data = loadUserData();
 
-  document.getElementById('userTier').textContent =
-    getTier(data.score);
+  const userTierEl = document.getElementById('userTier');
+  const userScoreEl = document.getElementById('userScore');
+  const userVotesEl = document.getElementById('userVotes');
+  const userHighEl = document.getElementById('userHigh');
+  const modelVersionEl = document.getElementById('modelVersion');
+  const resetTimeEl = document.getElementById('resetTime');
+  const nextTierPointsEl = document.getElementById('nextTierPoints');
+  const nextTierContainerEl = document.getElementById('nextTierContainer');
 
-  document.getElementById('userScore').textContent =
-    `${data.score} points`;
+  if (userTierEl) {
+    userTierEl.textContent = getTier(data.score);
+  }
 
-  document.getElementById('userVotes').textContent =
-    data.totalVotes;
+  if (userScoreEl) {
+    userScoreEl.textContent = `${data.score} points`;
+  }
 
-  document.getElementById('userHigh').textContent =
-    data.highConfidenceVotes;
+  if (userVotesEl) {
+    userVotesEl.textContent = data.totalVotes;
+  }
 
-  document.getElementById('modelVersion').textContent =
-    MODEL_VERSION;
+  if (userHighEl) {
+    userHighEl.textContent = data.highConfidenceVotes;
+  }
+
+  if (modelVersionEl) {
+    modelVersionEl.textContent = MODEL_VERSION;
+  }
 
   // Update reset time
-  const resetTimeElement = document.getElementById('resetTime');
-  if (resetTimeElement) {
-    resetTimeElement.textContent = getTimeUntilReset();
+  if (resetTimeEl) {
+    try {
+      resetTimeEl.textContent = getTimeUntilReset();
+    } catch (e) {
+      console.error('Error calculating reset time:', e);
+      resetTimeEl.textContent = '–';
+    }
   }
 
   // Update points to next tier
-  const nextTierPointsElement = document.getElementById('nextTierPoints');
-  if (nextTierPointsElement) {
-    const pointsNeeded = getPointsToNextTier(data.score);
-    if (pointsNeeded === null) {
-      nextTierPointsElement.textContent = '';
-      nextTierPointsElement.parentElement.style.display = 'none';
-    } else {
-      nextTierPointsElement.parentElement.style.display = 'block';
-      nextTierPointsElement.textContent = `${pointsNeeded} points`;
+  if (nextTierPointsEl && nextTierContainerEl) {
+    try {
+      const pointsNeeded = getPointsToNextTier(data.score);
+      if (pointsNeeded === null) {
+        nextTierContainerEl.style.display = 'none';
+      } else {
+        nextTierContainerEl.style.display = 'block';
+        nextTierPointsEl.textContent = `${pointsNeeded} points`;
+      }
+    } catch (e) {
+      console.error('Error calculating next tier points:', e);
+      nextTierContainerEl.style.display = 'block';
+      nextTierPointsEl.textContent = '–';
     }
   }
 }
