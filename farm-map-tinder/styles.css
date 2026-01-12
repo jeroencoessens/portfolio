@@ -92,6 +92,41 @@ html, body {
   font-weight: 700;
 }
 
+.vote-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #e3f2fd;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #1976d2;
+}
+
+.voted-text {
+  font-weight: 600;
+  color: #1976d2;
+  font-size: 14px;
+}
+
+.cancel-vote-btn {
+  background: transparent;
+  color: #1976d2;
+  border: 1px solid #1976d2;
+  padding: 4px 12px;
+  font-size: 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: auto;
+  min-width: auto;
+}
+
+.cancel-vote-btn:hover {
+  background: #1976d2;
+  color: white;
+}
+
 .voting-instructions {
   text-align: center;
   color: var(--muted);

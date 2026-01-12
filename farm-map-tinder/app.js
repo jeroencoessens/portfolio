@@ -73,10 +73,32 @@ function showFarm(index) {
   currentIndex = index;
   const farm = farms[index];
   
+  // Check for existing vote
+  const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
+  const existingVote = votes[farm.id];
+  
   // Update UI
   document.getElementById('farmId').textContent = farm.id;
   document.getElementById('farmProbability').textContent = (farm.probability * 100).toFixed(1);
   document.getElementById('currentIndex').textContent = index + 1;
+  
+  // Update vote status display
+  const voteStatusEl = document.getElementById('voteStatus');
+  const votingSectionEl = document.getElementById('votingSection');
+  
+  if (existingVote) {
+    // Show vote status, hide voting buttons
+    voteStatusEl.style.display = 'flex';
+    votingSectionEl.style.display = 'none';
+    
+    // Update cancel button handler
+    const cancelBtn = document.getElementById('cancelVoteBtn');
+    cancelBtn.onclick = () => cancelVote(farm.id);
+  } else {
+    // Hide vote status, show voting buttons
+    voteStatusEl.style.display = 'none';
+    votingSectionEl.style.display = 'block';
+  }
   
   // Update map view
   map.setView([farm.lat, farm.lng], 16, {
@@ -153,6 +175,48 @@ function vote(yes) {
   
   // Move to next farm
   nextFarm();
+}
+
+function cancelVote(farmId) {
+  const votes = JSON.parse(localStorage.getItem('farmVotes') || '{}');
+  if (!votes[farmId]) return;
+  
+  // Get the vote before deleting
+  const vote = votes[farmId];
+  delete votes[farmId];
+  localStorage.setItem('farmVotes', JSON.stringify(votes));
+  
+  // Update user data (reverse the vote)
+  const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+  if (userData.totalVotes > 0) {
+    userData.totalVotes -= 1;
+  }
+  
+  // Find the farm to check probability
+  const farm = farms.find(f => f.id === farmId);
+  if (farm) {
+    if (farm.probability >= 0.9 && userData.highConfidenceVotes > 0) {
+      userData.highConfidenceVotes -= 1;
+    }
+    
+    // Calculate score to remove (same logic as vote function)
+    let scoreToRemove = 1; // base
+    if (farm.probability >= 0.9) scoreToRemove += 2;
+    // Check if this was a first-time vote by checking if there are other votes now
+    // Since we just deleted this vote, if there are no other votes for this farm ID in the system,
+    // it was likely a first-time vote. But we can't be 100% sure, so we'll be conservative
+    // and only subtract the base + probability bonus
+    // Note: We subtract 1 for first-time vote bonus as a reasonable estimate
+    scoreToRemove += 1;
+    
+    userData.score = Math.max(0, (userData.score || 0) - scoreToRemove);
+  }
+  
+  userData.lastActive = new Date().toISOString().slice(0, 10);
+  localStorage.setItem('userData', JSON.stringify(userData));
+  
+  // Update UI to show voting buttons again
+  showFarm(currentIndex);
 }
 
 /* ---------------- Event Listeners ---------------- */

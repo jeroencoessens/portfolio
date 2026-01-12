@@ -27,12 +27,18 @@
       <div class="farm-id">Farm ID: <span id="farmId">–</span></div>
       <div class="farm-probability">Probability: <span id="farmProbability">–</span>%</div>
     </div>
-    <div class="voting-instructions">
-      Decide if this location is a farm or not
+    <div id="voteStatus" class="vote-status" style="display: none;">
+      <span class="voted-text">VOTED</span>
+      <button id="cancelVoteBtn" class="cancel-vote-btn">Cancel vote</button>
     </div>
-    <div class="voting-buttons">
-      <button id="voteNo" class="vote-btn vote-no">NO</button>
-      <button id="voteYes" class="vote-btn vote-yes">YES</button>
+    <div id="votingSection">
+      <div class="voting-instructions">
+        Decide if this location is a farm or not
+      </div>
+      <div class="voting-buttons">
+        <button id="voteNo" class="vote-btn vote-no">NO</button>
+        <button id="voteYes" class="vote-btn vote-yes">YES</button>
+      </div>
     </div>
     <div class="progress-info">
       <span id="currentIndex">0</span> / <span id="totalFarms">0</span>
