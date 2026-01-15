@@ -583,6 +583,9 @@ function navigateToZone(zone) {
     return;
   }
   
+  // Set flag to prevent zone recomputation during navigation
+  window.isNavigatingToZone = true;
+  
   // Close any existing popups
   map.closePopup();
   
@@ -609,9 +612,12 @@ function navigateToZone(zone) {
       } catch (e) {
         console.error('Error opening popup:', e);
       }
+      // Clear the navigation flag after popup is opened
+      window.isNavigatingToZone = false;
     }, flyDuration * 1000 + 200); // Add buffer after animation
   } else {
     console.error('No circle reference found for zone');
+    window.isNavigatingToZone = false;
   }
 }
 
@@ -681,7 +687,8 @@ document.getElementById('closeZonesPanel').onclick = () => {
 
 /* Recompute zones on map movement */
 map.on('moveend zoomend', () => {
-  if (zonesEnabled) computeHighDensityZones();
+  // Skip recomputation if we're navigating to a zone (prevents popup from being destroyed)
+  if (zonesEnabled && !window.isNavigatingToZone) computeHighDensityZones();
 });
 
 /* Mobile heatmap fix */
