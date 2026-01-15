@@ -557,15 +557,45 @@ function renderZonesList() {
       Farms: ${zone.total}
     `;
     item.onclick = () => {
-      // Zoom to zone and open its popup
-      map.setView([zone.center.lat, zone.center.lng], Math.max(map.getZoom(), 10));
-      // Open the zone's popup if circle reference exists
-      if (zone.circle) {
-        zone.circle.openPopup();
-      }
+      navigateToZone(zone);
     };
     list.appendChild(item);
   });
+}
+
+/* ---------------- Zone Navigation ---------------- */
+
+function navigateToZone(zone) {
+  if (!zone || !zone.center) {
+    console.error('Invalid zone:', zone);
+    return;
+  }
+  
+  // Close any existing popups
+  map.closePopup();
+  
+  // Calculate appropriate zoom level based on zone radius
+  const targetZoom = 11;
+  
+  // Use flyTo for smooth animation
+  map.flyTo([zone.center.lat, zone.center.lng], targetZoom, {
+    duration: 1.2,
+    easeLinearity: 0.25
+  });
+  
+  // Open popup after animation completes
+  if (zone.circle) {
+    // Wait for the fly animation to complete, then open popup
+    const onMoveEnd = () => {
+      // Small delay to ensure map is settled
+      setTimeout(() => {
+        zone.circle.openPopup();
+      }, 100);
+      // Remove the listener after it fires once
+      map.off('moveend', onMoveEnd);
+    };
+    map.on('moveend', onMoveEnd);
+  }
 }
 
 /* ---------------- Filtering ---------------- */
