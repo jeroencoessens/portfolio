@@ -473,7 +473,7 @@ function computeHighDensityZones() {
       fillColor: zoneColor,
       fillOpacity: 0.35,
       weight: 2,
-      bubblingMouseEvents: false // Prevent click from bubbling to map (stops panning on mobile)
+      interactive: true
     });
 
     const popupContent = `
@@ -488,7 +488,16 @@ function computeHighDensityZones() {
       </button>
     `;
     
-    circle.bindPopup(popupContent);
+    // Bind popup at the center of the circle
+    circle.bindPopup(popupContent, {
+      offset: [0, 0]
+    });
+    
+    // Handle click on circle - just open popup, don't pan
+    circle.on('click', function(e) {
+      L.DomEvent.stopPropagation(e);
+      circle.openPopup();
+    });
     
     // Add event listeners when popup opens
     circle.on('popupopen', function() {
@@ -567,6 +576,8 @@ function renderZonesList() {
 /* ---------------- Zone Navigation ---------------- */
 
 function navigateToZone(zone) {
+  console.log('navigateToZone called:', zone);
+  
   if (!zone || !zone.center) {
     console.error('Invalid zone:', zone);
     return;
@@ -577,7 +588,10 @@ function navigateToZone(zone) {
   
   // Calculate appropriate zoom level based on zone radius
   const targetZoom = 11;
-  const flyDuration = 0.6; // Duration in seconds
+  const flyDuration = 0.5; // Duration in seconds
+  
+  console.log('Flying to:', zone.center.lat, zone.center.lng);
+  console.log('Circle reference:', zone.circle);
   
   // Use flyTo for smooth animation
   map.flyTo([zone.center.lat, zone.center.lng], targetZoom, {
@@ -588,8 +602,16 @@ function navigateToZone(zone) {
   // Open popup after animation completes using timeout
   if (zone.circle) {
     setTimeout(() => {
-      zone.circle.openPopup();
-    }, flyDuration * 1000 + 150); // Add small buffer after animation
+      console.log('Opening popup for zone');
+      try {
+        zone.circle.openPopup();
+        console.log('Popup opened successfully');
+      } catch (e) {
+        console.error('Error opening popup:', e);
+      }
+    }, flyDuration * 1000 + 200); // Add buffer after animation
+  } else {
+    console.error('No circle reference found for zone');
   }
 }
 
