@@ -270,8 +270,7 @@ button.disabled {
   border-radius: 14px;
   box-shadow: 0 4px 14px rgba(0,0,0,0.12);
   width: 220px;
-  max-height: 45vh;
-  overflow-y: auto;
+  max-height: 200px;
   display: none;
 }
 
@@ -321,6 +320,8 @@ button.disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 140px;
+  overflow-y: auto;
 }
 
 .zone-item {

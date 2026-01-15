@@ -513,8 +513,8 @@ function computeHighDensityZones() {
     });
 
     circle.addTo(zoneLayer);
-    // Store color with zone for panel display (include farms data)
-    const zoneToStore = { ...zone, color: zoneColor, index: index, farms: zone.farms };
+    // Store color with zone for panel display (include farms data and circle reference)
+    const zoneToStore = { ...zone, color: zoneColor, index: index, farms: zone.farms, circle: circle };
     console.log(`Storing zone ${index}:`, {
       total: zoneToStore.total,
       farmsCount: zoneToStore.farms?.length,
@@ -556,8 +556,14 @@ function renderZonesList() {
       <div class="zone-rank">Zone #${zoneIndex + 1}</div>
       Farms: ${zone.total}
     `;
-    item.onclick = () =>
+    item.onclick = () => {
+      // Zoom to zone and open its popup
       map.setView([zone.center.lat, zone.center.lng], Math.max(map.getZoom(), 10));
+      // Open the zone's popup if circle reference exists
+      if (zone.circle) {
+        zone.circle.openPopup();
+      }
+    };
     list.appendChild(item);
   });
 }
@@ -613,6 +619,8 @@ document.getElementById('toggleHeat').onclick = () => {
 document.getElementById('toggleZones').onclick = () => {
   zonesEnabled = !zonesEnabled;
   computeHighDensityZones();
+  // Close menu panel for better mobile UX
+  document.getElementById('menuPanel').classList.remove('active');
 };
 
 document.getElementById('toggleVoted').onclick = () => {
