@@ -476,14 +476,15 @@ function computeHighDensityZones() {
       interactive: true
     });
 
+    // Use onclick handlers directly in HTML for reliability
     const popupContent = `
       <strong>High-risk zone #${index + 1}</strong><br/>
       ≥90% farms: ${zone.total}<br/>
       <p>This is a high-density zone with multiple high-probability farms. Explore this area in detail.</p>
-      <button id="exploreZoneBtn-${index}" style="margin-top: 8px; width: 100%;">
+      <button onclick="window.loadZoneForTinder(${index})" style="margin-top: 8px; width: 100%;">
         Explore Zone
       </button>
-      <button id="zoomZoneBtn-${index}" class="secondary" style="margin-top: 8px; width: 100%;">
+      <button onclick="map.setView([${zone.center.lat}, ${zone.center.lng}], 11)" class="secondary" style="margin-top: 8px; width: 100%;">
         Zoom into zone
       </button>
     `;
@@ -497,29 +498,6 @@ function computeHighDensityZones() {
     circle.on('click', function(e) {
       L.DomEvent.stopPropagation(e);
       circle.openPopup();
-    });
-    
-    // Add event listeners when popup opens
-    circle.on('popupopen', function() {
-      const exploreBtn = document.getElementById(`exploreZoneBtn-${index}`);
-      const zoomBtn = document.getElementById(`zoomZoneBtn-${index}`);
-      
-      if (exploreBtn) {
-        exploreBtn.onclick = () => {
-          if (window.loadZoneForTinder) {
-            window.loadZoneForTinder(index);
-          } else {
-            console.error('loadZoneForTinder function not found');
-            alert('Error: Function not available. Please refresh the page.');
-          }
-        };
-      }
-      
-      if (zoomBtn) {
-        zoomBtn.onclick = () => {
-          map.setView([zone.center.lat, zone.center.lng], 11);
-        };
-      }
     });
 
     circle.addTo(zoneLayer);
@@ -576,15 +554,10 @@ function renderZonesList() {
 /* ---------------- Zone Navigation ---------------- */
 
 function navigateToZone(zone) {
-  console.log('navigateToZone called:', zone);
-  
   if (!zone || !zone.center) {
     console.error('Invalid zone:', zone);
     return;
   }
-  
-  // Set flag to prevent zone recomputation during navigation
-  window.isNavigatingToZone = true;
   
   // Close any existing popups
   map.closePopup();
@@ -592,9 +565,6 @@ function navigateToZone(zone) {
   // Calculate appropriate zoom level based on zone radius
   const targetZoom = 11;
   const flyDuration = 0.5; // Duration in seconds
-  
-  console.log('Flying to:', zone.center.lat, zone.center.lng);
-  console.log('Circle reference:', zone.circle);
   
   // Use flyTo for smooth animation
   map.flyTo([zone.center.lat, zone.center.lng], targetZoom, {
@@ -605,19 +575,12 @@ function navigateToZone(zone) {
   // Open popup after animation completes using timeout
   if (zone.circle) {
     setTimeout(() => {
-      console.log('Opening popup for zone');
       try {
         zone.circle.openPopup();
-        console.log('Popup opened successfully');
       } catch (e) {
         console.error('Error opening popup:', e);
       }
-      // Clear the navigation flag after popup is opened
-      window.isNavigatingToZone = false;
     }, flyDuration * 1000 + 200); // Add buffer after animation
-  } else {
-    console.error('No circle reference found for zone');
-    window.isNavigatingToZone = false;
   }
 }
 
@@ -685,11 +648,11 @@ document.getElementById('closeZonesPanel').onclick = () => {
   document.getElementById('zonesPanel').classList.remove('active');
 };
 
-/* Recompute zones on map movement */
+/* Disabled: Recompute zones on map movement (was causing issues with popups being destroyed)
 map.on('moveend zoomend', () => {
-  // Skip recomputation if we're navigating to a zone (prevents popup from being destroyed)
   if (zonesEnabled && !window.isNavigatingToZone) computeHighDensityZones();
 });
+*/
 
 /* Mobile heatmap fix */
 map.on('zoomanim move', () => {
