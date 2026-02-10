@@ -106,9 +106,7 @@ let gameState = {
   unlockedPowerUps: [],
   mysteryBoxes: 0,
   historicalUnlocked: false,
-  unlockedHistoricalYears: [2024], // Current year always unlocked
-  currentHistoricalYear: 2024,
-  unlockedSatelliteProviders: ['esri'], // Esri is default with best historical coverage
+  unlockedSatelliteProviders: ['esri', 'bing_2014', 'sentinel2_cloudless'], // Start with default + free providers
   currentSatelliteProvider: 'esri'
 };
 
@@ -898,20 +896,8 @@ function renderFeaturesShop() {
   `;
   container.appendChild(historicalItem);
   
-  // Historical years section (only show if historical mode is unlocked)
+  // Satellite providers section (only show if historical mode is unlocked)
   if (historicalUnlocked) {
-    const yearSectionTitle = document.createElement('h3');
-    yearSectionTitle.style.cssText = 'margin: 20px 0 10px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 8px; font-size: 14px;';
-    yearSectionTitle.textContent = '📅 Historical Years';
-    container.appendChild(yearSectionTitle);
-    
-    const yearContainer = document.createElement('div');
-    yearContainer.id = 'historicalYearShopItems';
-    container.appendChild(yearContainer);
-    
-    renderHistoricalShop();
-    
-    // Satellite providers section
     const providerSectionTitle = document.createElement('h3');
     providerSectionTitle.style.cssText = 'margin: 20px 0 10px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 8px; font-size: 14px;';
     providerSectionTitle.textContent = '🛰️ Satellite Providers';
@@ -937,47 +923,105 @@ function renderSatelliteProviderShop() {
   
   if (!gameState.unlockedSatelliteProviders) gameState.unlockedSatelliteProviders = ['esri'];
   
-  // Define which providers are true satellite imagery
-  const trueSatelliteProviders = ['esri', 'google', 'usgs', 'sentinel2', 'sentinel2_cloudless', 'sentinel_hub', 'planet_skysat', 'landsat', 'maxar_worldview', 'modis'];
+  // Organize providers by type
+  const providersByType = {
+    satellite_historical: [],
+    satellite: [],
+    terrain: []
+  };
   
   Object.keys(SATELLITE_PROVIDERS).forEach(providerId => {
     const provider = SATELLITE_PROVIDERS[providerId];
+    const type = provider.providerType || 'satellite';
+    if (!providersByType[type]) providersByType[type] = [];
+    providersByType[type].push({ id: providerId, ...provider });
+  });
+  
+  // Helper function to render provider item
+  const renderProviderItem = (providerId, provider) => {
     const isUnlocked = gameState.unlockedSatelliteProviders.includes(providerId);
     const canAfford = gameState.points >= provider.price;
     
     // Check if this has real historical data capability
     const hasRealData = provider.hasRealHistorical === true && provider.requiresDate === true;
-    const dataNote = hasRealData ? ' ⭐ Real historical data' : '';
+    const dataNote = hasRealData ? ' ⭐ Real historical' : provider.historicalDataType === 'static_old' ? ' 📸 Real old imagery' : '';
     const setupNote = provider.requiresSetup ? '<br><small style="color:#1976d2;font-weight:600;">⚙️ Requires setup - click info button</small>' : '';
     const noteText = provider.historicalNote ? `<br><small style="color:#f57c00;font-style:italic;">Note: ${provider.historicalNote}</small>` : '';
-    
-    // Determine provider type
-    const isSatellite = trueSatelliteProviders.includes(providerId);
-    const typeLabel = isSatellite 
-      ? '<span style="display:inline-block;padding:2px 8px;background:#e8f5e9;color:#2e7d32;border-radius:4px;font-size:11px;font-weight:600;margin-top:4px;">🛰️ Satellite Imagery</span>'
-      : '<span style="display:inline-block;padding:2px 8px;background:#f5f5f5;color:#666;border-radius:4px;font-size:11px;margin-top:4px;">🗺️ Map/Terrain Data</span>';
     
     const item = document.createElement('div');
     item.className = `shop-item ${isUnlocked ? 'unlocked' : ''}`;
     item.innerHTML = `
       <div class="shop-item-info">
         <div class="shop-item-name">${isUnlocked ? provider.emoji : '🔒'} ${provider.name}${dataNote}</div>
-        <div class="shop-item-desc">${provider.description}<br><small style="color: var(--muted)">Coverage: ${provider.yearCoverage}</small>${setupNote}${noteText}<br>${typeLabel}</div>
+        <div class="shop-item-desc">${provider.description}<br><small style="color: var(--muted)">Coverage: ${provider.yearCoverage}</small>${setupNote}${noteText}</div>
       </div>
       <div class="shop-item-action">
         ${provider.requiresSetup && !isUnlocked ? `<button class="btn-buy" style="background:#1976d2;margin-right:8px;" onclick="showSentinelHubSetup()">ℹ️ Setup</button>` : ''}
         ${isUnlocked 
           ? '<span class="shop-item-unlocked">✓ Unlocked</span>'
           : provider.price === 0
-            ? '<span class="shop-item-unlocked">Default</span>'
+            ? `<button class="btn-buy" style="background:#4caf50;" onclick="unlockSatelliteProvider('${providerId}')">
+                🆓 Unlock Free
+              </button>`
             : `<button class="btn-buy" ${canAfford ? '' : 'disabled'} onclick="unlockSatelliteProvider('${providerId}')">
                 💰 ${provider.price} points
               </button>`
         }
       </div>
     `;
-    container.appendChild(item);
-  });
+    return item;
+  };
+  
+  // Render Satellite + Historical providers first (most valuable for game)
+  if (providersByType.satellite_historical.length > 0) {
+    const header = document.createElement('h4');
+    header.innerHTML = '🛰️ 📅 Satellite Imagery with Historical Data';
+    header.style.cssText = 'color: var(--green); margin: 20px 0 10px 0; font-size: 14px; border-bottom: 2px solid var(--green); padding-bottom: 5px;';
+    container.appendChild(header);
+    
+    const desc = document.createElement('p');
+    desc.innerHTML = 'Best for comparing farm changes over time. Use the historical slider to view past years.';
+    desc.style.cssText = 'color: var(--muted); font-size: 12px; margin: 5px 0 15px 0;';
+    container.appendChild(desc);
+    
+    providersByType.satellite_historical.forEach(p => {
+      container.appendChild(renderProviderItem(p.id, p));
+    });
+  }
+  
+  // Render Satellite only providers (current imagery)
+  if (providersByType.satellite.length > 0) {
+    const header = document.createElement('h4');
+    header.innerHTML = '🛰️ Satellite Imagery (Current Only)';
+    header.style.cssText = 'color: #1976d2; margin: 25px 0 10px 0; font-size: 14px; border-bottom: 2px solid #1976d2; padding-bottom: 5px;';
+    container.appendChild(header);
+    
+    const desc = document.createElement('p');
+    desc.innerHTML = 'High-quality satellite photos for farm identification. Different perspectives can help verify buildings.';
+    desc.style.cssText = 'color: var(--muted); font-size: 12px; margin: 5px 0 15px 0;';
+    container.appendChild(desc);
+    
+    providersByType.satellite.forEach(p => {
+      container.appendChild(renderProviderItem(p.id, p));
+    });
+  }
+  
+  // Render Terrain/Map providers last (less useful for farm identification)
+  if (providersByType.terrain.length > 0) {
+    const header = document.createElement('h4');
+    header.innerHTML = '🗺️ Maps & Terrain (Reference Only)';
+    header.style.cssText = 'color: var(--muted); margin: 25px 0 10px 0; font-size: 14px; border-bottom: 2px solid #ccc; padding-bottom: 5px;';
+    container.appendChild(header);
+    
+    const desc = document.createElement('p');
+    desc.innerHTML = 'Not satellite imagery. Use for geographic context and reference, but not ideal for identifying farms.';
+    desc.style.cssText = 'color: var(--muted); font-size: 12px; margin: 5px 0 15px 0; font-style: italic;';
+    container.appendChild(desc);
+    
+    providersByType.terrain.forEach(p => {
+      container.appendChild(renderProviderItem(p.id, p));
+    });
+  }
 }
 
 function unlockSatelliteProvider(providerId) {
@@ -1535,10 +1579,24 @@ function toggleHistoricalMode() {
     btn.classList.add('active');
     btn.textContent = '📅 Exit Historical Mode';
     slider.style.display = 'block';
-    showToast('📅 Historical Mode activated');
+    
+    // Initialize provider timeline slider
+    initializeProviderTimeline();
+    
+    // Check if current provider supports historical data
+    const providerId = gameState.currentSatelliteProvider || 'esri';
+    const provider = SATELLITE_PROVIDERS[providerId];
+    
+    if (!provider.hasSatelliteImagery) {
+      showToast('⚠️ Historical Mode activated - Current provider is map view (not satellite imagery)');
+    } else if (!provider.hasHistoricalData) {
+      showToast('⚠️ Historical Mode activated - Current provider shows current imagery only');
+    } else {
+      showToast('📅 Historical Mode activated - Use slider to explore different providers');
+    }
     
     // Load initial historical layer
-    updateHistoricalLayer(gameState.currentHistoricalYear || 2024);
+    updateHistoricalLayer(2024);
   } else {
     btn.classList.remove('active');
     btn.textContent = '📅 Historical Mode';
@@ -1555,6 +1613,9 @@ function toggleHistoricalMode() {
 }
 
 // Satellite provider definitions
+// providerType: 'terrain' | 'satellite' | 'satellite_historical'
+// hasSatelliteImagery: whether it shows actual satellite photos
+// hasHistoricalData: whether it has real or simulated historical data
 const SATELLITE_PROVIDERS = {
   esri: {
     name: 'Esri WorldImagery',
@@ -1564,7 +1625,11 @@ const SATELLITE_PROVIDERS = {
     price: 0, // Default provider
     emoji: '🛰️',
     yearCoverage: '2000-2024*',
-    maxZoom: 19
+    maxZoom: 19,
+    providerType: 'satellite_historical',
+    hasSatelliteImagery: true,
+    hasHistoricalData: true,
+    historicalDataType: 'simulated'
   },
   google: {
     name: 'Google Satellite',
@@ -1574,77 +1639,117 @@ const SATELLITE_PROVIDERS = {
     price: 500,
     emoji: '🌍',
     yearCoverage: '2010-2024',
-    maxZoom: 20
+    maxZoom: 20,
+    providerType: 'satellite',
+    hasSatelliteImagery: true,
+    hasHistoricalData: false
+  },
+  bing_2014: {
+    name: 'Bing 2010-2014 Archive',
+    description: '🆓 FREE historical satellite from Bing\'s old tile server. Real imagery from the 2010-2014 era - perfect for comparing against current views! Note: This is a static archive from that period, not adjustable by year.',
+    url: 'https://t.ssl.ak.tiles.virtualearth.net/tiles/a{q}.jpeg?g=854&mkt=en-US&n=z',
+    attribution: '© Microsoft',
+    price: 0,
+    emoji: '📸',
+    yearCoverage: '2010-2014 (Real)',
+    maxZoom: 19,
+    providerType: 'satellite_historical',
+    hasSatelliteImagery: true,
+    hasHistoricalData: true,
+    historicalDataType: 'static_old',
+    isQuadKey: true,
+    historicalNote: 'Real historical imagery from 2010-2014 era - static archive, year slider has no effect'
   },
   carto_light: {
     name: 'CARTO Light',
-    description: 'Clean, minimal satellite basemap',
+    description: 'Clean, minimal street map (not satellite imagery)',
     url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
     attribution: '© CARTO',
     price: 300,
     emoji: '🗺️',
     yearCoverage: '2015-2024',
-    maxZoom: 19
+    maxZoom: 19,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   carto_dark: {
     name: 'CARTO Dark',
-    description: 'Dark mode satellite view',
+    description: 'Dark mode street map (not satellite imagery)',
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
     attribution: '© CARTO',
     price: 300,
     emoji: '🌙',
     yearCoverage: '2015-2024',
-    maxZoom: 19
+    maxZoom: 19,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   osm: {
     name: 'OpenStreetMap',
-    description: 'Community-driven street map with global coverage',
+    description: 'Street map view (not satellite imagery - use for reference only)',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '© OpenStreetMap contributors',
     price: 200,
     emoji: '🗺️',
     yearCoverage: '2005-2024',
-    maxZoom: 19
+    maxZoom: 19,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   stamen_terrain: {
     name: 'Stamen Terrain',
-    description: 'Terrain and elevation visualization',
+    description: 'Terrain and elevation visualization (not satellite imagery)',
     url: 'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
     attribution: '© Stamen Design',
     price: 250,
     emoji: '⛰️',
     yearCoverage: '2010-2024',
-    maxZoom: 18
+    maxZoom: 18,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   stamen_toner: {
     name: 'Stamen Toner',
-    description: 'High-contrast black and white map',
+    description: 'High-contrast black and white map (not satellite imagery)',
     url: 'https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png',
     attribution: '© Stamen Design',
     price: 250,
     emoji: '⬛',
     yearCoverage: '2010-2024',
-    maxZoom: 18
+    maxZoom: 18,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   stamen_watercolor: {
     name: 'Stamen Watercolor',
-    description: 'Artistic watercolor-style map',
+    description: 'Artistic watercolor-style map (not satellite imagery)',
     url: 'https://stamen-tiles.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.jpg',
     attribution: '© Stamen Design',
     price: 400,
     emoji: '🎨',
     yearCoverage: '2012-2024',
-    maxZoom: 16
+    maxZoom: 16,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   opentopomap: {
     name: 'OpenTopoMap',
-    description: 'Topographic map based on OSM data',
+    description: 'Topographic map based on OSM data (not satellite imagery)',
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
     attribution: '© OpenTopoMap',
     price: 350,
     emoji: '🗻',
     yearCoverage: '2010-2024',
-    maxZoom: 17
+    maxZoom: 17,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   usgs: {
     name: 'USGS Imagery',
@@ -1654,38 +1759,51 @@ const SATELLITE_PROVIDERS = {
     price: 600,
     emoji: '🇺🇸',
     yearCoverage: '2005-2024',
-    maxZoom: 16
+    maxZoom: 16,
+    providerType: 'satellite',
+    hasSatelliteImagery: true,
+    hasHistoricalData: false
   },
   usgs_topo: {
     name: 'USGS Historical Topos',
-    description: 'Genuine historical topographic maps from 1880s-2000s',
+    description: 'Genuine historical topographic maps from 1880s-2000s (not satellite imagery)',
     url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
     attribution: '© USGS',
     price: 800,
     emoji: '📜',
     yearCoverage: '1880-2024 (Real)',
-    maxZoom: 16
+    maxZoom: 16,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: true,
+    historicalDataType: 'real'
   },
   thunderforest_landscape: {
     name: 'Thunderforest Landscape',
-    description: 'Detailed landscape and terrain visualization',
+    description: 'Detailed landscape and terrain visualization (not satellite imagery)',
     url: 'https://tile.thunderforest.com/landscape/{z}/{x}/{y}.png?apikey=',
     attribution: '© Thunderforest',
     price: 450,
     emoji: '🏔️',
     yearCoverage: '2012-2024',
     maxZoom: 18,
-    requiresApiKey: true
+    requiresApiKey: true,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   arcgis_world_street: {
     name: 'ArcGIS World Street',
-    description: 'Detailed street map with different historical rendering',
+    description: 'Detailed street map (not satellite imagery)',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
     attribution: '© Esri',
     price: 350,
     emoji: '🛣️',
     yearCoverage: '2000-2024',
-    maxZoom: 19
+    maxZoom: 19,
+    providerType: 'terrain',
+    hasSatelliteImagery: false,
+    hasHistoricalData: false
   },
   sentinel2: {
     name: 'Sentinel-2 (ESA)',
@@ -1696,18 +1814,24 @@ const SATELLITE_PROVIDERS = {
     emoji: '🇪🇺',
     yearCoverage: '2015-2024',
     maxZoom: 18,
-    historicalNote: 'Current simulation - for REAL historical Sentinel-2, use Sentinel Hub (free tier available)'
+    historicalNote: 'Current simulation - for REAL historical Sentinel-2, use Sentinel Hub (free tier available)',
+    providerType: 'satellite',
+    hasSatelliteImagery: true,
+    hasHistoricalData: false
   },
   sentinel2_cloudless: {
     name: 'Sentinel-2 Cloudless (EOx)',
-    description: 'FREE 10m resolution cloudless Sentinel-2 mosaic - perfect for farm identification! Updated regularly with latest imagery.',
+    description: '🆓 FREE 10m resolution cloudless Sentinel-2 mosaic - perfect for farm identification! Updated regularly with latest imagery.',
     url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2022_3857/default/g/{z}/{y}/{x}.jpg',
     attribution: '© EOx - Sentinel-2 cloudless by EOx',
     price: 0,
     emoji: '☁️',
     yearCoverage: '2022 (Cloudless composite)',
     maxZoom: 15,
-    historicalNote: 'Single year composite - for timelapse, use Sentinel Hub API'
+    historicalNote: 'Single year composite - for timelapse, use Sentinel Hub API',
+    providerType: 'satellite',
+    hasSatelliteImagery: true,
+    hasHistoricalData: false
   },
   sentinel_hub: {
     name: 'Sentinel Hub (Real Historical!)',
@@ -1721,7 +1845,11 @@ const SATELLITE_PROVIDERS = {
     hasRealHistorical: true,
     requiresDate: true,
     requiresSetup: true,
-    setupInstructions: 'Get free instance ID at sentinel-hub.com'
+    setupInstructions: 'Get free instance ID at sentinel-hub.com',
+    providerType: 'satellite_historical',
+    hasSatelliteImagery: true,
+    hasHistoricalData: true,
+    historicalDataType: 'real'
   },
   planet_skysat: {
     name: 'Planet SkySat',
@@ -1731,7 +1859,10 @@ const SATELLITE_PROVIDERS = {
     price: 900,
     emoji: '🌐',
     yearCoverage: '2016-2024',
-    maxZoom: 19
+    maxZoom: 19,
+    providerType: 'satellite',
+    hasSatelliteImagery: true,
+    hasHistoricalData: false
   },
   landsat: {
     name: 'Landsat (NASA/USGS)',
@@ -1743,7 +1874,11 @@ const SATELLITE_PROVIDERS = {
     yearCoverage: '1984-2024 (Real)',
     maxZoom: 17,
     hasRealHistorical: true,
-    historicalNote: 'Visual simulation only - true historical Landsat requires Google Earth Engine'
+    historicalNote: 'Visual simulation only - true historical Landsat requires Google Earth Engine',
+    providerType: 'satellite_historical',
+    hasSatelliteImagery: true,
+    hasHistoricalData: true,
+    historicalDataType: 'simulated'
   },
   modis: {
     name: 'MODIS (NASA Terra)',
@@ -1756,7 +1891,11 @@ const SATELLITE_PROVIDERS = {
     maxZoom: 9,
     hasRealHistorical: true,
     requiresDate: true,
-    historicalNote: 'Max zoom too low for farm-level detail - use for regional context only'
+    historicalNote: 'Max zoom too low for farm-level detail - use for regional context only',
+    providerType: 'satellite_historical',
+    hasSatelliteImagery: true,
+    hasHistoricalData: true,
+    historicalDataType: 'real'
   },
   maxar_worldview: {
     name: 'Maxar WorldView',
@@ -1766,7 +1905,10 @@ const SATELLITE_PROVIDERS = {
     price: 1200,
     emoji: '🔬',
     yearCoverage: '2014-2024',
-    maxZoom: 20
+    maxZoom: 20,
+    providerType: 'satellite',
+    hasSatelliteImagery: true,
+    hasHistoricalData: false
   }
 };
 
@@ -1826,6 +1968,26 @@ function tileToBbox(x, y, z) {
 }
 
 /**
+ * Convert tile coordinates to Bing Maps quadkey
+ * Used for Bing tile servers that require quadkey instead of x/y/z
+ * @param {number} x - Tile X coordinate
+ * @param {number} y - Tile Y coordinate
+ * @param {number} z - Zoom level
+ * @returns {string} - Quadkey string
+ */
+function tileToQuadKey(x, y, z) {
+  let quadKey = '';
+  for (let i = z; i > 0; i--) {
+    let digit = 0;
+    const mask = 1 << (i - 1);
+    if ((x & mask) !== 0) digit++;
+    if ((y & mask) !== 0) digit += 2;
+    quadKey += digit.toString();
+  }
+  return quadKey;
+}
+
+/**
  * Updates the map layer to show satellite imagery from a specific historical year
  * Handles both real historical data (NASA GIBS) and simulated visual effects
  * @param {number} year - The year to display (1984-2024)
@@ -1857,8 +2019,18 @@ function updateHistoricalLayer(year) {
   let simulationNote = '';
   let tileUrl = provider.url;
   
+  // NO MORE SEPIA/VINTAGE SIMULATION - just show real imagery
+  
+  // Special handling for static old archives (like Bing 2010-2014)
+  if (provider.historicalDataType === 'static_old') {
+    // This is real old imagery but from a fixed time period
+    console.log('📸 Using static historical archive:', { provider: provider.name, era: provider.yearCoverage });
+    
+    filterString = ''; // No filters - these are real old tiles
+    simulationNote = ` (${provider.yearCoverage})`;
+  }
   // Special handling for Sentinel Hub (requires custom URL construction)
-  if (providerId === 'sentinel_hub') {
+  else if (providerId === 'sentinel_hub') {
     const instanceId = gameState.sentinelHubInstanceId;
     
     if (!instanceId) {
@@ -1868,70 +2040,27 @@ function updateHistoricalLayer(year) {
     
     // Convert year to date format
     const dateStr = `${year}-07-01`;
-    
-    // Construct Sentinel Hub WMS URL for Leaflet tiles
-    // Using WMS GetMap with bbox calculation per tile
     tileUrl = createSentinelHubTileUrl(instanceId, dateStr);
     
-    console.log('🎯 Using Sentinel Hub REAL historical data:', { dateStr, instanceId: instanceId.substring(0, 8) + '...' });
+    console.log('🎯 Using Sentinel Hub REAL historical data:', { dateStr });
     
     filterString = '';
-    simulationNote = ' (Real Sentinel-2 satellite data)';
-    
-    const noteElement = document.getElementById('historicalNote');
-    if (noteElement) {
-      noteElement.innerHTML = `🎯 Real historical Sentinel-2 data (10m resolution) - ${dateStr}`;
-      noteElement.style.color = '#2e7d32';
-      noteElement.style.fontWeight = '600';
-    }
+    simulationNote = ` (${dateStr})`;
   }
   // For providers that require date parameter (like NASA GIBS)
   else if (requiresDate && hasRealHistoricalData) {
-    // Convert year to date format (use July 1st as middle of year for best coverage)
+    // Convert year to date format
     const dateStr = `${year}-07-01`;
     tileUrl = provider.url.replace('{date}', dateStr);
     
-    console.log('✅ Using REAL historical data:', { dateStr, tileUrl: tileUrl.substring(0, 100) + '...' });
+    console.log('✅ Using REAL historical data:', { dateStr });
     
-    // Minimal filtering for real data
     filterString = '';
-    simulationNote = ' (Real NASA satellite data)';
-    
-    // Update the note in the UI
-    const noteElement = document.getElementById('historicalNote');
-    if (noteElement) {
-      noteElement.innerHTML = `✅ Real historical satellite data from NASA - ${dateStr}`;
-      noteElement.style.color = '#2e7d32';
-      noteElement.style.fontWeight = '600';
-    }
-  } else if (hasRealHistoricalData) {
-    // Provider claims historical data but uses standard tiles (simulated)
-    const opacity = Math.max(0.85, 1 - (yearAge * 0.01));
-    filterString = `opacity(${opacity})`;
-    simulationNote = provider.historicalNote ? ` - Note: ${provider.historicalNote}` : ' (Simulated)';
-    
-    const noteElement = document.getElementById('historicalNote');
-    if (noteElement) {
-      noteElement.innerHTML = `⚠️ ${provider.historicalNote || 'Simulated historical view - not actual historical tiles'}`;
-      noteElement.style.color = '#f57c00';
-      noteElement.style.fontWeight = '500';
-    }
+    simulationNote = ` (${dateStr})`;
   } else {
-    // No historical data - full simulation with visual filters
-    const opacity = Math.max(0.6, 1 - (yearAge * 0.04));
-    const sepia = Math.min(yearAge * 0.08, 0.5);
-    const brightness = Math.max(0.7, 1 - (yearAge * 0.02));
-    const contrast = 1 + (yearAge * 0.03);
-    
-    filterString = `brightness(${brightness}) contrast(${contrast}) sepia(${sepia}) opacity(${opacity})`;
-    simulationNote = yearAge > 10 ? ' (Simulated vintage)' : yearAge > 0 ? ' (Simulated)' : '';
-    
-    const noteElement = document.getElementById('historicalNote');
-    if (noteElement) {
-      noteElement.innerHTML = `💡 Visual simulation - vintage effects applied to current imagery`;
-      noteElement.style.color = '#666';
-      noteElement.style.fontWeight = 'normal';
-    }
+    // Everything else - just show current imagery without filters
+    filterString = '';
+    simulationNote = provider.hasSatelliteImagery ? '' : ' (Map view)';
   }
   
   // Store reference to old layer BEFORE creating new one
@@ -1963,6 +2092,23 @@ function updateHistoricalLayer(year) {
     newLayer.getTileUrl = function(coords) {
       const bbox = tileToBbox(coords.x, coords.y, coords.z);
       return tileUrl.replace('{bbox}', bbox);
+    };
+  // Special handling for Bing Maps quadkey URLs
+  } else if (provider.isQuadKey) {
+    newLayer = L.tileLayer(
+      tileUrl,
+      { 
+        attribution: `${provider.attribution} - ${year}${simulationNote}`,
+        maxZoom: provider.maxZoom,
+        className: `historical-tiles-${timestamp}`,
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+      }
+    );
+    
+    // Override getTileUrl to convert x/y/z to quadkey
+    newLayer.getTileUrl = function(coords) {
+      const quadkey = tileToQuadKey(coords.x, coords.y, coords.z);
+      return tileUrl.replace('{q}', quadkey);
     };
   } else {
     newLayer = L.tileLayer(
@@ -2014,23 +2160,10 @@ function updateHistoricalLayer(year) {
     }, 500);
   }
   
-  // Update display
-  const displayElement = document.getElementById('yearDisplay');
-  if (displayElement) {
-    const shortName = provider.name.replace('Stamen ', '').replace('CARTO ', '');
-    displayElement.textContent = `${year} - ${shortName}`;
-  }
-  
-  const providerDisplay = document.getElementById('currentProviderDisplay');
-  if (providerDisplay) {
-    providerDisplay.textContent = `${provider.emoji} ${provider.name}`;
-  }
+  // Update provider display
+  updateProviderDisplay(provider);
   
   saveGameState();
-  
-  // Show toast with appropriate icon based on data type
-  const toastIcon = requiresDate && hasRealHistoricalData ? '✅' : hasRealHistoricalData ? '⚠️' : '📅';
-  showToast(`${toastIcon} ${year} - ${provider.name}${simulationNote}`);
 }
 
 function toggleProviderMenu() {
@@ -2038,28 +2171,62 @@ function toggleProviderMenu() {
   if (!menu) return;
   
   if (menu.style.display === 'none' || !menu.style.display) {
-    // Populate and show menu
+    // Populate and show menu - ONLY TERRAIN/MAP PROVIDERS
     menu.innerHTML = '';
     
     if (!gameState.unlockedSatelliteProviders) gameState.unlockedSatelliteProviders = ['esri'];
     
-    gameState.unlockedSatelliteProviders.forEach(providerId => {
-      const provider = SATELLITE_PROVIDERS[providerId];
-      if (!provider) return;
+    // Filter to only show terrain/map providers (non-satellite imagery)
+    const terrainProviders = gameState.unlockedSatelliteProviders
+      .filter(providerId => {
+        const provider = SATELLITE_PROVIDERS[providerId];
+        return provider && provider.hasSatelliteImagery === false;
+      })
+      .map(providerId => ({ id: providerId, ...SATELLITE_PROVIDERS[providerId] }));
+    
+    if (terrainProviders.length === 0) {
+      const notice = document.createElement('div');
+      notice.style.cssText = 'padding: 15px; text-align: center; color: var(--muted); font-size: 12px;';
+      notice.innerHTML = '🗺️ No terrain/map providers unlocked yet.<br><small>Unlock in shop for reference use</small>';
+      menu.appendChild(notice);
+    } else {
+      // Add section header
+      const header = document.createElement('div');
+      header.style.cssText = 'padding: 8px 15px; background: #f5f5f5; font-weight: 600; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;';
+      header.textContent = '🗺️ Maps & Terrain (Reference)';
+      menu.appendChild(header);
       
-      const option = document.createElement('div');
-      option.className = `provider-option ${gameState.currentSatelliteProvider === providerId ? 'active' : ''}`;
-      option.innerHTML = `
-        <div class="provider-name">${provider.emoji} ${provider.name}</div>
-        <div class="provider-coverage">Coverage: ${provider.yearCoverage}</div>
-      `;
-      option.onclick = () => switchSatelliteProvider(providerId);
-      menu.appendChild(option);
-    });
+      // Helper function to create provider option
+      const createProviderOption = (providerId, provider) => {
+        const option = document.createElement('div');
+        option.className = `provider-option ${gameState.currentSatelliteProvider === providerId ? 'active' : ''}`;
+        option.innerHTML = `
+          <div class="provider-name">${provider.emoji} ${provider.name}</div>
+          <div class="provider-coverage">Coverage: ${provider.yearCoverage}</div>
+        `;
+        option.onclick = () => switchSatelliteProvider(providerId);
+        return option;
+      };
+      
+      terrainProviders.forEach(p => {
+        menu.appendChild(createProviderOption(p.id, p));
+      });
+    }
     
     menu.style.display = 'block';
   } else {
     menu.style.display = 'none';
+  }
+}
+
+/**
+ * Update the provider display button text
+ * @param {Object} provider - Provider object from SATELLITE_PROVIDERS
+ */
+function updateProviderDisplay(provider) {
+  const display = document.getElementById('currentProviderDisplay');
+  if (display && provider) {
+    display.textContent = `${provider.emoji} ${provider.name}`;
   }
 }
 
@@ -2078,9 +2245,58 @@ function switchSatelliteProvider(providerId) {
   }
   
   gameState.currentSatelliteProvider = providerId;
+  updateProviderDisplay(provider);
   
-  // Update the layer with current year
-  updateHistoricalLayer(gameState.currentHistoricalYear || 2024);
+  // Check if provider supports historical data
+  const supportsHistorical = provider.hasHistoricalData === true;
+  const isSatellite = provider.hasSatelliteImagery === true;
+  
+  // Update slider state based on provider capabilities
+  const slider = document.getElementById('providerSlider');
+  const sliderContainer = document.querySelector('.slider-container');
+  const historicalNote = document.getElementById('historicalNote');
+  
+  if (!isSatellite) {
+    // Terrain/map provider - keep slider enabled so user can switch back
+    if (historicalNote) {
+      historicalNote.innerHTML = '⚠️ This is a map/terrain view. Move the slider to switch to satellite imagery.';
+      historicalNote.style.color = '#f57c00';
+    }
+    showToast(`📍 Switched to ${provider.name} (Map view - for reference only)`);
+  } else {
+    // Satellite provider - reinitialize timeline to update active marker
+    
+    // Reinitialize timeline to update active marker
+    if (isHistoricalMode) {
+      initializeProviderTimeline();
+    }
+    
+    if (provider.historicalDataType === 'static_old') {
+      if (historicalNote) {
+        historicalNote.innerHTML = `📸 Real historical imagery from ${provider.yearCoverage}`;
+        historicalNote.style.color = '#1976d2';
+        historicalNote.style.fontWeight = '600';
+      }
+      showToast(`📸 ${provider.name} - Real imagery from ${provider.yearCoverage}!`);
+    } else if (supportsHistorical && provider.requiresDate) {
+      if (historicalNote) {
+        historicalNote.innerHTML = `✅ Real historical time-series data available`;
+        historicalNote.style.color = '#2e7d32';
+        historicalNote.style.fontWeight = '600';
+      }
+      showToast(`🛰️ ${provider.name} - Real historical data available!`);
+    } else {
+      if (historicalNote) {
+        historicalNote.innerHTML = `💡 Slide to explore different satellite providers`;
+        historicalNote.style.color = '#666';
+        historicalNote.style.fontWeight = 'normal';
+      }
+      showToast(`🛰️ Switched to ${provider.name}`);
+    }
+  }
+  
+  // Update the layer
+  updateHistoricalLayer(2024);
   
   // Close menu
   const menu = document.getElementById('providerMenu');
@@ -2172,6 +2388,141 @@ function renderHistoricalShop() {
  * Handle user interaction with the historical year slider
  * @param {string} value - Slider position (0-10)
  */
+/**
+ * Provider Timeline - organizes satellite providers by era for slider
+ * Modern providers are grouped on the left, historical providers ordered by date
+ */
+const PROVIDER_TIMELINE = [
+  // Modern Data (2024+) - grouped on left side of timeline
+  { id: 'esri', era: '2024', label: 'Esri', group: 'modern' },
+  { id: 'google', era: '2024', label: 'Google', group: 'modern' },
+  { id: 'sentinel2_cloudless', era: '2022', label: 'S2 Cloudless', group: 'modern' },
+  { id: 'sentinel2', era: '2024', label: 'Sentinel-2', group: 'modern' },
+  { id: 'usgs', era: '2024', label: 'USGS', group: 'modern' },
+  { id: 'maxar_worldview', era: '2024', label: 'Maxar', group: 'modern' },
+  { id: 'planet_skysat', era: '2024', label: 'Planet', group: 'modern' },
+  
+  // Historical Archives (ordered by time period)
+  { id: 'bing_2014', era: '2010-2014', label: 'Bing Archive', group: 'historical' },
+  { id: 'sentinel_hub', era: '2015+', label: 'Sentinel Hub', group: 'historical' },
+  { id: 'landsat', era: '1984+', label: 'Landsat', group: 'historical' },
+  { id: 'modis', era: '2000+', label: 'MODIS', group: 'historical' }
+];
+
+/**
+ * Initialize the provider timeline slider with unlocked providers
+ */
+function initializeProviderTimeline() {
+  const slider = document.getElementById('providerSlider');
+  const markersContainer = document.getElementById('providerMarkers');
+  if (!slider || !markersContainer) return;
+  
+  // Filter to only show unlocked satellite providers
+  const unlockedProviders = PROVIDER_TIMELINE.filter(p => {
+    const provider = SATELLITE_PROVIDERS[p.id];
+    return provider && 
+           provider.hasSatelliteImagery === true &&
+           gameState.unlockedSatelliteProviders.includes(p.id);
+  });
+  
+  if (unlockedProviders.length === 0) return;
+  
+  // Update slider max value
+  slider.max = unlockedProviders.length - 1;
+  
+  // Find current provider index
+  const currentProviderId = gameState.currentSatelliteProvider || 'esri';
+  const currentIndex = unlockedProviders.findIndex(p => p.id === currentProviderId);
+  slider.value = currentIndex >= 0 ? currentIndex : 0;
+  
+  // Build markers HTML
+  markersContainer.innerHTML = '';
+  
+  // Add "Modern Data" section background and label if there are modern providers
+  const modernCount = unlockedProviders.filter(p => p.group === 'modern').length;
+  if (modernCount > 0) {
+    const modernBackground = document.createElement('div');
+    modernBackground.className = 'modern-section-background';
+    modernBackground.style.width = `${(modernCount / unlockedProviders.length) * 100}%`;
+    markersContainer.appendChild(modernBackground);
+    
+    const modernLabel = document.createElement('div');
+    modernLabel.className = 'modern-section-label';
+    modernLabel.textContent = 'MODERN DATA';
+    modernLabel.style.width = `${(modernCount / unlockedProviders.length) * 100}%`;
+    markersContainer.style.position = 'relative';
+    markersContainer.appendChild(modernLabel);
+  }
+  
+  // Create marker for each provider
+  unlockedProviders.forEach((timelineProvider, index) => {
+    const provider = SATELLITE_PROVIDERS[timelineProvider.id];
+    if (!provider) return;
+    
+    const marker = document.createElement('div');
+    marker.className = `provider-marker ${index === slider.value ? 'active' : ''}`;
+    marker.innerHTML = `
+      <div class="provider-marker-icon">${provider.emoji}</div>
+      <div class="provider-marker-name">${timelineProvider.label}</div>
+      <div class="provider-marker-era">${timelineProvider.era}</div>
+    `;
+    markersContainer.appendChild(marker);
+  });
+  
+  // Store unlocked providers for slider usage
+  window._unlockedProviderTimeline = unlockedProviders;
+}
+
+/**
+ * Handle provider timeline slider changes
+ * @param {string} value - Slider position (0 to max)
+ */
+function handleProviderSlide(value) {
+  const index = parseInt(value);
+  const timeline = window._unlockedProviderTimeline;
+  
+  if (!timeline || index < 0 || index >= timeline.length) return;
+  
+  const selectedProvider = timeline[index];
+  const provider = SATELLITE_PROVIDERS[selectedProvider.id];
+  
+  if (!provider) return;
+  
+  // Update active marker
+  document.querySelectorAll('.provider-marker').forEach((marker, idx) => {
+    marker.classList.toggle('active', idx === index);
+  });
+  
+  // Auto-switch to selected provider
+  gameState.currentSatelliteProvider = selectedProvider.id;
+  updateProviderDisplay(provider);
+  
+  // Update historical note based on provider type
+  const historicalNote = document.getElementById('historicalNote');
+  if (historicalNote) {
+    if (provider.historicalDataType === 'static_old') {
+      historicalNote.innerHTML = `📸 Real historical imagery from ${provider.yearCoverage}`;
+      historicalNote.style.color = '#1976d2';
+      historicalNote.style.fontWeight = '600';
+    } else if (provider.hasHistoricalData && provider.requiresDate) {
+      historicalNote.innerHTML = `✅ Real historical time-series data available`;
+      historicalNote.style.color = '#2e7d32';
+      historicalNote.style.fontWeight = '600';
+    } else {
+      historicalNote.innerHTML = `💡 Slide to explore different satellite providers`;
+      historicalNote.style.color = '#666';
+      historicalNote.style.fontWeight = 'normal';
+    }
+  }
+  
+  // Load the provider's imagery
+  updateHistoricalLayer(2024); // Always use 2024 since we removed year simulation
+  
+  saveGameState();
+  
+  showToast(`${provider.emoji} ${provider.name} - ${selectedProvider.era}`);
+}
+
 function handleYearSlide(value) {
   if (!gameState.historicalUnlocked) return;
   
@@ -2416,6 +2767,32 @@ function showModal(htmlContent) {
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
+}
+
+/* ==================== TOAST NOTIFICATIONS ==================== */
+
+/* ==================== DEBUG FUNCTIONS ==================== */
+
+/**
+ * Debug function to add 1000 points for testing
+ */
+function addDebugPoints() {
+  gameState.points += 1000;
+  saveGameState();
+  updateUI();
+  showToast('🔧 Debug: Added 1000 points');
+  console.log('DEBUG: Added 1000 points. Total:', gameState.points);
+}
+
+/**
+ * Debug function to reset points to 0
+ */
+function resetDebugPoints() {
+  gameState.points = 0;
+  saveGameState();
+  updateUI();
+  showToast('🔧 Debug: Points reset to 0');
+  console.log('DEBUG: Points reset to 0');
 }
 
 /* ==================== TOAST NOTIFICATIONS ==================== */

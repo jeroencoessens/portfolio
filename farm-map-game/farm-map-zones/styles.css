@@ -305,7 +305,7 @@ html, body {
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-  max-height: 250px;
+  max-height: 350px;
   overflow-y: auto;
   z-index: 1001;
 }
@@ -358,6 +358,12 @@ html, body {
   border-radius: 4px;
   outline: none;
   margin-bottom: 8px;
+  transition: opacity 0.3s;
+}
+
+.slider-container input[type="range"]:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .slider-container input[type="range"]::-webkit-slider-thumb {
@@ -370,6 +376,12 @@ html, body {
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: opacity 0.3s;
+}
+
+.slider-container input[type="range"]:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+  opacity: 0.3;
 }
 
 .slider-container input[type="range"]::-moz-range-thumb {
@@ -380,6 +392,12 @@ html, body {
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: opacity 0.3s;
+}
+
+.slider-container input[type="range"]:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+  opacity: 0.3;
 }
 
 .year-markers {
@@ -389,6 +407,9 @@ html, body {
   color: var(--muted);
   padding: 0 5px;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 40px;
 }
 
 .year-markers #yearDisplay {
@@ -399,6 +420,86 @@ html, body {
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.provider-markers {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  padding: 0 5px;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 50px;
+  margin-top: 5px;
+}
+
+.provider-marker {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.provider-marker-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.provider-marker-name {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.provider-marker-era {
+  font-size: 8px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.provider-marker.active .provider-marker-name {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.provider-marker.active .provider-marker-icon {
+  transform: scale(1.2);
+}
+
+.modern-section-background {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.modern-section-label {
+  position: absolute;
+  left: 5px;
+  top: -35px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--soft-green);
+  padding: 2px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .historical-note {
@@ -460,6 +561,28 @@ body.dark-mode .year-markers {
 }
 
 body.dark-mode .year-markers #yearDisplay {
+  color: #4caf50;
+}
+
+body.dark-mode .provider-markers {
+  color: #b0b0b0;
+}
+
+body.dark-mode .provider-marker-name {
+  color: #e0e0e0;
+}
+
+body.dark-mode .provider-marker.active .provider-marker-name {
+  color: #4caf50;
+}
+
+body.dark-mode .modern-section-background {
+  background: rgba(76, 175, 80, 0.12);
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+body.dark-mode .modern-section-label {
+  background: rgba(76, 175, 80, 0.15);
   color: #4caf50;
 }
 

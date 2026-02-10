@@ -80,23 +80,14 @@
         </button>
         <div id="providerMenu" class="provider-menu" style="display: none;"></div>
       </div>
-      <div class="slider-label">Time Travel</div>
+      <div class="slider-label">Satellite Provider Timeline</div>
       <div class="slider-container">
-        <input type="range" id="yearSlider" min="0" max="10" value="0" step="1" oninput="handleYearSlide(this.value)">
-        <div class="year-markers" id="yearMarkers">
-          <span id="yearDisplay">2024</span>
-          <span>2020</span>
-          <span>2015</span>
-          <span>2010</span>
-          <span>2005</span>
-          <span>2000</span>
-          <span>1995</span>
-          <span>1990</span>
-          <span>1985</span>
-          <span>1984</span>
+        <input type="range" id="providerSlider" min="0" max="0" value="0" step="1" oninput="handleProviderSlide(this.value)">
+        <div class="provider-markers" id="providerMarkers">
+          <!-- Dynamically populated by JavaScript -->
         </div>
         <div class="historical-note" id="historicalNote">
-          💡 Visual simulation - older years shown with vintage effects
+          💡 Slide to explore different satellite providers and time periods
         </div>
       </div>
     </div>
@@ -104,7 +95,7 @@
 
   <!-- Side menu -->
   <div class="side-menu" id="sideMenu">
-    <div class="menu-header">
+```    <div class="menu-header">
       <h3>Menu</h3>
       <button id="closeMenu" class="btn-close">✕</button>
     </div>
@@ -148,6 +139,19 @@
           <span id="badgesEarned">0</span>
         </div>
       </div>
+    </div>
+
+    <div class="menu-section" id="debugSection">
+      <h4>🔧 Developer Tools</h4>
+      <button class="menu-btn" onclick="addDebugPoints()" style="background: #4caf50; color: white;">
+        💰 Add 1000 Points
+      </button>
+      <button class="menu-btn" onclick="resetDebugPoints()" style="background: #f44336; color: white; margin-top: 8px;">
+        🔄 Reset Points to 0
+      </button>
+      <small style="color: var(--muted); font-size: 11px; display: block; margin-top: 8px; font-style: italic;">
+        For testing and development only
+      </small>
     </div>
   </div>
 
