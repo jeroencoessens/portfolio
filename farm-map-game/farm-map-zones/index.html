@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Zone Quest - Farm Verification Game</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!-- Leaflet styles -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="../farm-map/styles.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Tutorial overlay -->
+  <div class="tutorial-overlay" id="tutorialOverlay">
+    <div class="tutorial-modal">
+      <h2>🎮 Welcome to Zone Quest!</h2>
+      <p>Explore high-density zones and help identify factory farms to earn points and unlock rewards.</p>
+      
+      <div class="tutorial-steps">
+        <div class="tutorial-step">
+          <div class="step-number">1</div>
+          <div class="step-text">Select a <strong>zone</strong> to explore</div>
+        </div>
+        <div class="tutorial-step">
+          <div class="step-number">2</div>
+          <div class="step-text">Click on <strong>farms</strong> and vote YES/NO</div>
+        </div>
+        <div class="tutorial-step">
+          <div class="step-number">3</div>
+          <div class="step-text">Earn <strong>100 points</strong> per vote</div>
+        </div>
+        <div class="tutorial-step">
+          <div class="step-number">4</div>
+          <div class="step-text">Unlock <strong>new zones & rewards</strong></div>
+        </div>
+      </div>
+
+      <button id="tutorialStart" class="btn-primary">Start Quest!</button>
+    </div>
+  </div>
+
+  <!-- Map container -->
+  <div id="map"></div>
+
+  <!-- Header bar -->
+  <div class="header-bar">
+    <button id="backBtn" class="btn-back" onclick="window.location.href='../index.html'">← Home</button>
+    <div class="user-info-display">
+      <div class="user-avatar-container">
+        <span class="user-avatar">👨‍🌾</span>
+        <span id="userTitle" class="user-title">Observer</span>
+      </div>
+      <div class="points-display">
+        <span class="points-label">Points:</span>
+        <span id="userPoints" class="points-value">0</span>
+      </div>
+      <div class="mystery-box-display" onclick="openMysteryBoxModal()">
+        <span>🎁</span>
+        <span id="mysteryBoxCount" class="box-count">0</span>
+      </div>
+    </div>
+    <button id="menuBtn" class="btn-menu">☰</button>
+  </div>
+
+  <!-- Active Power-up Display -->
+  <div id="activePowerUp" class="active-powerup-banner" style="display: none;"></div>
+
+  <!-- Historical Mode Controls -->
+  <div class="historical-controls" id="historicalControls">
+    <button id="historicalToggle" class="btn-historical" onclick="toggleHistoricalMode()">📅 Historical Mode</button>
+    <div id="historicalSlider" class="historical-slider" style="display: none;">
+      <div class="provider-selector">
+        <button id="providerToggle" class="btn-provider" onclick="toggleProviderMenu()">
+          <span id="currentProviderDisplay">🛰️ Esri WorldImagery</span> ▼
+        </button>
+        <div id="providerMenu" class="provider-menu" style="display: none;"></div>
+      </div>
+      <div class="slider-label">Time Travel</div>
+      <div class="slider-container">
+        <input type="range" id="yearSlider" min="0" max="10" value="0" step="1" oninput="handleYearSlide(this.value)">
+        <div class="year-markers" id="yearMarkers">
+          <span id="yearDisplay">2024</span>
+          <span>2020</span>
+          <span>2015</span>
+          <span>2010</span>
+          <span>2005</span>
+          <span>2000</span>
+          <span>1995</span>
+          <span>1990</span>
+          <span>1985</span>
+          <span>1984</span>
+        </div>
+        <div class="historical-note" id="historicalNote">
+          💡 Visual simulation - older years shown with vintage effects
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side menu -->
+  <div class="side-menu" id="sideMenu">
+    <div class="menu-header">
+      <h3>Menu</h3>
+      <button id="closeMenu" class="btn-close">✕</button>
+    </div>
+
+    <div class="menu-section">
+      <button id="shopBtn" class="menu-btn">🛒 Shop</button>
+      <button id="badgesBtn" class="menu-btn">🏅 Badges</button>
+      <button id="powerUpsBtn" class="menu-btn">⚡ Power-Ups</button>
+      <button id="leaderboardBtn" class="menu-btn">🏆 Leaderboard</button>
+      <button id="statsBtn" class="menu-btn">📊 Stats</button>
+    </div>
+
+    <div class="menu-section">
+      <h4>Avatar</h4>
+      <div id="avatarOptions"></div>
+    </div>
+
+    <div class="menu-section">
+      <h4>Visual Theme</h4>
+      <div id="themeOptions"></div>
+    </div>
+
+    <div class="menu-section">
+      <h4>Cursor Style</h4>
+      <div id="cursorOptions"></div>
+    </div>
+
+    <div class="menu-section">
+      <h4>Your Progress</h4>
+      <div class="progress-stats">
+        <div class="stat-row">
+          <span>Total Votes:</span>
+          <span id="totalVotes">0</span>
+        </div>
+        <div class="stat-row">
+          <span>Zones Unlocked:</span>
+          <span id="zonesUnlocked">1</span>
+        </div>
+        <div class="stat-row">
+          <span>Badges Earned:</span>
+          <span id="badgesEarned">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zone info panel -->
+  <div class="zone-panel" id="zonePanel">
+    <div class="zone-header">
+      <h3 id="zoneName">Select a zone</h3>
+      <button id="closeZone" class="btn-close-zone">✕</button>
+    </div>
+    <div class="zone-content">
+      <div class="zone-progress-ring-container">
+        <svg class="progress-ring" width="100" height="100">
+          <circle class="progress-ring-bg" cx="50" cy="50" r="45"></circle>
+          <circle id="zoneProgressRing" class="progress-ring-circle" cx="50" cy="50" r="45"></circle>
+        </svg>
+        <div class="progress-ring-text" id="zoneProgressText">0%</div>
+      </div>
+      <div class="zone-stat">
+        <span class="stat-label">Farms:</span>
+        <span id="zoneFarmCount">0</span>
+      </div>
+      <div class="zone-stat">
+        <span class="stat-label">Your votes:</span>
+        <span id="zoneVoteCount">0</span>
+      </div>
+      <div class="zone-stat">
+        <span class="stat-label">Avg. Probability:</span>
+        <span id="zoneAvgProb">0%</span>
+      </div>
+      <button id="exploreZone" class="btn-primary">Explore Zone</button>
+    </div>
+  </div>
+
+  <!-- Farm detail panel -->
+  <div class="farm-panel" id="farmPanel">
+    <div class="farm-header">
+      <h3>Farm Details</h3>
+      <button id="closeFarm" class="btn-close-farm">✕</button>
+    </div>
+    <div class="farm-content">
+      <div class="farm-info">
+        <div class="info-row">
+          <span>Farm ID:</span>
+          <span id="farmId">–</span>
+        </div>
+        <div class="info-row">
+          <span>Probability:</span>
+          <span id="farmProb">–</span>
+        </div>
+        <div class="info-row">
+          <span>Votes:</span>
+          <span id="farmVotes">0</span>
+        </div>
+        <div class="info-row">
+          <span>Points reward:</span>
+          <span id="farmPoints" class="points-highlight">100</span>
+        </div>
+      </div>
+
+      <div id="votingSection" class="voting-section">
+        <div class="voting-label">Is this a factory farm?</div>
+        <div class="voting-buttons">
+          <button id="voteNo" class="btn-vote btn-no">NO</button>
+          <button id="voteYes" class="btn-vote btn-yes">YES</button>
+        </div>
+        <button id="zoomInBtn" class="btn-secondary">🔍 Zoom In</button>
+      </div>
+
+      <div id="votedSection" class="voted-section" style="display: none;">
+        <div class="voted-badge">✓ Already Voted</div>
+        <div class="voted-text">You voted: <span id="userVote"></span></div>
+        <button id="changeVoteBtn" class="btn-secondary">Change Vote</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shop modal -->
+  <div class="modal" id="shopModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🛒 Shop</h2>
+        <button class="btn-close-modal" onclick="closeModal('shopModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="shop-balance">
+          Your Points: <span id="shopPoints">0</span>
+        </div>
+
+        <div class="shop-tabs">
+          <button class="shop-tab active" data-tab="zones">🗺️ Zones</button>
+          <button class="shop-tab" data-tab="cosmetics">🎨 Cosmetics</button>
+          <button class="shop-tab" data-tab="features">⚙️ Features</button>
+        </div>
+
+        <div class="shop-tab-content active" id="zonesTab">
+          <div id="zoneShopItems" class="shop-grid"></div>
+        </div>
+
+        <div class="shop-tab-content" id="cosmeticsTab">
+          <h4>Color Themes</h4>
+          <div id="themeShopItems" class="shop-grid"></div>
+          
+          <h4>Cursors</h4>
+          <div id="cursorShopItems" class="shop-grid"></div>
+        </div>
+
+        <div class="shop-tab-content" id="featuresTab">
+          <h4>Special Features</h4>
+          <div id="featureShopItems" class="shop-grid"></div>
+          
+          <h4>Historical Years</h4>
+          <div id="historicalYearShopItems" class="shop-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Badges modal -->
+  <div class="modal" id="badgesModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🏅 Your Badges</h2>
+        <button class="btn-close-modal" onclick="closeModal('badgesModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="badgesList" class="badges-grid"></div>
+        <button id="shareBadges" class="btn-primary">Share Your Badges</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard modal -->
+  <div class="modal" id="leaderboardModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🏆 Leaderboard</h2>
+        <button class="btn-close-modal" onclick="closeModal('leaderboardModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="leaderboard-filters">
+          <button class="filter-btn active" data-period="all">All Time</button>
+          <button class="filter-btn" data-period="month">This Month</button>
+          <button class="filter-btn" data-period="week">This Week</button>
+        </div>
+        <div id="leaderboardList" class="leaderboard-list"></div>
+        <div class="your-rank">
+          <strong>Your Rank:</strong> <span id="yourRank">–</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats modal -->
+  <div class="modal" id="statsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📊 Your Statistics</h2>
+        <button class="btn-close-modal" onclick="closeModal('statsModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="statsVotes">0</div>
+            <div class="stat-label">Total Votes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statsPoints">0</div>
+            <div class="stat-label">Total Points</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statsZones">1</div>
+            <div class="stat-label">Zones Unlocked</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statsBadges">0</div>
+            <div class="stat-label">Badges Earned</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statsYes">0</div>
+            <div class="stat-label">YES Votes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statsNo">0</div>
+            <div class="stat-label">NO Votes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Power-Ups modal -->
+  <div class="modal" id="powerUpsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>⚡ Power-Ups</h2>
+        <button class="btn-close-modal" onclick="closeModal('powerUpsModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="shop-balance">
+          Your Points: <span id="powerUpPoints">0</span>
+        </div>
+        <div class="powerup-grid">
+          <div class="shop-item">
+            <div class="shop-item-info">
+              <div class="shop-item-name">🔥 2x Points</div>
+              <div class="shop-item-desc">Double points for 10 minutes</div>
+            </div>
+            <button class="btn-buy" onclick="activatePowerUp('double_points')">
+              💰 500 points
+            </button>
+          </div>
+          <div class="shop-item">
+            <div class="shop-item-info">
+              <div class="shop-item-name">⚡ 3x Points</div>
+              <div class="shop-item-desc">Triple points for 5 minutes</div>
+            </div>
+            <button class="btn-buy" onclick="activatePowerUp('triple_points')">
+              💰 1000 points
+            </button>
+          </div>
+          <div class="shop-item">
+            <div class="shop-item-info">
+              <div class="shop-item-name">🎁 Mystery Box</div>
+              <div class="shop-item-desc">Get a random reward</div>
+            </div>
+            <button class="btn-buy" onclick="activatePowerUp('mystery_reveal')">
+              💰 300 points
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mystery Box modal -->
+  <div class="modal" id="mysteryBoxModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🎁 Mystery Boxes</h2>
+        <button class="btn-close-modal" onclick="closeModal('mysteryBoxModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="mystery-box-container">
+          <div class="mystery-box-large">🎁</div>
+          <p class="mystery-box-text">You have <strong id="modalBoxCount">0</strong> mystery boxes!</p>
+          <p class="mystery-box-subtext">Earn 1 box every 25 votes or buy them in Power-Ups</p>
+          <button id="openBoxBtn" class="btn-primary" onclick="openMysteryBox()">Open Box</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- App logic -->
+  <script src="app.js"></script>
+</body>
+</html>

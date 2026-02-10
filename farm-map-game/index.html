@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>FarmMap - Help Identify Factory Farms</title>
+  <link rel="stylesheet" href="farm-map/styles.css" />
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+    }
+
+    h1 {
+      color: var(--green);
+      margin: 0 0 10px 0;
+      font-size: 32px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .prototype-grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .prototype-card {
+      border: 2px solid #f1f3f4;
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: block;
+    }
+
+    .prototype-card:hover {
+      border-color: var(--green);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(46, 125, 50, 0.15);
+    }
+
+    .prototype-card h2 {
+      color: var(--green);
+      margin: 0 0 8px 0;
+      font-size: 18px;
+    }
+
+    .prototype-card p {
+      color: var(--dark);
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .prototype-card .tag {
+      display: inline-block;
+      background: var(--soft-green);
+      color: var(--green);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    .prototype-card .tag.new {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌾 FarmMap</h1>
+    <div class="subtitle">Help identifying factory farms from satellite imagery</div>
+    
+    <div class="prototype-grid">
+      <a href="farm-map/index.html" class="prototype-card">
+        <h2>Full Map Explorer</h2>
+        <p>Browse all potential farms on an interactive map. Filter by probability, explore zones, and vote on individual locations.</p>
+        <span class="tag">CLASSIC MODE</span>
+      </a>
+
+      <a href="farm-map-zones/index.html" class="prototype-card">
+        <h2>Zone Quest</h2>
+        <p>Gamified exploration! Earn points by voting, unlock new zones, collect badges, and customize your experience. Compete on the leaderboard!</p>
+        <span class="tag new">NEW - GAME MODE</span>
+      </a>
+    </div>
+
+    <footer style="color:green;">
+      Your contributions help train our <b>Machine-learning model</b> to identify<br>undocumented factory farms worldwide using satellite imagery.
+    </footer>
+  </div>
+</body>
+</html>
