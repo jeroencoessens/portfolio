@@ -2305,89 +2305,6 @@ function switchSatelliteProvider(providerId) {
   saveGameState();
 }
 
-function unlockHistoricalYear(year) {
-  if (!gameState.unlockedHistoricalYears) gameState.unlockedHistoricalYears = [2024];
-  
-  if (gameState.unlockedHistoricalYears.includes(year)) {
-    showToast('Year already unlocked!');
-    return;
-  }
-  
-  // Use same pricing logic as shop display
-  const yearDiff = 2024 - year;
-  const price = yearDiff <= 4 ? 200 : 
-                yearDiff <= 9 ? 300 :
-                yearDiff <= 14 ? 400 :
-                yearDiff <= 19 ? 500 :
-                yearDiff <= 24 ? 700 :
-                yearDiff <= 29 ? 900 :
-                yearDiff <= 34 ? 1100 :
-                yearDiff <= 39 ? 1300 : 1500;
-  
-  if (gameState.points < price) {
-    showToast('Not enough points!');
-    return;
-  }
-  
-  gameState.points -= price;
-  gameState.unlockedHistoricalYears.push(year);
-  
-  saveGameState();
-  updateUI();
-  renderHistoricalShop();
-  
-  showToast(`📅 Year ${year} unlocked!`);
-}
-
-function renderHistoricalShop() {
-  const container = document.getElementById('historicalYearShopItems');
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
-  if (!gameState.unlockedHistoricalYears) gameState.unlockedHistoricalYears = [2024];
-  
-  // Extended years to support Landsat's historical range back to 1984
-  const years = [2020, 2015, 2010, 2005, 2000, 1995, 1990, 1985, 1984];
-  
-  years.forEach(year => {
-    const isUnlocked = gameState.unlockedHistoricalYears.includes(year);
-    // Dynamic pricing - older years cost more
-    const yearDiff = 2024 - year;
-    const price = yearDiff <= 4 ? 200 : 
-                  yearDiff <= 9 ? 300 :
-                  yearDiff <= 14 ? 400 :
-                  yearDiff <= 19 ? 500 :
-                  yearDiff <= 24 ? 700 :
-                  yearDiff <= 29 ? 900 :
-                  yearDiff <= 34 ? 1100 :
-                  yearDiff <= 39 ? 1300 : 1500;
-    const canAfford = gameState.points >= price;
-    
-    const item = document.createElement('div');
-    item.className = `shop-item ${isUnlocked ? 'unlocked' : ''}`;
-    item.innerHTML = `
-      <div class="shop-item-info">
-        <div class="shop-item-name">${isUnlocked ? '📅' : '🔒'} Year ${year}</div>
-        <div class="shop-item-desc">${2024 - year} years back in time</div>
-      </div>
-      <div class="shop-item-action">
-        ${isUnlocked 
-          ? '<span class="shop-item-unlocked">✓ Unlocked</span>'
-          : `<button class="btn-buy" ${canAfford ? '' : 'disabled'} onclick="unlockHistoricalYear(${year})">
-              💰 ${price} points
-            </button>`
-        }
-      </div>
-    `;
-    container.appendChild(item);
-  });
-}
-
-/**
- * Handle user interaction with the historical year slider
- * @param {string} value - Slider position (0-10)
- */
 /**
  * Provider Timeline - organizes satellite providers by era for slider
  * Modern providers are grouped on the left, historical providers ordered by date
@@ -2521,27 +2438,6 @@ function handleProviderSlide(value) {
   saveGameState();
   
   showToast(`${provider.emoji} ${provider.name} - ${selectedProvider.era}`);
-}
-
-function handleYearSlide(value) {
-  if (!gameState.historicalUnlocked) return;
-  
-  // Map slider values (0-10) to available years - extended to 1984 for Landsat
-  const allYears = [2024, 2020, 2015, 2010, 2005, 2000, 1995, 1990, 1985, 1984];
-  const selectedYear = allYears[parseInt(value)];
-  
-  // Check if year is unlocked
-  if (!gameState.unlockedHistoricalYears) gameState.unlockedHistoricalYears = [2024];
-  
-  if (!gameState.unlockedHistoricalYears.includes(selectedYear)) {
-    showToast(`🔒 Year ${selectedYear} is locked! Unlock it in the shop.`);
-    // Reset slider to current year
-    const currentIndex = allYears.indexOf(gameState.currentHistoricalYear);
-    document.getElementById('yearSlider').value = currentIndex;
-    return;
-  }
-  
-  updateHistoricalLayer(selectedYear);
 }
 
 /* ==================== THEMES ==================== */

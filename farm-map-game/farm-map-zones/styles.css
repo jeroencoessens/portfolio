@@ -400,28 +400,6 @@ html, body {
   opacity: 0.3;
 }
 
-.year-markers {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--muted);
-  padding: 0 5px;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-height: 40px;
-}
-
-.year-markers #yearDisplay {
-  color: var(--green);
-  font-weight: 700;
-  font-size: 13px;
-  white-space: nowrap;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .provider-markers {
   display: flex;
   justify-content: space-between;
@@ -553,14 +531,6 @@ body.dark-mode .provider-coverage {
 }
 
 body.dark-mode .slider-label {
-  color: #4caf50;
-}
-
-body.dark-mode .year-markers {
-  color: #b0b0b0;
-}
-
-body.dark-mode .year-markers #yearDisplay {
   color: #4caf50;
 }
 
