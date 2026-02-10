@@ -293,8 +293,10 @@ function selectZone(zoneIndex) {
   // Update progress ring
   updateProgressRing(progress);
   
-  // Show panel
-  document.getElementById('zonePanel').classList.add('active');
+  // Show panel and remove hidden state
+  const panel = document.getElementById('zonePanel');
+  panel.classList.remove('hidden');
+  panel.classList.add('active');
 }
 
 function updateProgressRing(progress) {
@@ -328,7 +330,14 @@ function exploreZone() {
 }
 
 function closeZonePanel() {
-  document.getElementById('zonePanel').classList.remove('active');
+  const panel = document.getElementById('zonePanel');
+  panel.classList.remove('active');
+  // Add hidden class to completely hide the panel
+  setTimeout(() => {
+    if (!panel.classList.contains('active')) {
+      panel.classList.add('hidden');
+    }
+  }, 300); // Wait for slide-down animation to complete
   currentZone = null;
 }
 

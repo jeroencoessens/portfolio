@@ -608,7 +608,7 @@ body.dark-mode .historical-note {
 .side-menu {
   position: fixed;
   top: 60px;
-  right: -320px;
+  right: -360px;
   width: 320px;
   height: calc(100% - 60px);
   background: white;
@@ -705,8 +705,8 @@ body.dark-mode .historical-note {
   bottom: -300px;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 24px);
-  max-width: 400px;
+  width: calc(100% - 40px);
+  max-width: 340px;
   background: white;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 14px rgba(0,0,0,0.12);
@@ -717,6 +717,10 @@ body.dark-mode .historical-note {
 
 .zone-panel.active {
   bottom: 0;
+}
+
+.zone-panel.hidden {
+  display: none;
 }
 
 .zone-header {
@@ -804,8 +808,8 @@ body.dark-mode .historical-note {
   bottom: -450px;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 24px);
-  max-width: 400px;
+  width: calc(100% - 40px);
+  max-width: 340px;
   background: white;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 14px rgba(0,0,0,0.12);
@@ -1738,26 +1742,281 @@ body.dark-mode .shop-category h4 {
 }
 
 /* Responsive */
-@media (max-width: 600px) {
-  .tutorial-modal {
-    padding: 30px 20px;
+@media (max-width: 768px) {
+  .historical-controls {
+    bottom: 10px;
+    left: 10px;
+    max-width: calc(100% - 20px);
+  }
+
+  .historical-slider {
+    min-width: 280px;
+    max-width: calc(100vw - 40px);
   }
 
   .header-bar {
     top: 8px;
-    left: 50px;
-    right: 50px;
+    left: 8px;
+    right: 8px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .points-display {
-    padding: 8px 12px;
+  .user-info-display {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
   }
 
-  .points-label {
+  .user-avatar-container {
+    padding: 6px 12px;
     font-size: 11px;
   }
 
+  .user-avatar {
+    font-size: 20px;
+  }
+
+  .user-title {
+    font-size: 11px;
+  }
+
+  .mystery-box-display {
+    padding: 6px 12px;
+  }
+
+  .mystery-box-display span:first-child {
+    font-size: 18px;
+  }
+
+  .box-count {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+  }
+
+  .points-display {
+    padding: 6px 12px;
+    flex: none;
+  }
+
+  .points-label {
+    font-size: 10px;
+  }
+
   .points-value {
+    font-size: 14px;
+  }
+
+  .btn-back,
+  .btn-menu {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .side-menu {
+    width: 280px;
+    right: -320px;
+    top: 0;
+    height: 100%;
+    padding: 15px;
+  }
+
+  .zone-panel,
+  .farm-panel {
+    width: calc(100% - 20px);
+    max-width: 100%;
+    padding: 16px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .zone-header h3,
+  .farm-header h3 {
     font-size: 16px;
+  }
+
+  .btn-close-zone,
+  .btn-close-farm {
+    font-size: 18px;
+    padding: 4px;
+  }
+
+  .tutorial-modal {
+    padding: 24px 16px;
+    max-width: calc(100% - 32px);
+  }
+
+  .tutorial-modal h2 {
+    font-size: 22px;
+  }
+
+  .tutorial-steps {
+    gap: 10px;
+  }
+
+  .tutorial-step {
+    padding: 12px;
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .step-text {
+    font-size: 13px;
+  }
+
+  .modal-content {
+    max-width: calc(100% - 32px);
+    max-height: 90vh;
+  }
+
+  .modal-header {
+    padding: 16px;
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .shop-tabs {
+    gap: 4px;
+  }
+
+  .shop-tab {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .badges-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .badge-item {
+    padding: 16px;
+  }
+
+  .badge-icon {
+    font-size: 32px;
+  }
+
+  .voting-buttons {
+    gap: 8px;
+  }
+
+  .btn-vote {
+    padding: 14px;
+    font-size: 14px;
+  }
+
+  .active-powerup-banner {
+    top: auto;
+    bottom: 90px;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+}
+
+@media (max-width: 480px) {
+  .header-bar {
+    top: 6px;
+    left: 6px;
+    right: 6px;
+  }
+
+  .historical-slider {
+    min-width: 240px;
+  }
+
+  .provider-markers {
+    font-size: 9px;
+    gap: 1px;
+  }
+
+  .provider-marker-icon {
+    font-size: 14px;
+  }
+
+  .provider-marker-name {
+    font-size: 8px;
+  }
+
+  .provider-marker-era {
+    font-size: 7px;
+  }
+
+  .user-info-display {
+    gap: 6px;
+  }
+
+  .points-display {
+    padding: 6px 10px;
+  }
+
+  .btn-primary {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+
+  .btn-back,
+  .btn-menu {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .zone-panel,
+  .farm-panel {
+    width: calc(100% - 12px);
+    padding: 14px;
+  }
+
+  .modal-content {
+    border-radius: 16px;
+  }
+
+  .shop-item {
+    padding: 12px;
+  }
+
+  .shop-item-name {
+    font-size: 13px;
+  }
+
+  .shop-item-desc {
+    font-size: 11px;
+  }
+
+  .btn-buy {
+    padding: 8px 16px;
+    font-size: 12px;
   }
 }
