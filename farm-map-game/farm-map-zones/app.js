@@ -191,55 +191,101 @@ async function loadFarmData() {
  * Uses a grid-based approach for simplicity and performance
  */
 function createZones() {
-  // Simple grid-based clustering (0.5° grid = ~55km at equator)
-  const gridSize = GAME_CONSTANTS.ZONE_GRID_SIZE;
-  const zoneMap = {};
-  
+  /* --- ZONE CLUSTERING STRATEGY ---
+   * Goal: ~100 farms per zone with a healthy probability spread.
+   *
+   * Step 1 – Coarse 0.5° geographic grid (≈55 km cells).
+   * Step 2 – Cells with > MAX_SIZE farms are re-clustered with a finer 0.25°
+   *           grid so adjacent farms stay geographically grouped (~27 km cells).
+   * Step 3 – Cells that are STILL too large after the fine grid are split by
+   *           round-robin interleaving of probability-sorted farms, ensuring
+   *           each resulting chunk inherits a full spread of probabilities.
+   * Step 4 – Zones are sorted so Zone 1 has the best balance of size and
+   *           probability diversity (weighted by a size-penalty factor so
+   *           tiny zones don't win the top spot).
+   */
+  const COARSE = GAME_CONSTANTS.ZONE_GRID_SIZE; // 0.5°
+  const FINE   = COARSE / 2;                    // 0.25°
+  const TARGET = 100;  // ideal farms per zone
+  const MAX    = 130;  // split anything larger than this
+  const MIN    = 25;   // discard zones smaller than this
+
+  // --- Step 1: coarse geographic buckets ---
+  const coarseMap = {};
   allFarms.forEach(farm => {
-    const gridX = Math.floor(farm.lng / gridSize);
-    const gridY = Math.floor(farm.lat / gridSize);
-    const key = `${gridX},${gridY}`;
-    
-    if (!zoneMap[key]) {
-      zoneMap[key] = {
-        farms: [],
-        centerLat: 0,
-        centerLng: 0
-      };
+    const key = Math.floor(farm.lng / COARSE) + ',' + Math.floor(farm.lat / COARSE);
+    if (!coarseMap[key]) coarseMap[key] = [];
+    coarseMap[key].push(farm);
+  });
+
+  // --- Step 2 & 3: split oversized buckets ---
+  const buckets = []; // each entry = final zone farm list
+
+  Object.values(coarseMap).forEach(farmList => {
+    if (farmList.length < MIN) return; // too sparse to form a zone
+
+    if (farmList.length <= MAX) {
+      buckets.push(farmList);
+      return;
     }
-    
-    zoneMap[key].farms.push(farm);
+
+    // Fine-grid sub-cluster within this coarse cell
+    const fineMap = {};
+    farmList.forEach(f => {
+      const key = Math.floor(f.lng / FINE) + ',' + Math.floor(f.lat / FINE);
+      if (!fineMap[key]) fineMap[key] = [];
+      fineMap[key].push(f);
+    });
+
+    Object.values(fineMap).forEach(subList => {
+      if (subList.length < MIN) return;
+
+      if (subList.length <= MAX) {
+        buckets.push(subList);
+      } else {
+        // Still oversized: split by probability-interleaved round-robin
+        // so every resulting chunk has a natural high-to-low prob spread.
+        const sorted = subList.slice().sort((a, b) => b.probability - a.probability);
+        const n = Math.max(2, Math.round(subList.length / TARGET));
+        const chunks = Array.from({ length: n }, () => []);
+        sorted.forEach((f, i) => chunks[i % n].push(f));
+        chunks.forEach(chunk => { if (chunk.length >= MIN) buckets.push(chunk); });
+      }
+    });
   });
-  
-  // Convert to array and filter out small zones
-  zones = Object.entries(zoneMap)
-    .map(([key, data]) => {
-      // Calculate center
-      const centerLat = data.farms.reduce((sum, f) => sum + f.lat, 0) / data.farms.length;
-      const centerLng = data.farms.reduce((sum, f) => sum + f.lng, 0) / data.farms.length;
-      const avgProb = data.farms.reduce((sum, f) => sum + f.probability, 0) / data.farms.length;
-      
-      return {
-        id: key,
-        farms: data.farms,
-        centerLat,
-        centerLng,
-        avgProb,
-        name: `Zone ${zones.length + 1}`
-      };
-    })
-    .filter(z => z.farms.length >= GAME_CONSTANTS.MIN_ZONE_FARMS) // Only zones with 10+ farms
-    .sort((a, b) => b.farms.length - a.farms.length); // Sort by farm count
-  
-  // Assign names based on position
+
+  // --- Step 4: compute zone metadata ---
+  zones = buckets.map((farms, i) => {
+    const centerLat = farms.reduce((s, f) => s + f.lat, 0) / farms.length;
+    const centerLng = farms.reduce((s, f) => s + f.lng, 0) / farms.length;
+    const avgProb   = farms.reduce((s, f) => s + f.probability, 0) / farms.length;
+    // Probability standard deviation — higher = more diverse mix
+    const variance  = farms.reduce((s, f) => s + Math.pow(f.probability - avgProb, 2), 0) / farms.length;
+    const probSpread = Math.sqrt(variance);
+    return { id: 'z' + i, farms, centerLat, centerLng, avgProb, probSpread };
+  });
+
+  // Sort: Zone 1 = best probability diversity, scaled by size so small zones
+  // don't leapfrog large ones.  Remaining zones sorted by number of farms.
+  zones.sort((a, b) => {
+    const scoreA = a.probSpread * Math.min(1, a.farms.length / 80);
+    const scoreB = b.probSpread * Math.min(1, b.farms.length / 80);
+    return scoreB - scoreA;
+  });
+
+  // Assign names and unlock prices
   zones.forEach((zone, i) => {
-    zone.name = `Zone ${i + 1}`;
+    zone.name  = 'Zone ' + (i + 1);
     zone.index = i;
-    // First unlock costs 1000, then each subsequent zone costs +500 more
-    zone.unlockPrice = i === 0 ? GAME_CONSTANTS.FIRST_ZONE_UNLOCK_PRICE : GAME_CONSTANTS.ZONE_UNLOCK_BASE_PRICE + (GAME_CONSTANTS.ZONE_UNLOCK_PRICE_INCREMENT * (i - 1));
+    zone.unlockPrice = i === 0
+      ? GAME_CONSTANTS.FIRST_ZONE_UNLOCK_PRICE
+      : GAME_CONSTANTS.ZONE_UNLOCK_BASE_PRICE + GAME_CONSTANTS.ZONE_UNLOCK_PRICE_INCREMENT * (i - 1);
   });
-  
-  console.log(`Created ${zones.length} zones`);
+
+  const avg = Math.round(allFarms.length / zones.length);
+  console.log('Created ' + zones.length + ' zones | avg ' + avg + ' farms/zone');
+  console.log('Zone 1: ' + zones[0].farms.length + ' farms, avgProb=' +
+    (zones[0].avgProb * 100).toFixed(1) + '%, spread=' + zones[0].probSpread.toFixed(3));
 }
 
 /* ==================== ZONE DISPLAY ==================== */
