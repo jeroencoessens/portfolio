@@ -72,7 +72,7 @@
 
   <!-- Historical Mode Controls -->
   <div class="historical-controls" id="historicalControls">
-    <button id="historicalToggle" class="btn-historical" onclick="toggleHistoricalMode()">📅 Historical Mode</button>
+    <button id="historicalToggle" class="btn-historical" onclick="toggleHistoricalMode()">🌍 Switch to Google</button>
     <div id="historicalSlider" class="historical-slider" style="display: none;">
       <div class="provider-selector">
         <button id="providerToggle" class="btn-provider" onclick="toggleProviderMenu()">
@@ -139,6 +139,26 @@
           <span id="badgesEarned">0</span>
         </div>
       </div>
+    </div>
+
+    <div class="menu-section">
+      <h4>� Explore</h4>
+      <button class="menu-btn" onclick="enterProbBrowseMode()" style="background: #6a1b9a; color: white;">
+        📡 Browse by Probability
+      </button>
+    </div>
+
+    <div class="menu-section">
+      <h4>�📤 Data</h4>
+      <button class="menu-btn" onclick="exportVotes()" style="background: #2196f3; color: white;">
+        📥 Export Votes (.json)
+      </button>
+      <button class="menu-btn" onclick="resetAllData()" style="background: #e53935; color: white; margin-top: 8px;">
+        🔄 Reset All Data
+      </button>
+      <small style="color: var(--muted); font-size: 11px; display: block; margin-top: 8px; font-style: italic;">
+        Reset clears all votes, points and progress
+      </small>
     </div>
 
     <div class="menu-section" id="debugSection">
@@ -398,6 +418,41 @@
           <button id="openBoxBtn" class="btn-primary" onclick="openMysteryBox()">Open Box</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Probability Browse Floating Panel -->
+  <div id="probBrowsePanel" class="prob-browse-panel" style="display:none;">
+    <div class="prob-browse-header">
+      <span class="prob-browse-title">📡 Browse by Probability</span>
+      <button class="prob-exit-btn" onclick="exitProbBrowseMode()">✕ Exit</button>
+    </div>
+    <div class="prob-browse-farm-info">
+      <div class="prob-pct-display" id="probBrowsePct">–</div>
+      <div class="prob-pct-label">Detection Probability</div>
+      <div class="prob-info-grid">
+        <div class="prob-info-cell">
+          <div class="prob-info-label">Farm ID</div>
+          <div class="prob-info-value" id="probFarmId">–</div>
+        </div>
+        <div class="prob-info-cell">
+          <div class="prob-info-label">Latitude</div>
+          <div class="prob-info-value" id="probFarmLat">–</div>
+        </div>
+        <div class="prob-info-cell">
+          <div class="prob-info-label">Longitude</div>
+          <div class="prob-info-value" id="probFarmLng">–</div>
+        </div>
+        <div class="prob-info-cell">
+          <div class="prob-info-label">Your Vote</div>
+          <div class="prob-info-value" id="probFarmVote">–</div>
+        </div>
+      </div>
+    </div>
+    <div class="prob-browse-nav">
+      <button class="prob-nav-btn" onclick="probBrowsePrev()">&#9664; Prev</button>
+      <div class="prob-browse-counter" id="probBrowseCounter">1 / 0</div>
+      <button class="prob-nav-btn" onclick="probBrowseNext()">Next &#9654;</button>
     </div>
   </div>
 

@@ -24,6 +24,11 @@ const satellite = L.tileLayer(
   { attribution: 'Tiles © Esri' }
 );
 
+const googleLayer = L.tileLayer(
+  'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+  { attribution: '© Google', maxZoom: 20 }
+);
+
 const street = L.tileLayer(
   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   { attribution: '© OpenStreetMap contributors' }
@@ -37,10 +42,13 @@ const map = L.map('map', {
 }).setView([16, 106], 6);
 
 L.control.layers(
-  { Satellite: satellite, Street: street },
+  { 'Esri Satellite': satellite, 'Google Satellite': googleLayer, Street: street },
   null,
   { position: 'topright' }
 ).addTo(map);
+
+// Tracks whether the simple (pre-historical-unlock) Google toggle is active
+let isSimpleGoogleMode = false;
 
 /* ==================== GAME CONSTANTS ==================== */
 
@@ -1575,7 +1583,25 @@ let isHistoricalMode = false;
 
 function toggleHistoricalMode() {
   if (!gameState.historicalUnlocked) {
-    showToast('🔒 Unlock Historical Mode in the shop!');
+    // Simple provider toggle: swap between Esri and Google
+    const btn = document.getElementById('historicalToggle');
+    if (!isSimpleGoogleMode) {
+      // Switch to Google
+      if (map.hasLayer(satellite)) map.removeLayer(satellite);
+      if (!map.hasLayer(googleLayer)) map.addLayer(googleLayer);
+      isSimpleGoogleMode = true;
+      btn.textContent = '🛰️ Switch to Esri';
+      btn.classList.add('active');
+      showToast('🌍 Switched to Google Satellite');
+    } else {
+      // Switch back to Esri
+      if (map.hasLayer(googleLayer)) map.removeLayer(googleLayer);
+      if (!map.hasLayer(satellite)) map.addLayer(satellite);
+      isSimpleGoogleMode = false;
+      btn.textContent = '🌍 Switch to Google';
+      btn.classList.remove('active');
+      showToast('🛰️ Switched back to Esri');
+    }
     return;
   }
   
@@ -2635,12 +2661,39 @@ function updateUI() {
     boxCount.textContent = gameState.mysteryBoxes || 0;
   }
   
+  // Sync the historical / provider toggle button label
+  syncHistoricalToggleBtn();
+
   // Update avatar
   updateAvatarDisplay();
   
   // Update active power-up
   if (typeof updateActivePowerUpDisplay === 'function') {
     updateActivePowerUpDisplay();
+  }
+}
+
+/**
+ * Keep the historical-mode / quick-provider toggle button label in sync
+ * with the current state (locked vs unlocked, active vs inactive).
+ */
+function syncHistoricalToggleBtn() {
+  const btn = document.getElementById('historicalToggle');
+  if (!btn) return;
+
+  if (gameState.historicalUnlocked) {
+    // If the user bought historical mode, reset any simple-toggle side-effects
+    if (isSimpleGoogleMode) {
+      if (map.hasLayer(googleLayer)) map.removeLayer(googleLayer);
+      if (!map.hasLayer(satellite)) map.addLayer(satellite);
+      isSimpleGoogleMode = false;
+    }
+    btn.classList.toggle('active', isHistoricalMode);
+    btn.textContent = isHistoricalMode ? '📅 Exit Historical Mode' : '📅 Historical Mode';
+  } else {
+    // Simple Esri ↔ Google toggle
+    btn.classList.toggle('active', isSimpleGoogleMode);
+    btn.textContent = isSimpleGoogleMode ? '🛰️ Switch to Esri' : '🌍 Switch to Google';
   }
 }
 
@@ -2678,9 +2731,196 @@ function closeModal(modalId) {
 
 /* ==================== DEBUG FUNCTIONS ==================== */
 
+/* ==================== EXPORT & RESET ==================== */
+
+/**
+ * Export all votes as a JSON file download
+ * Each entry contains the original farm data plus the user's vote
+ */
+function exportVotes() {
+  const votedFarmIds = Object.keys(gameState.votes);
+
+  if (votedFarmIds.length === 0) {
+    showToast('No votes to export yet!');
+    return;
+  }
+
+  const exportData = votedFarmIds.map(farmId => {
+    const farm = allFarms.find(f => String(f.id) === String(farmId));
+    const voteEntry = gameState.votes[farmId];
+    return {
+      farmId: farmId,
+      latitude: farm ? farm.lat : null,
+      longitude: farm ? farm.lng : null,
+      originalProbability: farm ? parseFloat((farm.probability * 100).toFixed(2)) : null,
+      yesVote: voteEntry.vote === 'yes',
+      noVote: voteEntry.vote === 'no'
+    };
+  });
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `zone-quest-votes-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast(`📥 Exported ${exportData.length} votes`);
+}
+
+/**
+ * Reset all game data so a new user can start fresh in the same browser session
+ */
+function resetAllData() {
+  if (!confirm('Reset all votes, points, and progress? This cannot be undone.')) return;
+
+  localStorage.removeItem('zoneQuestGameState');
+  location.reload();
+}
+
+/* ==================== PROBABILITY BROWSE MODE ====================
+ * Allows users to navigate farms sorted by detection probability,
+ * highest first, as a reference/exploration tool.
+ * ==================== */
+
+let probSortedFarms = [];
+let probBrowseIndex = 0;
+let isProbBrowseMode = false;
+
+/**
+ * Enter probability browse mode:
+ * Sorts all loaded farms by probability descending and zooms to #1.
+ */
+function enterProbBrowseMode() {
+  if (allFarms.length === 0) {
+    showToast('Farm data not loaded yet!');
+    return;
+  }
+
+  probSortedFarms = [...allFarms].sort((a, b) => b.probability - a.probability);
+  probBrowseIndex = 0;
+  isProbBrowseMode = true;
+
+  // Close side menu, zone panel, and any open farm panel
+  document.getElementById('sideMenu').classList.remove('active');
+  document.getElementById('farmPanel').classList.remove('active');
+  const zonePanel = document.getElementById('zonePanel');
+  zonePanel.classList.remove('active');
+  zonePanel.classList.add('hidden');
+  currentFarm = null;
+
+  // Clear farm markers so the map is clean
+  farmMarkers.forEach(m => map.removeLayer(m));
+  farmMarkers = [];
+  zoneMarkers.forEach(m => map.removeLayer(m));
+  zoneMarkers = [];
+
+  // Show floating browse card
+  document.getElementById('probBrowsePanel').style.display = 'flex';
+
+  // Jump to first farm
+  _probBrowseGoto(0);
+}
+
+/**
+ * Exit probability browse mode and return to the previous zone view.
+ */
+function exitProbBrowseMode() {
+  isProbBrowseMode = false;
+  document.getElementById('probBrowsePanel').style.display = 'none';
+
+  // Close farm panel
+  document.getElementById('farmPanel').classList.remove('active');
+  currentFarm = null;
+
+  // Return to zone or overview
+  if (currentZone) {
+    map.setView([currentZone.centerLat, currentZone.centerLng], GAME_CONSTANTS.ZONE_VIEW_ZOOM, {
+      animate: true,
+      duration: 0.8
+    });
+    showFarmMarkers(currentZone);
+  } else {
+    // Zoom back to overview
+    map.setView([16, 106], 6, { animate: true, duration: 0.8 });
+    showZoneMarkers();
+  }
+}
+
+/**
+ * Navigate to a specific index in the probability-sorted farm list.
+ * @param {number} index
+ */
+function _probBrowseGoto(index) {
+  const farm = probSortedFarms[index];
+  if (!farm) return;
+
+  const total = probSortedFarms.length;
+  currentFarm = farm;
+
+  // Update the browse card
+  document.getElementById('probBrowseCounter').textContent = `${index + 1} / ${total}`;
+  document.getElementById('probBrowsePct').textContent = `${(farm.probability * 100).toFixed(1)}%`;
+  document.getElementById('probFarmId').textContent = farm.id;
+  document.getElementById('probFarmLat').textContent = farm.lat.toFixed(5);
+  document.getElementById('probFarmLng').textContent = farm.lng.toFixed(5);
+
+  const hasVoted = gameState.votes[farm.id];
+  const voteEl = document.getElementById('probFarmVote');
+  if (hasVoted) {
+    voteEl.textContent = hasVoted.vote.toUpperCase();
+    voteEl.style.color = hasVoted.vote === 'yes' ? '#2e7d32' : '#c62828';
+    voteEl.style.fontWeight = '700';
+  } else {
+    voteEl.textContent = 'Not voted';
+    voteEl.style.color = '#90a4ae';
+    voteEl.style.fontWeight = '400';
+  }
+
+  // Ensure the farm voting panel stays hidden
+  document.getElementById('farmPanel').classList.remove('active');
+
+  // Cancel any in-progress Leaflet animation before starting a new one.
+  // Without this, rapid next/prev presses leave the viewport in a stale/gray
+  // state because the tile engine gets confused by overlapping pan animations.
+  map.stop();
+
+  map.setView([farm.lat, farm.lng], GAME_CONSTANTS.FARM_INSPECT_ZOOM, {
+    animate: true,
+    duration: 0.5
+  });
+
+  // After the view settles, tell Leaflet to recalculate its container size and
+  // force every tile layer to redraw any missing/gray tiles.
+  setTimeout(() => {
+    map.invalidateSize();
+    map.eachLayer(layer => {
+      if (typeof layer.redraw === 'function') layer.redraw();
+    });
+  }, 550);
+}
+
+/**
+ * Go to the next highest-probability farm (wraps around).
+ */
+function probBrowseNext() {
+  probBrowseIndex = (probBrowseIndex + 1) % probSortedFarms.length;
+  _probBrowseGoto(probBrowseIndex);
+}
+
+/**
+ * Go to the previous highest-probability farm (wraps around).
+ */
+function probBrowsePrev() {
+  probBrowseIndex = (probBrowseIndex - 1 + probSortedFarms.length) % probSortedFarms.length;
+  _probBrowseGoto(probBrowseIndex);
+}
+
 /**
  * Debug function to add 1000 points for testing
  */
+
 function addDebugPoints() {
   gameState.points += 1000;
   saveGameState();
