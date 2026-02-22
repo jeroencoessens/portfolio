@@ -907,22 +907,22 @@ body.dark-mode .historical-note {
 }
 
 .btn-no {
-  background: #ffebee;
-  color: #c62828;
-}
-
-.btn-no:hover {
-  background: #c62828;
-  color: white;
-}
-
-.btn-yes {
   background: #e8f5e9;
   color: #2e7d32;
 }
 
-.btn-yes:hover {
+.btn-no:hover {
   background: #2e7d32;
+  color: white;
+}
+
+.btn-yes {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.btn-yes:hover {
+  background: #c62828;
   color: white;
 }
 
