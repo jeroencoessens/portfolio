@@ -452,6 +452,8 @@ function selectFarm(farm) {
   document.getElementById('farmProb').textContent = `${(farm.probability * 100).toFixed(1)}%`;
   document.getElementById('farmVotes').textContent = voteCount;
   document.getElementById('farmPoints').textContent = points;
+  document.getElementById('farmLat').textContent = farm.lat.toFixed(5);
+  document.getElementById('farmLng').textContent = farm.lng.toFixed(5);
   
   // Check if already voted
   const hasVoted = gameState.votes[farm.id];
@@ -476,7 +478,11 @@ function selectFarm(farm) {
 }
 
 function closeFarmPanel() {
-  document.getElementById('farmPanel').classList.remove('active');
+  const panel = document.getElementById('farmPanel');
+  // Slide the panel exactly its own height below the viewport so it always
+  // disappears fully, regardless of how tall the content is.
+  panel.style.bottom = `-${panel.offsetHeight + 20}px`;
+  panel.classList.remove('active');
   currentFarm = null;
   
   // Zoom back to zone view if we're zoomed in
@@ -2998,6 +3004,700 @@ function showToast(message) {
   }, 3000);
 }
 
+/* ==================== AI SATELLITE ANALYSIS ====================
+ * Allows users to send the current satellite tile view to Google Gemini
+ * or Anthropic Claude for AI-assisted analysis of potential factory farms.
+ * 
+ * Flow:
+ * 1. User clicks "Ask Gemini" or "Ask Claude" on a farm panel
+ * 2. If no API key stored, prompt for one
+ * 3. Capture visible map tiles as an image
+ * 4. Send image + location (lat/lng) to the chosen AI
+ * 5. Display analysis to help the user vote
+ * ==================== */
+
+/**
+ * ---- SHARED AI PROMPT (edit this to change what Gemini/Claude analyzes) ----
+ * The prompt is sent along with the satellite image and location.
+ * Available placeholders: {lat}, {lng}
+ */
+const AI_ANALYSIS_PROMPT = `You are an expert in satellite imagery analysis, agriculture, and animal farming.
+
+You are looking at a satellite image centered on coordinates ({lat}, {lng}).
+
+Your task:
+1. Describe what you see in the satellite image — buildings, structures, land use patterns, vegetation, water bodies, roads, etc.
+2. Based on the visual evidence, assess whether this location could be a factory farm (intensive animal farming operation). Look for indicators such as:
+   - Long rectangular buildings typical of poultry or pig houses
+   - Waste lagoons or retention ponds
+   - Feed storage facilities
+   - Patterns of cleared land with uniform structures
+   - Scale and density of buildings
+3. Based on the coordinates, provide any relevant geographic context (region, country, known agricultural zones) that might help assess the likelihood.
+4. Give your overall assessment: how likely is this to be a factory farm? Provide a confidence level (Low / Medium / High) and explain your reasoning.
+
+Be concise but thorough. Focus on observable evidence from the image and factual geographic context. Do not speculate beyond what the image and location data support.`;
+
+// Keep backward-compatible alias
+const GEMINI_ANALYSIS_PROMPT = AI_ANALYSIS_PROMPT;
+
+/* ---- AI buttons toggle ---- */
+
+let aiButtonsEnabled = localStorage.getItem('ai_buttons_enabled') !== 'false';
+
+function toggleAiButtons() {
+  aiButtonsEnabled = document.getElementById('aiToggle').checked;
+  localStorage.setItem('ai_buttons_enabled', aiButtonsEnabled);
+  updateAiButtonsVisibility();
+}
+
+function updateAiButtonsVisibility() {
+  const display = aiButtonsEnabled ? '' : 'none';
+  document.querySelectorAll('.ai-buttons-row').forEach(row => {
+    row.style.display = display;
+  });
+  // Sync checkbox
+  const toggle = document.getElementById('aiToggle');
+  if (toggle) toggle.checked = aiButtonsEnabled;
+}
+
+/* ---- Gemini cost hints ---- */
+
+const GEMINI_COST_HINTS = {
+  'gemini-2.5-flash':               '💡 Recommended — good balance of speed and quality',
+  'gemini-2.5-flash-lite':          '💡 Cheapest — fastest and most budget-friendly',
+  'gemini-2.5-pro':                 '💡 Premium — best reasoning, higher token cost',
+  'gemini-3-flash-preview':         '⚡ New — frontier-class, may cost more tokens (Preview)',
+  'gemini-3.1-flash-lite-preview':  '⚡ New — frontier performance at lower cost (Preview)',
+  'gemini-3.1-pro-preview':         '⚡ New — most capable, highest token cost (Preview)',
+};
+
+function updateGeminiCostHint() {
+  const model = document.getElementById('geminiModelSelect').value;
+  const hint = document.getElementById('geminiCostHint');
+  hint.textContent = GEMINI_COST_HINTS[model] || '';
+}
+
+/* ---- Claude cost hints ---- */
+
+const CLAUDE_COST_HINTS = {
+  'claude-haiku-4-5':  '💡 Cheapest — fastest with near-frontier intelligence ($1/$5 per MTok)',
+  'claude-sonnet-4-6': '💡 Good balance — fast with strong vision ($3/$15 per MTok)',
+  'claude-opus-4-6':   '💡 Premium — most intelligent, highest cost ($5/$25 per MTok)',
+};
+
+function updateClaudeCostHint() {
+  const model = document.getElementById('claudeModelSelect').value;
+  const hint = document.getElementById('claudeCostHint');
+  hint.textContent = CLAUDE_COST_HINTS[model] || '';
+}
+
+let geminiApiKey = '';
+
+function loadGeminiApiKey() {
+  const stored = localStorage.getItem('gemini_api_key');
+  if (stored) {
+    geminiApiKey = stored;
+  }
+}
+
+function openGeminiPanel() {
+  if (!currentFarm) return;
+
+  loadGeminiApiKey();
+
+  const panel = document.getElementById('geminiPanel');
+  const keySection = document.getElementById('geminiKeySection');
+  const analysisSection = document.getElementById('geminiAnalysisSection');
+  const resultDiv = document.getElementById('geminiResult');
+  const loadingDiv = document.getElementById('geminiLoading');
+
+  // Reset state
+  resultDiv.style.display = 'none';
+  resultDiv.innerHTML = '';
+  loadingDiv.style.display = 'none';
+  document.getElementById('geminiAnalyzeBtn').disabled = false;
+
+  if (geminiApiKey) {
+    keySection.style.display = 'none';
+    analysisSection.style.display = 'block';
+  } else {
+    keySection.style.display = 'block';
+    analysisSection.style.display = 'none';
+  }
+
+  // Show farm location
+  document.getElementById('geminiFarmLat').textContent = currentFarm.lat.toFixed(5);
+  document.getElementById('geminiFarmLng').textContent = currentFarm.lng.toFixed(5);
+
+  // Capture the current map view
+  captureMapTiles();
+
+  panel.style.display = 'block';
+}
+
+function closeGeminiPanel() {
+  document.getElementById('geminiPanel').style.display = 'none';
+}
+
+function toggleGeminiKeyVisibility() {
+  const inp = document.getElementById('geminiApiKeyInput');
+  const btn = document.getElementById('geminiKeyToggle');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+}
+
+function saveGeminiApiKey() {
+  const val = document.getElementById('geminiApiKeyInput').value.trim();
+  const statusEl = document.getElementById('geminiKeyStatus');
+
+  if (!val) {
+    statusEl.textContent = 'Please enter a valid API key.';
+    statusEl.className = 'gemini-key-status error';
+    statusEl.style.display = 'block';
+    return;
+  }
+
+  geminiApiKey = val;
+  localStorage.setItem('gemini_api_key', val);
+
+  statusEl.textContent = 'API key saved ✓';
+  statusEl.className = 'gemini-key-status success';
+  statusEl.style.display = 'block';
+
+  // Transition to analysis view
+  setTimeout(() => {
+    document.getElementById('geminiKeySection').style.display = 'none';
+    document.getElementById('geminiAnalysisSection').style.display = 'block';
+    // Capture tiles now that the key is set
+    captureMapTiles();
+  }, 600);
+}
+
+function changeGeminiApiKey() {
+  geminiApiKey = '';
+  localStorage.removeItem('gemini_api_key');
+  document.getElementById('geminiApiKeyInput').value = '';
+  document.getElementById('geminiKeyStatus').style.display = 'none';
+  document.getElementById('geminiKeySection').style.display = 'block';
+  document.getElementById('geminiAnalysisSection').style.display = 'none';
+}
+
+/**
+ * Capture the current map view tiles to a canvas, then display as preview.
+ * Uses Leaflet's internal tile <img> elements directly from the DOM.
+ */
+function captureMapTiles() {
+  const mapContainer = document.getElementById('map');
+  const canvas = document.getElementById('geminiCaptureCanvas');
+  const previewImg = document.getElementById('geminiPreviewImg');
+
+  const width = mapContainer.offsetWidth;
+  const height = mapContainer.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, width, height);
+
+  // Get the map's pixel origin to compute tile offsets
+  const mapPane = map.getPane('mapPane');
+  const mapTransform = mapPane ? getComputedTranslate(mapPane) : { x: 0, y: 0 };
+
+  // Collect all tile images from tile panes
+  const tilePane = map.getPane('tilePane');
+  if (!tilePane) {
+    previewImg.src = '';
+    return;
+  }
+
+  const tileImages = tilePane.querySelectorAll('img');
+  const loadPromises = [];
+
+  tileImages.forEach(img => {
+    if (!img.src || !img.complete || img.naturalWidth === 0) return;
+
+    // Each tile img has a transform style that positions it
+    const tileTransform = getComputedTranslate(img);
+    // Also check parent containers for transforms
+    let parentTransform = { x: 0, y: 0 };
+    let parent = img.parentElement;
+    while (parent && parent !== tilePane) {
+      const pt = getComputedTranslate(parent);
+      parentTransform.x += pt.x;
+      parentTransform.y += pt.y;
+      parent = parent.parentElement;
+    }
+
+    const x = mapTransform.x + parentTransform.x + tileTransform.x;
+    const y = mapTransform.y + parentTransform.y + tileTransform.y;
+
+    const promise = new Promise(resolve => {
+      // Tiles may be cross-origin, draw via a proxy image with crossOrigin
+      const proxyImg = new Image();
+      proxyImg.crossOrigin = 'anonymous';
+      proxyImg.onload = () => {
+        try {
+          ctx.drawImage(proxyImg, x, y, img.width || 256, img.height || 256);
+        } catch (e) {
+          // Tainted canvas from cross-origin tile, skip
+        }
+        resolve();
+      };
+      proxyImg.onerror = () => resolve();
+      proxyImg.src = img.src;
+    });
+    loadPromises.push(promise);
+  });
+
+  Promise.all(loadPromises).then(() => {
+    try {
+      previewImg.src = canvas.toDataURL('image/jpeg', 0.85);
+    } catch (e) {
+      // If canvas is tainted, fall back to a screenshot approach
+      previewImg.src = '';
+      console.warn('Could not capture map tiles (cross-origin). Attempting html2canvas fallback is not available.');
+    }
+  });
+}
+
+/**
+ * Parse CSS transform translate values from an element.
+ */
+function getComputedTranslate(el) {
+  const style = window.getComputedStyle(el);
+  const transform = style.transform || style.webkitTransform || '';
+  
+  if (transform === 'none' || !transform) {
+    // Check for left/top positioning as fallback
+    const left = parseInt(style.left) || 0;
+    const top = parseInt(style.top) || 0;
+    return { x: left, y: top };
+  }
+
+  // matrix(a, b, c, d, tx, ty) or matrix3d(...)
+  const match = transform.match(/matrix.*\((.+)\)/);
+  if (match) {
+    const values = match[1].split(',').map(Number);
+    if (values.length === 6) {
+      return { x: values[4], y: values[5] };
+    } else if (values.length === 16) {
+      return { x: values[12], y: values[13] };
+    }
+  }
+  return { x: 0, y: 0 };
+}
+
+/**
+ * Send the captured satellite image to Gemini for analysis.
+ */
+async function analyzeWithGemini() {
+  if (!currentFarm) {
+    showToast('No farm selected');
+    return;
+  }
+
+  loadGeminiApiKey();
+  if (!geminiApiKey) {
+    showToast('Please set your Gemini API key first');
+    return;
+  }
+
+  const previewImg = document.getElementById('geminiPreviewImg');
+  if (!previewImg.src || previewImg.src === window.location.href) {
+    showToast('No satellite image captured. Try zooming in first.');
+    return;
+  }
+
+  const analyzeBtn = document.getElementById('geminiAnalyzeBtn');
+  const loadingDiv = document.getElementById('geminiLoading');
+  const loadingText = document.getElementById('geminiLoadingText');
+  const resultDiv = document.getElementById('geminiResult');
+
+  analyzeBtn.disabled = true;
+  loadingDiv.style.display = 'flex';
+  resultDiv.style.display = 'none';
+
+  // Cycle loading messages
+  const loadingMessages = [
+    'Sending image to Gemini...',
+    'Analyzing satellite imagery...',
+    'Identifying structures...',
+    'Assessing land use patterns...',
+    'Evaluating farm indicators...',
+    'Preparing analysis...'
+  ];
+  let msgIdx = 0;
+  loadingText.textContent = loadingMessages[0];
+  const loadingInterval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % loadingMessages.length;
+    loadingText.textContent = loadingMessages[msgIdx];
+  }, 2500);
+
+  try {
+    const modelId = document.getElementById('geminiModelSelect').value;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${geminiApiKey}`;
+
+    // Build the prompt with location data
+    const prompt = AI_ANALYSIS_PROMPT
+      .replace(/\{lat\}/g, currentFarm.lat.toFixed(5))
+      .replace(/\{lng\}/g, currentFarm.lng.toFixed(5));
+
+    // Extract base64 from the preview image data URL
+    const dataUrl = previewImg.src;
+    const base64Data = dataUrl.split(',')[1];
+    const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+
+    const payload = {
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mimeType, data: base64Data } }
+        ]
+      }]
+    };
+
+    const resp = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    clearInterval(loadingInterval);
+    loadingDiv.style.display = 'none';
+
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      let hint = '';
+      if (resp.status === 400) hint = 'Check your API key or request format.';
+      else if (resp.status === 401 || resp.status === 403) hint = 'API key may be invalid or expired.';
+      else if (resp.status === 429) hint = 'Rate limit exceeded. Wait and try again.';
+      throw new Error(`API error ${resp.status}: ${hint || errBody}`);
+    }
+
+    const data = await resp.json();
+
+    if (!data.candidates || !data.candidates.length ||
+        !data.candidates[0].content ||
+        !data.candidates[0].content.parts ||
+        !data.candidates[0].content.parts.length) {
+      throw new Error('Unexpected response structure from Gemini.');
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text;
+    displayGeminiResult(responseText);
+
+  } catch (err) {
+    clearInterval(loadingInterval);
+    loadingDiv.style.display = 'none';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<div style="color: #c62828;"><strong>Error:</strong> ${escapeHtml(err.message)}</div>`;
+    analyzeBtn.disabled = false;
+  }
+}
+
+function displayGeminiResult(text) {
+  const resultDiv = document.getElementById('geminiResult');
+  const analyzeBtn = document.getElementById('geminiAnalyzeBtn');
+
+  // Simple markdown-ish rendering
+  let html = escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+
+  resultDiv.innerHTML = `<h4>🤖 Gemini Analysis</h4>${html}`;
+  resultDiv.style.display = 'block';
+  analyzeBtn.disabled = false;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+/* ==================== CLAUDE SATELLITE ANALYSIS ==================== */
+
+let claudeApiKey = '';
+
+function loadClaudeApiKey() {
+  const stored = localStorage.getItem('claude_api_key');
+  if (stored) {
+    claudeApiKey = stored;
+  }
+}
+
+function openClaudePanel() {
+  if (!currentFarm) return;
+
+  loadClaudeApiKey();
+
+  const panel = document.getElementById('claudePanel');
+  const keySection = document.getElementById('claudeKeySection');
+  const analysisSection = document.getElementById('claudeAnalysisSection');
+  const resultDiv = document.getElementById('claudeResult');
+  const loadingDiv = document.getElementById('claudeLoading');
+
+  resultDiv.style.display = 'none';
+  resultDiv.innerHTML = '';
+  loadingDiv.style.display = 'none';
+  document.getElementById('claudeAnalyzeBtn').disabled = false;
+
+  if (claudeApiKey) {
+    keySection.style.display = 'none';
+    analysisSection.style.display = 'block';
+  } else {
+    keySection.style.display = 'block';
+    analysisSection.style.display = 'none';
+  }
+
+  document.getElementById('claudeFarmLat').textContent = currentFarm.lat.toFixed(5);
+  document.getElementById('claudeFarmLng').textContent = currentFarm.lng.toFixed(5);
+
+  // Re-use the same captured image from the canvas
+  const geminiPreview = document.getElementById('geminiPreviewImg');
+  const claudePreview = document.getElementById('claudePreviewImg');
+  if (geminiPreview.src && geminiPreview.src !== window.location.href) {
+    claudePreview.src = geminiPreview.src;
+  } else {
+    captureMapTilesFor('claudePreviewImg');
+  }
+
+  panel.style.display = 'block';
+}
+
+function closeClaudePanel() {
+  document.getElementById('claudePanel').style.display = 'none';
+}
+
+function toggleClaudeKeyVisibility() {
+  const inp = document.getElementById('claudeApiKeyInput');
+  const btn = document.getElementById('claudeKeyToggle');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+}
+
+function saveClaudeApiKey() {
+  const val = document.getElementById('claudeApiKeyInput').value.trim();
+  const statusEl = document.getElementById('claudeKeyStatus');
+
+  if (!val) {
+    statusEl.textContent = 'Please enter a valid API key.';
+    statusEl.className = 'gemini-key-status error';
+    statusEl.style.display = 'block';
+    return;
+  }
+
+  claudeApiKey = val;
+  localStorage.setItem('claude_api_key', val);
+
+  statusEl.textContent = 'API key saved ✓';
+  statusEl.className = 'gemini-key-status success';
+  statusEl.style.display = 'block';
+
+  setTimeout(() => {
+    document.getElementById('claudeKeySection').style.display = 'none';
+    document.getElementById('claudeAnalysisSection').style.display = 'block';
+    captureMapTilesFor('claudePreviewImg');
+  }, 600);
+}
+
+function changeClaudeApiKey() {
+  claudeApiKey = '';
+  localStorage.removeItem('claude_api_key');
+  document.getElementById('claudeApiKeyInput').value = '';
+  document.getElementById('claudeKeyStatus').style.display = 'none';
+  document.getElementById('claudeKeySection').style.display = 'block';
+  document.getElementById('claudeAnalysisSection').style.display = 'none';
+}
+
+/**
+ * Send the captured satellite image to Claude for analysis.
+ * Uses the Anthropic Messages API with vision support.
+ */
+async function analyzeWithClaude() {
+  if (!currentFarm) {
+    showToast('No farm selected');
+    return;
+  }
+
+  loadClaudeApiKey();
+  if (!claudeApiKey) {
+    showToast('Please set your Anthropic API key first');
+    return;
+  }
+
+  const previewImg = document.getElementById('claudePreviewImg');
+  if (!previewImg.src || previewImg.src === window.location.href) {
+    showToast('No satellite image captured. Try zooming in first.');
+    return;
+  }
+
+  const analyzeBtn = document.getElementById('claudeAnalyzeBtn');
+  const loadingDiv = document.getElementById('claudeLoading');
+  const loadingText = document.getElementById('claudeLoadingText');
+  const resultDiv = document.getElementById('claudeResult');
+
+  analyzeBtn.disabled = true;
+  loadingDiv.style.display = 'flex';
+  resultDiv.style.display = 'none';
+
+  const loadingMessages = [
+    'Sending image to Claude...',
+    'Analyzing satellite imagery...',
+    'Identifying structures...',
+    'Assessing land use patterns...',
+    'Evaluating farm indicators...',
+    'Preparing analysis...'
+  ];
+  let msgIdx = 0;
+  loadingText.textContent = loadingMessages[0];
+  const loadingInterval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % loadingMessages.length;
+    loadingText.textContent = loadingMessages[msgIdx];
+  }, 2500);
+
+  try {
+    const modelId = document.getElementById('claudeModelSelect').value;
+
+    const prompt = AI_ANALYSIS_PROMPT
+      .replace(/\{lat\}/g, currentFarm.lat.toFixed(5))
+      .replace(/\{lng\}/g, currentFarm.lng.toFixed(5));
+
+    const dataUrl = previewImg.src;
+    const base64Data = dataUrl.split(',')[1];
+    const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+
+    const payload = {
+      model: modelId,
+      max_tokens: 4096,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mimeType, data: base64Data }
+          },
+          {
+            type: 'text',
+            text: prompt
+          }
+        ]
+      }]
+    };
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': claudeApiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    clearInterval(loadingInterval);
+    loadingDiv.style.display = 'none';
+
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      let hint = '';
+      if (resp.status === 400) hint = 'Check your API key or request format.';
+      else if (resp.status === 401 || resp.status === 403) hint = 'API key may be invalid or expired.';
+      else if (resp.status === 429) hint = 'Rate limit exceeded. Wait and try again.';
+      throw new Error(`API error ${resp.status}: ${hint || errBody}`);
+    }
+
+    const data = await resp.json();
+
+    if (!data.content || !data.content.length) {
+      throw new Error('Unexpected response structure from Claude.');
+    }
+
+    const responseText = data.content[0].text;
+    displayClaudeResult(responseText);
+
+  } catch (err) {
+    clearInterval(loadingInterval);
+    loadingDiv.style.display = 'none';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<div style="color: #c62828;"><strong>Error:</strong> ${escapeHtml(err.message)}</div>`;
+    analyzeBtn.disabled = false;
+  }
+}
+
+function displayClaudeResult(text) {
+  const resultDiv = document.getElementById('claudeResult');
+  const analyzeBtn = document.getElementById('claudeAnalyzeBtn');
+
+  let html = escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+
+  resultDiv.innerHTML = `<h4>🧪 Claude Analysis</h4>${html}`;
+  resultDiv.style.display = 'block';
+  analyzeBtn.disabled = false;
+}
+
+/**
+ * Capture map tiles into a specific preview image element.
+ * Used when Claude panel opens without Gemini panel having been opened first.
+ */
+function captureMapTilesFor(previewImgId) {
+  const mapContainer = document.getElementById('map');
+  const canvas = document.getElementById('geminiCaptureCanvas');
+  const previewImg = document.getElementById(previewImgId);
+
+  const width = mapContainer.offsetWidth;
+  const height = mapContainer.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, width, height);
+
+  const mapPane = map.getPane('mapPane');
+  const mapTransform = mapPane ? getComputedTranslate(mapPane) : { x: 0, y: 0 };
+
+  const tilePane = map.getPane('tilePane');
+  if (!tilePane) { previewImg.src = ''; return; }
+
+  const tileImages = tilePane.querySelectorAll('img');
+  const loadPromises = [];
+
+  tileImages.forEach(img => {
+    if (!img.src || !img.complete || img.naturalWidth === 0) return;
+    const tileTransform = getComputedTranslate(img);
+    let parentTransform = { x: 0, y: 0 };
+    let parent = img.parentElement;
+    while (parent && parent !== tilePane) {
+      const pt = getComputedTranslate(parent);
+      parentTransform.x += pt.x;
+      parentTransform.y += pt.y;
+      parent = parent.parentElement;
+    }
+    const x = mapTransform.x + parentTransform.x + tileTransform.x;
+    const y = mapTransform.y + parentTransform.y + tileTransform.y;
+    const promise = new Promise(resolve => {
+      const proxyImg = new Image();
+      proxyImg.crossOrigin = 'anonymous';
+      proxyImg.onload = () => {
+        try { ctx.drawImage(proxyImg, x, y, img.width || 256, img.height || 256); } catch (e) {}
+        resolve();
+      };
+      proxyImg.onerror = () => resolve();
+      proxyImg.src = img.src;
+    });
+    loadPromises.push(promise);
+  });
+
+  Promise.all(loadPromises).then(() => {
+    try { previewImg.src = canvas.toDataURL('image/jpeg', 0.85); } catch (e) { previewImg.src = ''; }
+  });
+}
+
 /* ==================== EVENT LISTENERS ==================== */
 
 // Tutorial
@@ -3125,6 +3825,15 @@ async function init() {
   
   // Initialize shop tabs
   initShopTabs();
+  
+  // Load Gemini API key if previously saved
+  loadGeminiApiKey();
+  
+  // Load Claude API key if previously saved
+  loadClaudeApiKey();
+  
+  // Apply AI buttons visibility preference
+  updateAiButtonsVisibility();
   
   console.log('Zone Quest initialized!');
 }
