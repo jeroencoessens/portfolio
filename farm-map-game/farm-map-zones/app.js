@@ -467,8 +467,10 @@ function selectFarm(farm) {
     document.getElementById('votedSection').style.display = 'none';
   }
   
-  // Show panel
-  document.getElementById('farmPanel').classList.add('active');
+  // Show panel (reset any inline bottom override left by closeFarmPanel)
+  const farmPanel = document.getElementById('farmPanel');
+  farmPanel.style.bottom = '';
+  farmPanel.classList.add('active');
   
   // Gently zoom to farm
   map.setView([farm.lat, farm.lng], Math.max(map.getZoom(), GAME_CONSTANTS.FARM_DETAIL_ZOOM), {
@@ -787,44 +789,6 @@ function checkBadges() {
  * - Satellite imagery providers
  * All purchases use earned points (no real money)
  * ==================== */
-
-/**
- * Helper function to create a shop item DOM element
- * @param {Object} config - Shop item configuration
- * @returns {HTMLElement} - Shop item element
- */
-function createShopItem(config) {
-  const {
-    icon,
-    name,
-    description,
-    isUnlocked,
-    canAfford,
-    price,
-    onUnlock
-  } = config;
-  
-  const item = document.createElement('div');
-  item.className = `shop-item ${isUnlocked ? 'unlocked' : ''}`;
-  
-  const actionButton = isUnlocked
-    ? '<span class="shop-item-unlocked">✓ Unlocked</span>'
-    : `<button class="btn-buy" ${canAfford ? '' : 'disabled'} onclick="${onUnlock}">
-        💰 ${price} points
-      </button>`;
-  
-  item.innerHTML = `
-    <div class="shop-item-info">
-      <div class="shop-item-name">${icon} ${name}</div>
-      <div class="shop-item-desc">${description}</div>
-    </div>
-    <div class="shop-item-action">
-      ${actionButton}
-    </div>
-  `;
-  
-  return item;
-}
 
 function openShop() {
   document.getElementById('shopPoints').textContent = gameState.points;
@@ -2779,8 +2743,6 @@ function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
 }
 
-/* ==================== TOAST NOTIFICATIONS ==================== */
-
 /* ==================== DEBUG FUNCTIONS ==================== */
 
 /* ==================== EXPORT & RESET ==================== */
@@ -3092,48 +3054,167 @@ function updateClaudeCostHint() {
   hint.textContent = CLAUDE_COST_HINTS[model] || '';
 }
 
-let geminiApiKey = '';
+/* ---- Shared AI helpers ---- */
 
-function loadGeminiApiKey() {
-  const stored = localStorage.getItem('gemini_api_key');
-  if (stored) {
-    geminiApiKey = stored;
-  }
+const AI_LOADING_MESSAGES = [
+  'Analyzing satellite imagery...',
+  'Identifying structures...',
+  'Assessing land use patterns...',
+  'Evaluating farm indicators...',
+  'Preparing analysis...'
+];
+
+function toggleApiKeyVisibility(inputId, btnId) {
+  const inp = document.getElementById(inputId);
+  const btn = document.getElementById(btnId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
 }
 
-function openGeminiPanel() {
+function displayAiResult(resultDivId, analyzeBtnId, heading, text) {
+  const resultDiv = document.getElementById(resultDivId);
+  const analyzeBtn = document.getElementById(analyzeBtnId);
+  let html = escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+  resultDiv.innerHTML = `<h4>${heading}</h4>${html}`;
+  resultDiv.style.display = 'block';
+  analyzeBtn.disabled = false;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function openAiPanel({ loadKey, apiKey, ids, previewImgId }) {
   if (!currentFarm) return;
-
-  loadGeminiApiKey();
-
-  const panel = document.getElementById('geminiPanel');
-  const keySection = document.getElementById('geminiKeySection');
-  const analysisSection = document.getElementById('geminiAnalysisSection');
-  const resultDiv = document.getElementById('geminiResult');
-  const loadingDiv = document.getElementById('geminiLoading');
-
-  // Reset state
+  loadKey();
+  const panel = document.getElementById(ids.panel);
+  const keySection = document.getElementById(ids.keySection);
+  const analysisSection = document.getElementById(ids.analysisSection);
+  const resultDiv = document.getElementById(ids.result);
+  const loadingDiv = document.getElementById(ids.loading);
   resultDiv.style.display = 'none';
   resultDiv.innerHTML = '';
   loadingDiv.style.display = 'none';
-  document.getElementById('geminiAnalyzeBtn').disabled = false;
-
-  if (geminiApiKey) {
+  document.getElementById(ids.analyzeBtn).disabled = false;
+  if (apiKey()) {
     keySection.style.display = 'none';
     analysisSection.style.display = 'block';
   } else {
     keySection.style.display = 'block';
     analysisSection.style.display = 'none';
   }
-
-  // Show farm location
-  document.getElementById('geminiFarmLat').textContent = currentFarm.lat.toFixed(5);
-  document.getElementById('geminiFarmLng').textContent = currentFarm.lng.toFixed(5);
-
-  // Capture the current map view
-  captureMapTiles();
-
+  document.getElementById(ids.lat).textContent = currentFarm.lat.toFixed(5);
+  document.getElementById(ids.lng).textContent = currentFarm.lng.toFixed(5);
+  captureMapTilesFor(previewImgId);
   panel.style.display = 'block';
+}
+
+function saveAiApiKey({ inputId, statusId, keySectionId, analysisSectionId, previewImgId, storageKey, setKey }) {
+  const val = document.getElementById(inputId).value.trim();
+  const statusEl = document.getElementById(statusId);
+  if (!val) {
+    statusEl.textContent = 'Please enter a valid API key.';
+    statusEl.className = 'gemini-key-status error';
+    statusEl.style.display = 'block';
+    return;
+  }
+  setKey(val);
+  localStorage.setItem(storageKey, val);
+  statusEl.textContent = 'API key saved ✓';
+  statusEl.className = 'gemini-key-status success';
+  statusEl.style.display = 'block';
+  setTimeout(() => {
+    document.getElementById(keySectionId).style.display = 'none';
+    document.getElementById(analysisSectionId).style.display = 'block';
+    captureMapTilesFor(previewImgId);
+  }, 600);
+}
+
+function changeAiApiKey({ storageKey, clearKey, inputId, statusId, keySectionId, analysisSectionId }) {
+  clearKey();
+  localStorage.removeItem(storageKey);
+  document.getElementById(inputId).value = '';
+  document.getElementById(statusId).style.display = 'none';
+  document.getElementById(keySectionId).style.display = 'block';
+  document.getElementById(analysisSectionId).style.display = 'none';
+}
+
+async function performAiAnalysis({ loadKey, getKey, keyName, previewImgId, analyzeBtnId, loadingId, loadingTextId, resultId, firstLoadingMsg, buildRequest, parseResponse, onDisplay }) {
+  if (!currentFarm) { showToast('No farm selected'); return; }
+  loadKey();
+  if (!getKey()) { showToast(`Please set your ${keyName} API key first`); return; }
+  const previewImg = document.getElementById(previewImgId);
+  if (!previewImg.src || previewImg.src === window.location.href) {
+    showToast('No satellite image captured. Try zooming in first.');
+    return;
+  }
+  const analyzeBtn = document.getElementById(analyzeBtnId);
+  const loadingDiv = document.getElementById(loadingId);
+  const loadingText = document.getElementById(loadingTextId);
+  const resultDiv = document.getElementById(resultId);
+  analyzeBtn.disabled = true;
+  loadingDiv.style.display = 'flex';
+  resultDiv.style.display = 'none';
+  const messages = [firstLoadingMsg, ...AI_LOADING_MESSAGES];
+  let msgIdx = 0;
+  loadingText.textContent = messages[0];
+  const loadingInterval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % messages.length;
+    loadingText.textContent = messages[msgIdx];
+  }, 2500);
+  try {
+    const prompt = AI_ANALYSIS_PROMPT
+      .replace(/\{lat\}/g, currentFarm.lat.toFixed(5))
+      .replace(/\{lng\}/g, currentFarm.lng.toFixed(5));
+    const dataUrl = previewImg.src;
+    const base64Data = dataUrl.split(',')[1];
+    const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+    const { url, headers, body } = buildRequest({ prompt, base64Data, mimeType });
+    const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    clearInterval(loadingInterval);
+    loadingDiv.style.display = 'none';
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      let hint = '';
+      if (resp.status === 400) hint = 'Check your API key or request format.';
+      else if (resp.status === 401 || resp.status === 403) hint = 'API key may be invalid or expired.';
+      else if (resp.status === 429) hint = 'Rate limit exceeded. Wait and try again.';
+      throw new Error(`API error ${resp.status}: ${hint || errBody}`);
+    }
+    const data = await resp.json();
+    const responseText = parseResponse(data);
+    onDisplay(responseText);
+  } catch (err) {
+    clearInterval(loadingInterval);
+    loadingDiv.style.display = 'none';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<div style="color: #c62828;"><strong>Error:</strong> ${escapeHtml(err.message)}</div>`;
+    analyzeBtn.disabled = false;
+  }
+}
+
+/* ---- Gemini ---- */
+
+let geminiApiKey = '';
+
+function loadGeminiApiKey() {
+  const stored = localStorage.getItem('gemini_api_key');
+  if (stored) geminiApiKey = stored;
+}
+
+const GEMINI_IDS = {
+  panel: 'geminiPanel', keySection: 'geminiKeySection', analysisSection: 'geminiAnalysisSection',
+  result: 'geminiResult', loading: 'geminiLoading', analyzeBtn: 'geminiAnalyzeBtn',
+  lat: 'geminiFarmLat', lng: 'geminiFarmLng'
+};
+
+function openGeminiPanel() {
+  openAiPanel({ loadKey: loadGeminiApiKey, apiKey: () => geminiApiKey, ids: GEMINI_IDS, previewImgId: 'geminiPreviewImg' });
 }
 
 function closeGeminiPanel() {
@@ -3141,124 +3222,32 @@ function closeGeminiPanel() {
 }
 
 function toggleGeminiKeyVisibility() {
-  const inp = document.getElementById('geminiApiKeyInput');
-  const btn = document.getElementById('geminiKeyToggle');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+  toggleApiKeyVisibility('geminiApiKeyInput', 'geminiKeyToggle');
 }
 
 function saveGeminiApiKey() {
-  const val = document.getElementById('geminiApiKeyInput').value.trim();
-  const statusEl = document.getElementById('geminiKeyStatus');
-
-  if (!val) {
-    statusEl.textContent = 'Please enter a valid API key.';
-    statusEl.className = 'gemini-key-status error';
-    statusEl.style.display = 'block';
-    return;
-  }
-
-  geminiApiKey = val;
-  localStorage.setItem('gemini_api_key', val);
-
-  statusEl.textContent = 'API key saved ✓';
-  statusEl.className = 'gemini-key-status success';
-  statusEl.style.display = 'block';
-
-  // Transition to analysis view
-  setTimeout(() => {
-    document.getElementById('geminiKeySection').style.display = 'none';
-    document.getElementById('geminiAnalysisSection').style.display = 'block';
-    // Capture tiles now that the key is set
-    captureMapTiles();
-  }, 600);
+  saveAiApiKey({
+    inputId: 'geminiApiKeyInput', statusId: 'geminiKeyStatus',
+    keySectionId: 'geminiKeySection', analysisSectionId: 'geminiAnalysisSection',
+    previewImgId: 'geminiPreviewImg', storageKey: 'gemini_api_key',
+    setKey: (val) => { geminiApiKey = val; }
+  });
 }
 
 function changeGeminiApiKey() {
-  geminiApiKey = '';
-  localStorage.removeItem('gemini_api_key');
-  document.getElementById('geminiApiKeyInput').value = '';
-  document.getElementById('geminiKeyStatus').style.display = 'none';
-  document.getElementById('geminiKeySection').style.display = 'block';
-  document.getElementById('geminiAnalysisSection').style.display = 'none';
+  changeAiApiKey({
+    storageKey: 'gemini_api_key', clearKey: () => { geminiApiKey = ''; },
+    inputId: 'geminiApiKeyInput', statusId: 'geminiKeyStatus',
+    keySectionId: 'geminiKeySection', analysisSectionId: 'geminiAnalysisSection'
+  });
 }
 
 /**
  * Capture the current map view tiles to a canvas, then display as preview.
- * Uses Leaflet's internal tile <img> elements directly from the DOM.
+ * Shorthand targeting the Gemini preview image.
  */
 function captureMapTiles() {
-  const mapContainer = document.getElementById('map');
-  const canvas = document.getElementById('geminiCaptureCanvas');
-  const previewImg = document.getElementById('geminiPreviewImg');
-
-  const width = mapContainer.offsetWidth;
-  const height = mapContainer.offsetHeight;
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, width, height);
-
-  // Get the map's pixel origin to compute tile offsets
-  const mapPane = map.getPane('mapPane');
-  const mapTransform = mapPane ? getComputedTranslate(mapPane) : { x: 0, y: 0 };
-
-  // Collect all tile images from tile panes
-  const tilePane = map.getPane('tilePane');
-  if (!tilePane) {
-    previewImg.src = '';
-    return;
-  }
-
-  const tileImages = tilePane.querySelectorAll('img');
-  const loadPromises = [];
-
-  tileImages.forEach(img => {
-    if (!img.src || !img.complete || img.naturalWidth === 0) return;
-
-    // Each tile img has a transform style that positions it
-    const tileTransform = getComputedTranslate(img);
-    // Also check parent containers for transforms
-    let parentTransform = { x: 0, y: 0 };
-    let parent = img.parentElement;
-    while (parent && parent !== tilePane) {
-      const pt = getComputedTranslate(parent);
-      parentTransform.x += pt.x;
-      parentTransform.y += pt.y;
-      parent = parent.parentElement;
-    }
-
-    const x = mapTransform.x + parentTransform.x + tileTransform.x;
-    const y = mapTransform.y + parentTransform.y + tileTransform.y;
-
-    const promise = new Promise(resolve => {
-      // Tiles may be cross-origin, draw via a proxy image with crossOrigin
-      const proxyImg = new Image();
-      proxyImg.crossOrigin = 'anonymous';
-      proxyImg.onload = () => {
-        try {
-          ctx.drawImage(proxyImg, x, y, img.width || 256, img.height || 256);
-        } catch (e) {
-          // Tainted canvas from cross-origin tile, skip
-        }
-        resolve();
-      };
-      proxyImg.onerror = () => resolve();
-      proxyImg.src = img.src;
-    });
-    loadPromises.push(promise);
-  });
-
-  Promise.all(loadPromises).then(() => {
-    try {
-      previewImg.src = canvas.toDataURL('image/jpeg', 0.85);
-    } catch (e) {
-      // If canvas is tainted, fall back to a screenshot approach
-      previewImg.src = '';
-      console.warn('Could not capture map tiles (cross-origin). Attempting html2canvas fallback is not available.');
-    }
-  });
+  captureMapTilesFor('geminiPreviewImg');
 }
 
 /**
@@ -3292,129 +3281,34 @@ function getComputedTranslate(el) {
  * Send the captured satellite image to Gemini for analysis.
  */
 async function analyzeWithGemini() {
-  if (!currentFarm) {
-    showToast('No farm selected');
-    return;
-  }
-
-  loadGeminiApiKey();
-  if (!geminiApiKey) {
-    showToast('Please set your Gemini API key first');
-    return;
-  }
-
-  const previewImg = document.getElementById('geminiPreviewImg');
-  if (!previewImg.src || previewImg.src === window.location.href) {
-    showToast('No satellite image captured. Try zooming in first.');
-    return;
-  }
-
-  const analyzeBtn = document.getElementById('geminiAnalyzeBtn');
-  const loadingDiv = document.getElementById('geminiLoading');
-  const loadingText = document.getElementById('geminiLoadingText');
-  const resultDiv = document.getElementById('geminiResult');
-
-  analyzeBtn.disabled = true;
-  loadingDiv.style.display = 'flex';
-  resultDiv.style.display = 'none';
-
-  // Cycle loading messages
-  const loadingMessages = [
-    'Sending image to Gemini...',
-    'Analyzing satellite imagery...',
-    'Identifying structures...',
-    'Assessing land use patterns...',
-    'Evaluating farm indicators...',
-    'Preparing analysis...'
-  ];
-  let msgIdx = 0;
-  loadingText.textContent = loadingMessages[0];
-  const loadingInterval = setInterval(() => {
-    msgIdx = (msgIdx + 1) % loadingMessages.length;
-    loadingText.textContent = loadingMessages[msgIdx];
-  }, 2500);
-
-  try {
-    const modelId = document.getElementById('geminiModelSelect').value;
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${geminiApiKey}`;
-
-    // Build the prompt with location data
-    const prompt = AI_ANALYSIS_PROMPT
-      .replace(/\{lat\}/g, currentFarm.lat.toFixed(5))
-      .replace(/\{lng\}/g, currentFarm.lng.toFixed(5));
-
-    // Extract base64 from the preview image data URL
-    const dataUrl = previewImg.src;
-    const base64Data = dataUrl.split(',')[1];
-    const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
-
-    const payload = {
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType, data: base64Data } }
-        ]
-      }]
-    };
-
-    const resp = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    clearInterval(loadingInterval);
-    loadingDiv.style.display = 'none';
-
-    if (!resp.ok) {
-      const errBody = await resp.text();
-      let hint = '';
-      if (resp.status === 400) hint = 'Check your API key or request format.';
-      else if (resp.status === 401 || resp.status === 403) hint = 'API key may be invalid or expired.';
-      else if (resp.status === 429) hint = 'Rate limit exceeded. Wait and try again.';
-      throw new Error(`API error ${resp.status}: ${hint || errBody}`);
-    }
-
-    const data = await resp.json();
-
-    if (!data.candidates || !data.candidates.length ||
-        !data.candidates[0].content ||
-        !data.candidates[0].content.parts ||
-        !data.candidates[0].content.parts.length) {
-      throw new Error('Unexpected response structure from Gemini.');
-    }
-
-    const responseText = data.candidates[0].content.parts[0].text;
-    displayGeminiResult(responseText);
-
-  } catch (err) {
-    clearInterval(loadingInterval);
-    loadingDiv.style.display = 'none';
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = `<div style="color: #c62828;"><strong>Error:</strong> ${escapeHtml(err.message)}</div>`;
-    analyzeBtn.disabled = false;
-  }
+  await performAiAnalysis({
+    loadKey: loadGeminiApiKey, getKey: () => geminiApiKey, keyName: 'Gemini',
+    previewImgId: 'geminiPreviewImg', analyzeBtnId: 'geminiAnalyzeBtn',
+    loadingId: 'geminiLoading', loadingTextId: 'geminiLoadingText', resultId: 'geminiResult',
+    firstLoadingMsg: 'Sending image to Gemini...',
+    buildRequest: ({ prompt, base64Data, mimeType }) => {
+      const modelId = document.getElementById('geminiModelSelect').value;
+      return {
+        url: `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${geminiApiKey}`,
+        headers: { 'Content-Type': 'application/json' },
+        body: { contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data } }] }] }
+      };
+    },
+    parseResponse: (data) => {
+      if (!data.candidates || !data.candidates.length ||
+          !data.candidates[0].content ||
+          !data.candidates[0].content.parts ||
+          !data.candidates[0].content.parts.length) {
+        throw new Error('Unexpected response structure from Gemini.');
+      }
+      return data.candidates[0].content.parts[0].text;
+    },
+    onDisplay: (text) => displayAiResult('geminiResult', 'geminiAnalyzeBtn', '🤖 Gemini Analysis', text)
+  });
 }
 
 function displayGeminiResult(text) {
-  const resultDiv = document.getElementById('geminiResult');
-  const analyzeBtn = document.getElementById('geminiAnalyzeBtn');
-
-  // Simple markdown-ish rendering
-  let html = escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>');
-
-  resultDiv.innerHTML = `<h4>🤖 Gemini Analysis</h4>${html}`;
-  resultDiv.style.display = 'block';
-  analyzeBtn.disabled = false;
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
+  displayAiResult('geminiResult', 'geminiAnalyzeBtn', '🤖 Gemini Analysis', text);
 }
 
 /* ==================== CLAUDE SATELLITE ANALYSIS ==================== */
@@ -3423,48 +3317,17 @@ let claudeApiKey = '';
 
 function loadClaudeApiKey() {
   const stored = localStorage.getItem('claude_api_key');
-  if (stored) {
-    claudeApiKey = stored;
-  }
+  if (stored) claudeApiKey = stored;
 }
 
+const CLAUDE_IDS = {
+  panel: 'claudePanel', keySection: 'claudeKeySection', analysisSection: 'claudeAnalysisSection',
+  result: 'claudeResult', loading: 'claudeLoading', analyzeBtn: 'claudeAnalyzeBtn',
+  lat: 'claudeFarmLat', lng: 'claudeFarmLng'
+};
+
 function openClaudePanel() {
-  if (!currentFarm) return;
-
-  loadClaudeApiKey();
-
-  const panel = document.getElementById('claudePanel');
-  const keySection = document.getElementById('claudeKeySection');
-  const analysisSection = document.getElementById('claudeAnalysisSection');
-  const resultDiv = document.getElementById('claudeResult');
-  const loadingDiv = document.getElementById('claudeLoading');
-
-  resultDiv.style.display = 'none';
-  resultDiv.innerHTML = '';
-  loadingDiv.style.display = 'none';
-  document.getElementById('claudeAnalyzeBtn').disabled = false;
-
-  if (claudeApiKey) {
-    keySection.style.display = 'none';
-    analysisSection.style.display = 'block';
-  } else {
-    keySection.style.display = 'block';
-    analysisSection.style.display = 'none';
-  }
-
-  document.getElementById('claudeFarmLat').textContent = currentFarm.lat.toFixed(5);
-  document.getElementById('claudeFarmLng').textContent = currentFarm.lng.toFixed(5);
-
-  // Re-use the same captured image from the canvas
-  const geminiPreview = document.getElementById('geminiPreviewImg');
-  const claudePreview = document.getElementById('claudePreviewImg');
-  if (geminiPreview.src && geminiPreview.src !== window.location.href) {
-    claudePreview.src = geminiPreview.src;
-  } else {
-    captureMapTilesFor('claudePreviewImg');
-  }
-
-  panel.style.display = 'block';
+  openAiPanel({ loadKey: loadClaudeApiKey, apiKey: () => claudeApiKey, ids: CLAUDE_IDS, previewImgId: 'claudePreviewImg' });
 }
 
 function closeClaudePanel() {
@@ -3472,173 +3335,61 @@ function closeClaudePanel() {
 }
 
 function toggleClaudeKeyVisibility() {
-  const inp = document.getElementById('claudeApiKeyInput');
-  const btn = document.getElementById('claudeKeyToggle');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+  toggleApiKeyVisibility('claudeApiKeyInput', 'claudeKeyToggle');
 }
 
 function saveClaudeApiKey() {
-  const val = document.getElementById('claudeApiKeyInput').value.trim();
-  const statusEl = document.getElementById('claudeKeyStatus');
-
-  if (!val) {
-    statusEl.textContent = 'Please enter a valid API key.';
-    statusEl.className = 'gemini-key-status error';
-    statusEl.style.display = 'block';
-    return;
-  }
-
-  claudeApiKey = val;
-  localStorage.setItem('claude_api_key', val);
-
-  statusEl.textContent = 'API key saved ✓';
-  statusEl.className = 'gemini-key-status success';
-  statusEl.style.display = 'block';
-
-  setTimeout(() => {
-    document.getElementById('claudeKeySection').style.display = 'none';
-    document.getElementById('claudeAnalysisSection').style.display = 'block';
-    captureMapTilesFor('claudePreviewImg');
-  }, 600);
+  saveAiApiKey({
+    inputId: 'claudeApiKeyInput', statusId: 'claudeKeyStatus',
+    keySectionId: 'claudeKeySection', analysisSectionId: 'claudeAnalysisSection',
+    previewImgId: 'claudePreviewImg', storageKey: 'claude_api_key',
+    setKey: (val) => { claudeApiKey = val; }
+  });
 }
 
 function changeClaudeApiKey() {
-  claudeApiKey = '';
-  localStorage.removeItem('claude_api_key');
-  document.getElementById('claudeApiKeyInput').value = '';
-  document.getElementById('claudeKeyStatus').style.display = 'none';
-  document.getElementById('claudeKeySection').style.display = 'block';
-  document.getElementById('claudeAnalysisSection').style.display = 'none';
+  changeAiApiKey({
+    storageKey: 'claude_api_key', clearKey: () => { claudeApiKey = ''; },
+    inputId: 'claudeApiKeyInput', statusId: 'claudeKeyStatus',
+    keySectionId: 'claudeKeySection', analysisSectionId: 'claudeAnalysisSection'
+  });
 }
 
-/**
- * Send the captured satellite image to Claude for analysis.
- * Uses the Anthropic Messages API with vision support.
- */
 async function analyzeWithClaude() {
-  if (!currentFarm) {
-    showToast('No farm selected');
-    return;
-  }
-
-  loadClaudeApiKey();
-  if (!claudeApiKey) {
-    showToast('Please set your Anthropic API key first');
-    return;
-  }
-
-  const previewImg = document.getElementById('claudePreviewImg');
-  if (!previewImg.src || previewImg.src === window.location.href) {
-    showToast('No satellite image captured. Try zooming in first.');
-    return;
-  }
-
-  const analyzeBtn = document.getElementById('claudeAnalyzeBtn');
-  const loadingDiv = document.getElementById('claudeLoading');
-  const loadingText = document.getElementById('claudeLoadingText');
-  const resultDiv = document.getElementById('claudeResult');
-
-  analyzeBtn.disabled = true;
-  loadingDiv.style.display = 'flex';
-  resultDiv.style.display = 'none';
-
-  const loadingMessages = [
-    'Sending image to Claude...',
-    'Analyzing satellite imagery...',
-    'Identifying structures...',
-    'Assessing land use patterns...',
-    'Evaluating farm indicators...',
-    'Preparing analysis...'
-  ];
-  let msgIdx = 0;
-  loadingText.textContent = loadingMessages[0];
-  const loadingInterval = setInterval(() => {
-    msgIdx = (msgIdx + 1) % loadingMessages.length;
-    loadingText.textContent = loadingMessages[msgIdx];
-  }, 2500);
-
-  try {
-    const modelId = document.getElementById('claudeModelSelect').value;
-
-    const prompt = AI_ANALYSIS_PROMPT
-      .replace(/\{lat\}/g, currentFarm.lat.toFixed(5))
-      .replace(/\{lng\}/g, currentFarm.lng.toFixed(5));
-
-    const dataUrl = previewImg.src;
-    const base64Data = dataUrl.split(',')[1];
-    const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
-
-    const payload = {
-      model: modelId,
-      max_tokens: 4096,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mimeType, data: base64Data }
-          },
-          {
-            type: 'text',
-            text: prompt
-          }
-        ]
-      }]
-    };
-
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+  await performAiAnalysis({
+    loadKey: loadClaudeApiKey, getKey: () => claudeApiKey, keyName: 'Anthropic',
+    previewImgId: 'claudePreviewImg', analyzeBtnId: 'claudeAnalyzeBtn',
+    loadingId: 'claudeLoading', loadingTextId: 'claudeLoadingText', resultId: 'claudeResult',
+    firstLoadingMsg: 'Sending image to Claude...',
+    buildRequest: ({ prompt, base64Data, mimeType }) => ({
+      url: 'https://api.anthropic.com/v1/messages',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': claudeApiKey,
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
-      body: JSON.stringify(payload)
-    });
-
-    clearInterval(loadingInterval);
-    loadingDiv.style.display = 'none';
-
-    if (!resp.ok) {
-      const errBody = await resp.text();
-      let hint = '';
-      if (resp.status === 400) hint = 'Check your API key or request format.';
-      else if (resp.status === 401 || resp.status === 403) hint = 'API key may be invalid or expired.';
-      else if (resp.status === 429) hint = 'Rate limit exceeded. Wait and try again.';
-      throw new Error(`API error ${resp.status}: ${hint || errBody}`);
-    }
-
-    const data = await resp.json();
-
-    if (!data.content || !data.content.length) {
-      throw new Error('Unexpected response structure from Claude.');
-    }
-
-    const responseText = data.content[0].text;
-    displayClaudeResult(responseText);
-
-  } catch (err) {
-    clearInterval(loadingInterval);
-    loadingDiv.style.display = 'none';
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = `<div style="color: #c62828;"><strong>Error:</strong> ${escapeHtml(err.message)}</div>`;
-    analyzeBtn.disabled = false;
-  }
+      body: {
+        model: document.getElementById('claudeModelSelect').value,
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64Data } },
+          { type: 'text', text: prompt }
+        ] }]
+      }
+    }),
+    parseResponse: (data) => {
+      if (!data.content || !data.content.length) {
+        throw new Error('Unexpected response structure from Claude.');
+      }
+      return data.content[0].text;
+    },
+    onDisplay: (text) => displayAiResult('claudeResult', 'claudeAnalyzeBtn', '🧪 Claude Analysis', text)
+  });
 }
 
 function displayClaudeResult(text) {
-  const resultDiv = document.getElementById('claudeResult');
-  const analyzeBtn = document.getElementById('claudeAnalyzeBtn');
-
-  let html = escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>');
-
-  resultDiv.innerHTML = `<h4>🧪 Claude Analysis</h4>${html}`;
-  resultDiv.style.display = 'block';
-  analyzeBtn.disabled = false;
+  displayAiResult('claudeResult', 'claudeAnalyzeBtn', '🧪 Claude Analysis', text);
 }
 
 /**
