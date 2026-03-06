@@ -259,7 +259,9 @@
         <!-- Tip: switch to Google Satellite and zoom in as far as possible for the best AI results -->
         <div class="ai-buttons-row" id="aiBtnsVoting">
           <button class="btn-gemini" onclick="openGeminiPanel()">🤖 Ask Gemini</button>
+          <!-- Claude button hidden until integration is fixed
           <button class="btn-claude" onclick="openClaudePanel()">🧪 Ask Claude</button>
+          -->
         </div>
       </div>
 
@@ -269,7 +271,9 @@
         <button id="changeVoteBtn" class="btn-secondary">Change Vote</button>
         <div class="ai-buttons-row" id="aiBtnsVoted">
           <button class="btn-gemini" onclick="openGeminiPanel()">🤖 Ask Gemini</button>
+          <!-- Claude button hidden until integration is fixed
           <button class="btn-claude" onclick="openClaudePanel()">🧪 Ask Claude</button>
+          -->
         </div>
       </div>
     </div>
@@ -493,6 +497,7 @@
     <!-- API Key Setup -->
     <div id="claudeKeySection" class="gemini-section">
       <p class="gemini-key-prompt">Enter your Anthropic API key to use Claude. Your key is stored locally and never sent to any server other than Anthropic's API.</p>
+      <p class="gemini-key-prompt">Don't have a key yet? <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer" class="ai-key-link claude-key-link">Get your Anthropic API key ↗</a></p>
       <div class="gemini-key-row">
         <input type="password" id="claudeApiKeyInput" class="gemini-input" placeholder="Paste your Anthropic API key" />
         <button class="gemini-key-toggle" id="claudeKeyToggle" onclick="toggleClaudeKeyVisibility()">👁️</button>
@@ -541,6 +546,7 @@
     <!-- API Key Setup (shown when no key stored) -->
     <div id="geminiKeySection" class="gemini-section">
       <p class="gemini-key-prompt">Enter your Gemini API key to use this feature. Your key is stored locally and never sent to any server other than Google's Gemini API.</p>
+      <p class="gemini-key-prompt">Don't have a key yet? <a href="https://aistudio.google.com/app/api-keys" target="_blank" rel="noopener noreferrer" class="ai-key-link">Get your free Gemini API key ↗</a></p>
       <div class="gemini-key-row">
         <input type="password" id="geminiApiKeyInput" class="gemini-input" placeholder="Paste your Gemini API key" />
         <button class="gemini-key-toggle" id="geminiKeyToggle" onclick="toggleGeminiKeyVisibility()">👁️</button>

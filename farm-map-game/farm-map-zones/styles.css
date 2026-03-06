@@ -2599,6 +2599,20 @@ body.dark-mode .shop-category h4 {
   color: var(--dark);
 }
 
+.ai-key-link {
+  color: #4285f4;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ai-key-link:hover {
+  text-decoration: underline;
+}
+
+.claude-key-link {
+  color: #d97706;
+}
+
 /* mobile */
 @media (max-width: 480px) {
   .ai-panel {
