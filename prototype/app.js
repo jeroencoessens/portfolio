@@ -29,9 +29,12 @@ const TRACK_CITIES = [
 
 // ===== ANIMALS =====
 const ANIMALS = [
-    { id: 'brave_pig',   name: 'Brave Piggy',   emoji: '🐷', color: '#FFB6C1', speed: 0, armor: 1, stealth: 0, price: 0,     ability: 'Mud Slide',  desc: 'Loves the mud. Sturdy and reliable.' },
-    { id: 'quick_chick', name: 'Swift Chick',    emoji: '🐤', color: '#FFF380', speed: 2, armor: 0, stealth: 0, price: 1500,  ability: 'Wing Flutter', desc: 'Fast but fragile.' },
-    { id: 'gentle_cow',  name: 'Gentle Cow',     emoji: '🐮', color: '#F0F0F0', speed: 0, armor: 2, stealth: 0, price: 3000,  ability: 'Stampede',   desc: 'Very tough to stop.' },
+    { id: 'brave_pig',    name: 'Brave Piggy',  emoji: '🐷', color: '#FFB6C1', speed: 0, armor: 1, stealth: 0, price: 0,     ability: 'Mud Slide',   desc: 'Loves the mud. Sturdy and reliable.' },
+    { id: 'quick_chick',  name: 'Swift Chick',  emoji: '🐤', color: '#FFF380', speed: 2, armor: 0, stealth: 0, price: 1500,  ability: 'Wing Flutter', desc: 'Fast but fragile.' },
+    { id: 'gentle_cow',   name: 'Gentle Cow',   emoji: '🐮', color: '#F0F0F0', speed: 0, armor: 2, stealth: 0, price: 3000,  ability: 'Stampede',    desc: 'Very tough to stop.' },
+    { id: 'woolly_sheep', name: 'Woolly Sheep', emoji: '🐑', color: '#EFEFEF', speed: 0, armor: 1, stealth: 1, price: 2000,  ability: 'Fleece Veil', desc: 'Blends in anywhere. Quiet and steady.' },
+    { id: 'swift_rabbit', name: 'Swift Rabbit', emoji: '🐰', color: '#D4C5B2', speed: 3, armor: 0, stealth: 1, price: 4000,  ability: 'Burrow',      desc: 'Lightning fast. Gone in a flash.' },
+    { id: 'lucky_duck',   name: 'Lucky Duck',   emoji: '🦆', color: '#6B9E5E', speed: 1, armor: 0, stealth: 2, price: 5500,  ability: 'Wing Splash', desc: 'Master of disguise. Slips away unseen.' },
 ];
 
 // ===== IN-GAME UPGRADES =====
@@ -340,24 +343,84 @@ function buildBoard(scene) {
 
 function buildPlanetProps(scene) {
     const propRoot = new BABYLON.TransformNode("propRoot", scene);
-    const treeMat = new BABYLON.StandardMaterial("treeMat", scene);
-    treeMat.diffuseColor = new BABYLON.Color3(0.1, 0.6, 0.1);
-    const trunkMat = new BABYLON.StandardMaterial("trunkMat", scene);
-    trunkMat.diffuseColor = new BABYLON.Color3(0.3, 0.15, 0.05);
 
-    for (let i = 0; i < 120; i++) {
+    // ---- Shared materials ----
+    const treeMat    = new BABYLON.StandardMaterial("treeMat",    scene); treeMat.diffuseColor    = new BABYLON.Color3(0.15, 0.65, 0.10);
+    const trunkMat   = new BABYLON.StandardMaterial("trunkMat",   scene); trunkMat.diffuseColor   = new BABYLON.Color3(0.30, 0.15, 0.05);
+    const coniferMat = new BABYLON.StandardMaterial("coniferMat", scene); coniferMat.diffuseColor = new BABYLON.Color3(0.05, 0.42, 0.06);
+    const bushMat    = new BABYLON.StandardMaterial("bushMat",    scene); bushMat.diffuseColor    = new BABYLON.Color3(0.10, 0.52, 0.07);
+    const grassMat   = new BABYLON.StandardMaterial("grassMat",   scene); grassMat.diffuseColor   = new BABYLON.Color3(0.28, 0.74, 0.12);
+
+    // ---- Helper: anchor a prop to the planet surface ----
+    const makeAnchor = (side, angle) => {
+        const a = new BABYLON.TransformNode("a", scene);
+        a.position.set(side, (game.boardRadius - 0.5) * Math.cos(angle) - game.boardRadius, (game.boardRadius - 0.5) * Math.sin(angle));
+        a.rotation.x = angle;
+        a.parent = propRoot;
+        return a;
+    };
+
+    // ---- Round-canopy trees (55) ----
+    for (let i = 0; i < 55; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const side = (Math.random() < 0.5 ? -1 : 1) * (TILE_SIZE + 2 + Math.random() * 8);
-        const anchor = new BABYLON.TransformNode("p", scene);
-        anchor.position.set(side, (game.boardRadius - 0.5) * Math.cos(angle) - game.boardRadius, (game.boardRadius - 0.5) * Math.sin(angle));
-        anchor.rotation.x = angle;
-        anchor.parent = propRoot;
-
-        const h = 0.8 + Math.random();
-        const trunk = BABYLON.MeshBuilder.CreateCylinder("t", { diameter: 0.15, height: h, tessellation: 6 }, scene);
+        const side  = (Math.random() < 0.5 ? -1 : 1) * (TILE_SIZE + 2 + Math.random() * 8);
+        const anchor = makeAnchor(side, angle);
+        const h = 0.7 + Math.random() * 0.9;
+        const trunk  = BABYLON.MeshBuilder.CreateCylinder("t",  { diameter: 0.15, height: h, tessellation: 6 }, scene);
         trunk.position.y = h / 2; trunk.parent = anchor; trunk.material = trunkMat;
-        const canopy = BABYLON.MeshBuilder.CreateSphere("c", { diameter: 0.6 + Math.random(), segments: 6 }, scene);
+        const canopy = BABYLON.MeshBuilder.CreateSphere("c", { diameter: 0.6 + Math.random() * 0.5, segments: 5 }, scene);
         canopy.position.y = h; canopy.parent = anchor; canopy.material = treeMat;
+    }
+
+    // ---- Conifer / pine trees (35) ----
+    for (let i = 0; i < 35; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const side  = (Math.random() < 0.5 ? -1 : 1) * (TILE_SIZE + 1.5 + Math.random() * 9);
+        const anchor = makeAnchor(side, angle);
+        const h = 1.3 + Math.random() * 1.0;
+        const trunk = BABYLON.MeshBuilder.CreateCylinder("ct",  { diameter: 0.12, height: h * 0.45, tessellation: 5 }, scene);
+        trunk.position.y = h * 0.22; trunk.parent = anchor; trunk.material = trunkMat;
+        const cone1 = BABYLON.MeshBuilder.CreateCylinder("cc1", { diameterTop: 0, diameterBottom: 1.1,  height: h * 0.65, tessellation: 6 }, scene);
+        cone1.position.y = h * 0.50; cone1.parent = anchor; cone1.material = coniferMat;
+        const cone2 = BABYLON.MeshBuilder.CreateCylinder("cc2", { diameterTop: 0, diameterBottom: 0.65, height: h * 0.50, tessellation: 6 }, scene);
+        cone2.position.y = h * 0.87; cone2.parent = anchor; cone2.material = coniferMat;
+    }
+
+    // ---- Bushes — GPU instanced for performance (48) ----
+    const bushTpl = BABYLON.MeshBuilder.CreateSphere("bushTpl", { diameter: 1, segments: 4 }, scene);
+    bushTpl.material = bushMat;
+    bushTpl.setEnabled(false);
+    for (let i = 0; i < 48; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const side  = (Math.random() < 0.5 ? -1 : 1) * (TILE_SIZE + 1 + Math.random() * 5.5);
+        const anchor = makeAnchor(side, angle);
+        const s = 0.32 + Math.random() * 0.38;
+        const b1 = bushTpl.createInstance("b1_" + i);
+        b1.scaling.set(s * 1.4, s, s * 1.3); b1.position.y = s * 0.42; b1.parent = anchor;
+        if (Math.random() > 0.45) {
+            const b2 = bushTpl.createInstance("b2_" + i);
+            b2.scaling.set(s * 0.9, s * 0.72, s * 0.9);
+            b2.position.set((Math.random() - 0.5) * 0.55, s * 0.28, (Math.random() - 0.5) * 0.3);
+            b2.parent = anchor;
+        }
+    }
+
+    // ---- Grass tufts — GPU instanced, 2-3 blades per patch (75) ----
+    const grassTpl = BABYLON.MeshBuilder.CreateCylinder("grassTpl", { diameterTop: 0.04, diameterBottom: 0.14, height: 0.38, tessellation: 4 }, scene);
+    grassTpl.material = grassMat;
+    grassTpl.setEnabled(false);
+    for (let i = 0; i < 75; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const side  = (Math.random() < 0.5 ? -1 : 1) * (TILE_SIZE * 0.4 + Math.random() * 11);
+        const anchor = makeAnchor(side, angle);
+        const blades = 2 + (Math.random() > 0.5 ? 1 : 0);
+        for (let g = 0; g < blades; g++) {
+            const blade = grassTpl.createInstance("gr_" + i + "_" + g);
+            blade.position.set((Math.random() - 0.5) * 0.5, 0.18, (Math.random() - 0.5) * 0.5);
+            blade.rotation.y = Math.random() * Math.PI;
+            blade.rotation.z = (Math.random() - 0.5) * 0.28;
+            blade.parent = anchor;
+        }
     }
 }
 
@@ -390,7 +453,67 @@ function buildPlayer(scene, shadowGen) {
             leg.position.set(p[0], -0.6, p[1]); leg.parent = body; leg.material = mat;
         });
         body.position.y = 0.9;
+
+    } else if (animal.id === 'woolly_sheep') {
+        // Fluffy wool body with sphere overlay
+        body = BABYLON.MeshBuilder.CreateBox("body", { width: 1.2, height: 1.0, depth: 1.7 }, scene);
+        const wool = BABYLON.MeshBuilder.CreateSphere("wool", { diameter: 1.5, segments: 5 }, scene);
+        wool.scaling.set(1.05, 0.85, 1.25); wool.position.set(0, 0.2, 0); wool.parent = body; wool.material = mat;
+        const sHead = BABYLON.MeshBuilder.CreateBox("sHead", { width: 0.55, height: 0.60, depth: 0.55 }, scene);
+        sHead.position.set(0, 0.4, 0.95); sHead.parent = body; sHead.material = mat;
+        const earMat = new BABYLON.StandardMaterial("sEarMat", scene); earMat.diffuseColor = new BABYLON.Color3(0.8, 0.75, 0.7);
+        [-0.32, 0.32].forEach(x => {
+            const ear = BABYLON.MeshBuilder.CreateBox("ear", { width: 0.22, height: 0.14, depth: 0.08 }, scene);
+            ear.position.set(x, 0.18, 0); ear.parent = sHead; ear.material = earMat;
+        });
+        [[-0.38, 0.55], [0.38, 0.55], [-0.38, -0.55], [0.38, -0.55]].forEach(p => {
+            const leg = BABYLON.MeshBuilder.CreateBox("leg", { width: 0.22, height: 0.52, depth: 0.22 }, scene);
+            leg.position.set(p[0], -0.52, p[1]); leg.parent = body; leg.material = earMat;
+        });
+        body.position.y = 0.78;
+
+    } else if (animal.id === 'swift_rabbit') {
+        // Lean body with long ears and fluffy tail
+        body = BABYLON.MeshBuilder.CreateBox("body", { width: 0.85, height: 0.90, depth: 1.25 }, scene);
+        const rHead = BABYLON.MeshBuilder.CreateBox("rHead", { width: 0.62, height: 0.62, depth: 0.58 }, scene);
+        rHead.position.set(0, 0.5, 0.72); rHead.parent = body; rHead.material = mat;
+        const innerEarMat = new BABYLON.StandardMaterial("ieM", scene); innerEarMat.diffuseColor = new BABYLON.Color3(1.0, 0.72, 0.72);
+        [-0.16, 0.16].forEach(x => {
+            const ear = BABYLON.MeshBuilder.CreateBox("ear", { width: 0.14, height: 0.72, depth: 0.10 }, scene);
+            ear.position.set(x, 0.68, 0.08); ear.parent = rHead; ear.material = mat;
+            const inner = BABYLON.MeshBuilder.CreateBox("inner", { width: 0.07, height: 0.52, depth: 0.06 }, scene);
+            inner.position.set(0, 0, 0.06); inner.parent = ear; inner.material = innerEarMat;
+        });
+        const rTail = BABYLON.MeshBuilder.CreateSphere("rTail", { diameter: 0.28, segments: 4 }, scene);
+        rTail.position.set(0, 0.22, -0.68); rTail.parent = body; rTail.material = mat;
+        [[-0.28, 0.44], [0.28, 0.44], [-0.28, -0.38], [0.28, -0.38]].forEach(p => {
+            const leg = BABYLON.MeshBuilder.CreateBox("leg", { width: 0.18, height: 0.38, depth: 0.24 }, scene);
+            leg.position.set(p[0], -0.44, p[1]); leg.parent = body; leg.material = mat;
+        });
+        body.position.y = 0.62;
+
+    } else if (animal.id === 'lucky_duck') {
+        // Rounded body, neck, round head, flat bill, webbed feet
+        body = BABYLON.MeshBuilder.CreateBox("body", { width: 1.0, height: 0.9, depth: 1.4 }, scene);
+        const neck = BABYLON.MeshBuilder.CreateCylinder("neck", { diameterTop: 0.28, diameterBottom: 0.40, height: 0.52, tessellation: 7 }, scene);
+        neck.position.set(0, 0.55, 0.55); neck.parent = body; neck.material = mat;
+        const dHead = BABYLON.MeshBuilder.CreateSphere("dHead", { diameter: 0.50, segments: 6 }, scene);
+        dHead.position.set(0, 0.46, 0.12); dHead.parent = neck; dHead.material = mat;
+        const billMat = new BABYLON.StandardMaterial("billMat", scene); billMat.diffuseColor = new BABYLON.Color3(1.0, 0.62, 0.05);
+        const bill = BABYLON.MeshBuilder.CreateBox("bill", { width: 0.30, height: 0.08, depth: 0.30 }, scene);
+        bill.position.set(0, -0.03, 0.27); bill.parent = dHead; bill.material = billMat;
+        const dTail = BABYLON.MeshBuilder.CreateBox("dtail", { width: 0.25, height: 0.35, depth: 0.12 }, scene);
+        dTail.position.set(0, 0.26, -0.78); dTail.rotation.x = 0.45; dTail.parent = body; dTail.material = mat;
+        [-0.25, 0.25].forEach(x => {
+            const leg = BABYLON.MeshBuilder.CreateCylinder("dleg", { diameter: 0.13, height: 0.38, tessellation: 5 }, scene);
+            leg.position.set(x, -0.52, 0); leg.parent = body; leg.material = billMat;
+            const foot = BABYLON.MeshBuilder.CreateBox("foot", { width: 0.30, height: 0.07, depth: 0.35 }, scene);
+            foot.position.set(0, -0.22, 0.1); foot.parent = leg; foot.material = billMat;
+        });
+        body.position.y = 0.65;
+
     } else {
+        // Default: Brave Pig
         body = BABYLON.MeshBuilder.CreateBox("body", { width: 1.2, height: 1.0, depth: 1.8 }, scene);
         const head = BABYLON.MeshBuilder.CreateBox("head", { width: 0.8, height: 0.8, depth: 0.6 }, scene);
         head.position.set(0, 0.6, 0.8); head.parent = body; head.material = mat;
@@ -585,6 +708,15 @@ function showFarmerEncounter(onResolved) {
     addBtn('⚡ Use ' + game.carDef.ability, !game.abilityUsed, () => {
         game.abilityUsed = true; closeOverlay('policeOverlay'); onResolved();
     });
+    const hasPowerup = game.purchasedUpgrades.length > 0;
+    addBtn('🍃 Sacrifice a Powerup' + (hasPowerup ? ' (' + game.purchasedUpgrades.length + ' owned)' : ' (none)'), hasPowerup, () => {
+        const sacIdx = Math.floor(Math.random() * game.purchasedUpgrades.length);
+        const sacId = game.purchasedUpgrades.splice(sacIdx, 1)[0];
+        const sacUp = UPGRADES.find(u => u.id === sacId);
+        closeOverlay('policeOverlay');
+        showFeedback('🍃 Dropped ' + (sacUp ? sacUp.icon + ' ' + sacUp.name : 'a powerup') + ' as a distraction!');
+        onResolved();
+    });
     addBtn('🎲 Run for it! (4-6 success)', true, () => {
         const r = Math.floor(Math.random() * 6) + 1;
         showDiceResult(r);
@@ -604,7 +736,7 @@ function openUpgradeShop() {
         const item = document.createElement('div'); item.className = 'upgrade-item' + (game.cash < up.cost ? ' cant-afford' : '');
         item.innerHTML = `<div class="upgrade-icon">${up.icon}</div><div class="upgrade-info"><b>${up.name}</b><br><small>${up.desc}</small></div><div class="upgrade-price">🪙${up.cost}</div>`;
         if (game.cash >= up.cost) item.onclick = () => {
-            game.cash -= up.cost; applyUpgrade(up); openUpgradeShop(); updateUI(); updateRibbon();
+            game.cash -= up.cost; game.purchasedUpgrades.push(up.id); applyUpgrade(up); openUpgradeShop(); updateUI(); updateRibbon();
         };
         grid.appendChild(item);
     });
