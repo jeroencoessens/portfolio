@@ -9,13 +9,14 @@ const BOARD_SIZE = 80;
 const TILE_SIZE = 3;
 const TILE_SPACING = 6;
 const STARTING_DICE = 150;
-const MAX_DICE = 500;
+const MAX_DICE = 250;
 const DICE_REFILL_AMT = 5;
 const DICE_REFILL_TIME = 30000; // 30 seconds
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 const SAVE_KEY = 'animal_escape_p1_save';
 const FARMER_SPAWN_CHANCE = 0.25;
 const FARMER_COST = 750;
+const PLAYER_TILE_OFFSET = 0.5; // vertical offset above tile surface — tweak to fix floating
 
 // Checkpoint milestones
 const TRACK_CITIES = [
@@ -270,7 +271,7 @@ function initGame() {
 function createScene() {
     const scene = new BABYLON.Scene(game.engine);
     // Light blue sky
-    scene.clearColor = new BABYLON.Color4(0.43, 0.65, 0.84, 1);
+    scene.clearColor = new BABYLON.Color4(0.3, 0.65, 0.81, 1);
 
     const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
     hemi.intensity = 0.6;
@@ -337,7 +338,7 @@ function buildBoard(scene) {
     core.position.set(0, -game.boardRadius, 0);
     const coreMat = new BABYLON.StandardMaterial("coreMat", scene);
     coreMat.diffuseColor = new BABYLON.Color3(0.05, 0.15, 0.05);
-    coreMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+    coreMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
     core.material = coreMat;
     core.parent = boardRoot;
     core.receiveShadows = true;
@@ -582,7 +583,7 @@ function getTileWorldPosition(index) {
     const tile = game.tiles[index % BOARD_SIZE];
     const pos = tile.position.clone();
     const angle = tile.rotation.x;
-    pos.y += Math.cos(angle) * 1.0; pos.z += Math.sin(angle) * 1.0;
+    pos.y += Math.cos(angle) * PLAYER_TILE_OFFSET; pos.z += Math.sin(angle) * PLAYER_TILE_OFFSET;
     return pos;
 }
 
