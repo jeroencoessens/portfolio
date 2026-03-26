@@ -54,7 +54,7 @@ body {
     padding: 1.2rem 0.5rem 2rem;
 }
 
-.start-badge { font-size: 2.5rem; margin-bottom: 0.2rem; filter: drop-shadow(0 0 12px rgba(112,224,0,0.4)); }
+.start-badge { font-size: 2.5rem; margin-bottom: 0.2rem; filter: drop_shadow(0 0 12px rgba(112,224,0,0.4)); }
 
 .start-title {
     font-family: 'Bebas Neue', Impact, sans-serif;
@@ -244,9 +244,10 @@ body {
 .hud-stat {
     flex: 1;
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* Changed from column to row */
     align-items: center;
     justify-content: center;
+    gap: 0.5rem; /* Added gap for spacing */
     padding: 0.4rem 0.3rem;
     border-right: 1px solid rgba(255,255,255,0.04);
 }
@@ -343,10 +344,10 @@ body {
 .track-fill {
     position: absolute;
     top: 0;
-    right: 0;
+    left: 0; /* Changed from right: 0 */
     height: 100%;
     width: 0%;
-    background: linear-gradient(270deg, rgba(112,224,0,0.3), var(--safe));
+    background: linear-gradient(90deg, rgba(112,224,0,0.3), var(--safe)); /* Changed gradient direction */
     border-radius: 3px;
     transition: width 0.3s ease;
 }
@@ -354,12 +355,12 @@ body {
 .track-marker {
     position: absolute;
     top: 50%;
-    right: 0%;
-    transform: translate(50%, -50%);
+    left: 0%; /* Changed from right: 0% */
+    transform: translate(-50%, -50%); /* Adjusted transform for left positioning */
     font-size: 0.9rem;
-    transition: right 0.3s ease;
+    transition: left 0.3s ease; /* Changed from right */
     z-index: 2;
-    filter: drop-shadow(0 0 3px var(--leaf));
+    filter: drop_shadow(0 0 3px var(--leaf));
 }
 
 .track-progress {
@@ -376,7 +377,8 @@ body {
 .track-city-mark {
     position: absolute;
     top: 50%;
-    transform: translate(50%, -50%);
+    left: 0%; /* Changed from right: 0% */
+    transform: translate(-50%, -50%); /* Adjusted transform for left positioning */
     display: flex;
     flex-direction: column;
     align-items: center;

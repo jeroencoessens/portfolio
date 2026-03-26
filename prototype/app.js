@@ -634,7 +634,7 @@ function updateUI() {
     $('statHeat').querySelector('.hud-stat-val').textContent = game.heat;
     const pct = ((game.tileIndex % BOARD_SIZE) / BOARD_SIZE) * 100;
     $('trackFill').style.width = pct + '%';
-    $('trackMarker').style.right = pct + '%';
+    $('trackMarker').style.left = pct + '%'; /* Changed from right to left */
     $('trackMarker').textContent = game.carDef ? game.carDef.emoji : '🐷';
     $('trackProgress').textContent = (game.tileIndex % BOARD_SIZE) + '/' + BOARD_SIZE;
 }
@@ -683,7 +683,7 @@ function showEscapeOverlay(laps, bonus) {
 function renderTrackCities() {
     const container = $('trackCities'); container.innerHTML = '';
     TRACK_CITIES.forEach(c => {
-        const m = document.createElement('div'); m.className = 'track-city-mark'; m.style.right = c.pct + '%';
+        const m = document.createElement('div'); m.className = 'track-city-mark'; m.style.left = c.pct + '%'; /* Changed from right to left */
         m.innerHTML = `<span class="city-dot"></span><span class="city-name">${c.name}</span>`;
         container.appendChild(m);
     });
