@@ -1,0 +1,702 @@
+/* ===== ANIMAL ESCAPE: RUN TO FREEDOM ===== */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --black: #0a140a;
+    --dark: #142514;
+    --dark2: #1a2e1a;
+    --red: #e63946;
+    --orange: #ff9f1c;
+    --gold: #f5cb5c;
+    --green: #2ec4b6;
+    --leaf: #70e000;
+    --sky: #3a86ff;
+    --purple: #a855f7;
+    --earth: #795548;
+    --asphalt: #2d3436;
+    --white: #f1faee;
+    --danger: #ff006e;
+    --safe: #06d6a0;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    touch-action: manipulation;
+}
+
+body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Oswald', 'Segoe UI', Arial, sans-serif;
+}
+
+.screen { height: 100vh; }
+.hidden { display: none !important; }
+
+/* ===== START / SANCTUARY SCREEN ===== */
+.start-screen {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background:
+        radial-gradient(ellipse at 50% 30%, rgba(112,224,0,0.1) 0%, transparent 60%),
+        var(--black);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.start-content {
+    text-align: center;
+    width: 92%;
+    max-width: 460px;
+    padding: 1.2rem 0.5rem 2rem;
+}
+
+.start-badge { font-size: 2.5rem; margin-bottom: 0.2rem; filter: drop-shadow(0 0 12px rgba(112,224,0,0.4)); }
+
+.start-title {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 3.2rem;
+    letter-spacing: 0.15em;
+    color: var(--leaf);
+    text-shadow: 0 0 30px rgba(112,224,0,0.3), 0 2px 0 var(--safe), 0 4px 0 var(--earth), 0 6px 10px rgba(0,0,0,0.5);
+    line-height: 1;
+}
+
+.start-subtitle {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.45em;
+    color: var(--safe);
+    text-transform: uppercase;
+    opacity: 0.8;
+    margin-top: 0.15rem;
+}
+
+.start-tagline { font-size: 0.78rem; color: var(--safe); opacity: 0.5; font-style: italic; margin-top: 0.4rem; }
+
+.garage-bank {
+    display: inline-block;
+    margin-top: 0.8rem;
+    padding: 0.3rem 1rem;
+    background: rgba(245,203,92,0.1);
+    border: 1px solid rgba(245,203,92,0.25);
+    border-radius: 8px;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.1rem;
+    color: var(--gold);
+    letter-spacing: 0.06em;
+}
+
+.start-prompt {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.15rem;
+    letter-spacing: 0.12em;
+    color: var(--leaf);
+    margin-top: 1.2rem;
+    margin-bottom: 0.6rem;
+}
+
+/* ===== ANIMAL GRID ===== */
+.car-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.45rem;
+    margin-bottom: 0.8rem;
+}
+
+.car-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 0.3rem;
+    background: var(--dark2);
+    border: 2px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+.car-card:active { transform: scale(0.96); }
+.car-card.selected {
+    border-color: var(--leaf);
+    box-shadow: 0 0 12px rgba(112,224,0,0.3);
+}
+.car-card.locked {
+    opacity: 0.45;
+}
+
+.car-card-emoji { font-size: 1.6rem; margin-bottom: 0.15rem; }
+.car-card-name {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+    color: var(--white);
+}
+.car-card-price {
+    font-size: 0.55rem;
+    color: var(--gold);
+    margin-top: 0.1rem;
+}
+.car-card-lock {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.6rem;
+    opacity: 0.6;
+}
+
+/* ===== SELECTED ANIMAL PANEL ===== */
+.selected-car-panel {
+    background: var(--dark2);
+    border: 1px solid rgba(112,224,0,0.15);
+    border-radius: 14px;
+    padding: 0.8rem;
+    text-align: left;
+    margin-top: 0.4rem;
+}
+
+.selected-car-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.5rem;
+}
+
+.selected-car-emoji { font-size: 2rem; }
+
+.selected-car-name {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 0.06em;
+    color: var(--white);
+}
+
+.selected-car-desc {
+    font-size: 0.72rem;
+    color: var(--safe);
+    opacity: 0.7;
+    line-height: 1.3;
+}
+
+.selected-car-stats {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.sel-stat {
+    padding: 0.2rem 0.6rem;
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.sel-stat-spd { color: var(--orange); }
+.sel-stat-arm { color: var(--sky); }
+.sel-stat-stl { color: var(--purple); }
+
+.start-run-btn {
+    display: block;
+    width: 100%;
+    padding: 0.7rem;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--leaf), var(--safe));
+    color: var(--black);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 4px 16px rgba(112,224,0,0.35);
+    font-weight: bold;
+}
+.start-run-btn:active { transform: scale(0.96); }
+.start-run-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+/* ===== GAME SCREEN ===== */
+.game-screen {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== TOP HUD ===== */
+.top-hud {
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+    background: var(--dark);
+    border-bottom: 2px solid rgba(112,224,0,0.12);
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+.hud-stats {
+    display: flex;
+    flex: 1;
+}
+
+.hud-stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.3rem;
+    border-right: 1px solid rgba(255,255,255,0.04);
+}
+
+.dice-count-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.dice-timer-bar {
+    width: 80%;
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    margin-top: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+.dice-timer-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--leaf);
+    transition: width 0.15s linear;
+}
+
+.hud-stat-icon { font-size: 1.25rem; line-height: 1; flex-shrink: 0; }
+.hud-stat-val {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    min-width: 0;
+}
+.hud-stat-label { display: none; }
+
+#statDice .hud-stat-val { color: var(--white); }
+#statCash .hud-stat-val { color: var(--gold); }
+#statFuel .hud-stat-val { color: var(--orange); }
+#statHeat .hud-stat-val { color: var(--red); }
+
+.upgrade-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    border: none;
+    background: rgba(112,224,0,0.08);
+    color: var(--leaf);
+    font-size: 1.3rem;
+    cursor: pointer;
+    border-left: 1px solid rgba(112,224,0,0.1);
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+.upgrade-btn:active { background: rgba(112,224,0,0.2); }
+
+/* ===== PROGRESS TRACK ===== */
+.cannonball-track {
+    display: flex;
+    align-items: center;
+    padding: 0.45rem 0.6rem;
+    gap: 0.4rem;
+    background: rgba(0,0,0,0.5);
+    border-bottom: 1px solid rgba(112,224,0,0.08);
+    flex-shrink: 0;
+    z-index: 99;
+    min-height: 42px;
+}
+
+.track-endpoint {
+    font-size: 0.85rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+}
+.track-endpoint span {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    color: var(--leaf);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+}
+
+.track-road {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    position: relative;
+    overflow: visible;
+}
+
+.track-fill {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(270deg, rgba(112,224,0,0.3), var(--safe));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.track-marker {
+    position: absolute;
+    top: 50%;
+    right: 0%;
+    transform: translate(50%, -50%);
+    font-size: 0.9rem;
+    transition: right 0.3s ease;
+    z-index: 2;
+    filter: drop-shadow(0 0 3px var(--leaf));
+}
+
+.track-progress {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 0.6rem;
+    color: var(--safe);
+    white-space: nowrap;
+}
+
+.track-city-mark {
+    position: absolute;
+    top: 50%;
+    transform: translate(50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1;
+}
+.city-dot {
+    width: 4px;
+    height: 4px;
+    background: rgba(112,224,0,0.4);
+    border-radius: 50%;
+    display: block;
+}
+.city-name {
+    font-size: 0.45rem;
+    color: var(--safe);
+    white-space: nowrap;
+    margin-top: 6px;
+    font-family: 'Oswald', sans-serif;
+    opacity: 0.6;
+}
+
+/* ===== ANIMAL STATS RIBBON ===== */
+.car-stats-ribbon {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.6rem;
+    background: rgba(0,0,0,0.4);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    flex-shrink: 0;
+    z-index: 99;
+    overflow-x: auto;
+}
+
+.ribbon-car {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--white);
+    white-space: nowrap;
+    margin-right: auto;
+}
+
+.ribbon-stat {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.ribbon-spd { color: var(--orange); background: rgba(255,159,28,0.12); }
+.ribbon-arm { color: var(--sky); background: rgba(58,134,255,0.12); }
+.ribbon-stl { color: var(--purple); background: rgba(168,85,247,0.12); }
+
+/* ===== CANVAS ===== */
+.canvas-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#renderCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    outline: none;
+}
+
+/* ===== FEEDBACK ===== */
+.dice-result {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 5.5rem;
+    color: white;
+    text-shadow: 0 0 20px rgba(0,0,0,0.8);
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.dice-result.visible { opacity: 1; }
+
+.feedback-text {
+    position: absolute;
+    top: 25%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.06em;
+    color: var(--leaf);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.3s;
+    text-align: center;
+    white-space: nowrap;
+}
+.feedback-text.visible { opacity: 1; }
+
+/* ===== BOTTOM CONTROLS ===== */
+.bottom-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0.5rem 1rem;
+    background: var(--dark);
+    border-top: 1px solid rgba(112,224,0,0.08);
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+.mult-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 3px solid var(--leaf);
+    background: rgba(112,224,0,0.15);
+    color: var(--white);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.mult-btn:active { transform: scale(0.92); background: rgba(112,224,0,0.3); }
+
+.roll-btn {
+    padding: 0.55rem 2rem;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--leaf), var(--safe));
+    color: var(--black);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    box-shadow: 0 4px 16px rgba(112,224,0,0.35);
+}
+.roll-btn:active { transform: scale(0.94); }
+.roll-btn:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
+
+.roll-text {
+    display: block;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 0.12em;
+    font-weight: bold;
+}
+.roll-cost { display: block; font-size: 0.55rem; opacity: 0.6; }
+
+/* ===== OVERLAYS ===== */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.overlay.active { display: flex; }
+
+.overlay-content {
+    background: var(--dark2);
+    border: 1px solid rgba(112,224,0,0.15);
+    border-radius: 16px;
+    padding: 1.5rem;
+    max-width: 380px;
+    width: 100%;
+    max-height: 82vh;
+    overflow-y: auto;
+    text-align: center;
+    animation: overlayIn 0.25s ease-out;
+}
+
+@keyframes overlayIn {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.overlay-content h2 {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.6rem;
+    color: var(--leaf);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.06em;
+}
+
+.overlay-content p {
+    color: var(--white);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 0.6rem;
+    white-space: pre-line;
+}
+
+.event-icon { font-size: 3rem; margin-bottom: 0.4rem; }
+
+.event-choices { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.6rem 0; }
+
+.choice-btn {
+    padding: 0.55rem 1rem;
+    border: 1px solid rgba(112,224,0,0.2);
+    background: rgba(255,255,255,0.04);
+    color: var(--white);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.choice-btn:hover { background: rgba(112,224,0,0.1); border-color: rgba(112,224,0,0.4); }
+.choice-btn:active { transform: scale(0.97); }
+
+.close-overlay-btn {
+    margin-top: 0.6rem;
+    padding: 0.5rem 1.5rem;
+    border: 2px solid var(--leaf);
+    background: transparent;
+    color: var(--leaf);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.1em;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.close-overlay-btn:active { background: var(--leaf); color: var(--black); }
+
+/* ===== FARMER ENCOUNTER ===== */
+.police-content {
+    border-color: var(--red);
+    background: linear-gradient(160deg, #1a2e1a, #2e0d0d);
+}
+
+.choice-disabled {
+    opacity: 0.3;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+/* ===== ESCAPE COMPLETE ===== */
+.lap-content {
+    border-color: var(--leaf);
+    background: linear-gradient(160deg, #1a2e1a, #0d2e0d);
+}
+
+.lap-celebration { font-size: 2.4rem; margin-bottom: 0.3rem; animation: lapPulse 0.8s ease-in-out infinite alternate; }
+
+@keyframes lapPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.08); }
+}
+
+.lap-rewards { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.5rem 0; }
+
+.lap-reward {
+    padding: 0.3rem 0.7rem;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: var(--white);
+}
+
+.lap-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+
+.lap-garage-btn {
+    border-color: var(--safe);
+    color: var(--safe);
+}
+.lap-garage-btn:active { background: var(--safe); color: var(--black); }
+
+/* ===== UPGRADE SHOP ===== */
+.upgrade-cash {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.1rem;
+    color: var(--gold) !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.upgrade-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.upgrade-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.7rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.upgrade-item:hover { border-color: rgba(112,224,0,0.3); }
+.upgrade-item:active { transform: scale(0.98); }
+.upgrade-item.cant-afford { opacity: 0.35; cursor: not-allowed; }
+
+.upgrade-icon { font-size: 1.4rem; flex-shrink: 0; }
+.upgrade-info { flex: 1; min-width: 0; }
+.upgrade-name { font-weight: 700; font-size: 0.8rem; color: var(--white); }
+.upgrade-desc { font-size: 0.65rem; color: var(--safe); opacity: 0.7; }
+.upgrade-price {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 0.9rem;
+    color: var(--gold);
+    flex-shrink: 0;
+}

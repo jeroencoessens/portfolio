@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Animal Escape: Run to Freedom</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- ===== START / SANCTUARY SCREEN ===== -->
+    <div id="startScreen" class="screen start-screen">
+        <div class="start-content">
+            <div class="start-badge">🌿</div>
+            <h1 class="start-title">ANIMAL ESCAPE</h1>
+            <h2 class="start-subtitle">RUN TO FREEDOM</h2>
+            <p class="start-tagline">Roll the dice. Escape the farm. Reach the wild.</p>
+
+            <div class="garage-bank" id="garageBank">🪙 0</div>
+
+            <p class="start-prompt">THE SANCTUARY</p>
+            <div class="car-grid" id="carGrid"></div>
+
+            <div class="selected-car-panel" id="selectedCarPanel">
+                <div class="selected-car-header">
+                    <span class="selected-car-emoji" id="selCarEmoji">🐷</span>
+                    <div class="selected-car-info">
+                        <div class="selected-car-name" id="selCarName">Brave Piggy</div>
+                        <div class="selected-car-desc">Eager to see the green fields.</div>
+                    </div>
+                </div>
+                <div class="selected-car-stats" id="selCarStats"></div>
+                <button class="start-run-btn" id="startRunBtn">BEGIN ESCAPE 🌿</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== GAME SCREEN ===== -->
+    <div id="gameScreen" class="screen game-screen hidden">
+        <!-- Top HUD -->
+        <header class="top-hud">
+            <div class="hud-stats">
+                <div class="hud-stat" id="statDice">
+                    <div class="dice-count-wrapper">
+                        <span class="hud-stat-icon">🎲</span>
+                        <span class="hud-stat-val">200</span>
+                    </div>
+                    <div class="dice-timer-bar">
+                        <div id="diceTimerFill" class="dice-timer-fill"></div>
+                    </div>
+                </div>
+                <div class="hud-stat" id="statCash">
+                    <span class="hud-stat-icon">🪙</span>
+                    <span class="hud-stat-val">0</span>
+                    <span class="hud-stat-label">COINS</span>
+                </div>
+                <div class="hud-stat" id="statFuel">
+                    <span class="hud-stat-icon">🍎</span>
+                    <span class="hud-stat-val">0</span>
+                    <span class="hud-stat-label">MEALS</span>
+                </div>
+                <div class="hud-stat" id="statHeat">
+                    <span class="hud-stat-icon">👨‍🌾</span>
+                    <span class="hud-stat-val">0</span>
+                    <span class="hud-stat-label">ALERT</span>
+                </div>
+            </div>
+            <button class="upgrade-btn" id="upgradeBtn" title="Nature's Help">🍃</button>
+        </header>
+
+        <!-- Escape Track: Factory Farm → Freedom -->
+        <div class="cannonball-track">
+            <div class="track-endpoint track-la">🌳<span>FREEDOM</span></div>
+            <div class="track-road" id="trackRoad">
+                <div class="track-fill" id="trackFill"></div>
+                <div class="track-cities" id="trackCities"></div>
+                <div class="track-marker" id="trackMarker">🐷</div>
+                <span class="track-progress" id="trackProgress">0/80</span>
+            </div>
+            <div class="track-endpoint track-ny"><span>FARM</span>🏭</div>
+        </div>
+
+        <!-- Animal Stats Ribbon -->
+        <div class="car-stats-ribbon" id="carStatsRibbon">
+            <span class="ribbon-car" id="ribbonCar">🐷 Brave Piggy</span>
+            <span class="ribbon-stat ribbon-spd" id="ribbonSpd">SPD 0</span>
+            <span class="ribbon-stat ribbon-arm" id="ribbonArm">RES 0</span>
+            <span class="ribbon-stat ribbon-stl" id="ribbonStl">STH 0</span>
+        </div>
+
+        <!-- 3D Canvas -->
+        <div class="canvas-wrapper">
+            <canvas id="renderCanvas"></canvas>
+            <div class="dice-result" id="diceResult"></div>
+            <div class="feedback-text" id="feedbackText"></div>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="bottom-controls">
+            <button class="mult-btn" id="multBtn">x1</button>
+            <button class="roll-btn" id="rollBtn">
+                <span class="roll-text">RUN!</span>
+                <span class="roll-cost" id="rollCost">Cost: 1 🎲</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== EVENT OVERLAY ===== -->
+    <div id="eventOverlay" class="overlay">
+        <div class="overlay-content event-content">
+            <div class="event-icon" id="eventIcon">🍃</div>
+            <h2 id="eventTitle">Event</h2>
+            <p id="eventDesc">Something happened!</p>
+            <div id="eventChoices" class="event-choices"></div>
+            <button class="close-overlay-btn" id="eventCloseBtn">CONTINUE</button>
+        </div>
+    </div>
+
+    <!-- ===== ESCAPE COMPLETE OVERLAY ===== -->
+    <div id="lapOverlay" class="overlay">
+        <div class="overlay-content lap-content">
+            <div class="lap-celebration">🌻🦋🌞</div>
+            <h2 id="lapTitle">REACHED THE WILD!</h2>
+            <p id="lapDesc" class="lap-desc">You've found safety in the great outdoors!</p>
+            <div id="lapRewards" class="lap-rewards"></div>
+            <div class="lap-actions">
+                <button class="close-overlay-btn" id="lapKeepBtn">EXPLORE FURTHER →</button>
+                <button class="close-overlay-btn lap-garage-btn" id="lapGarageBtn">🏠 BACK TO SANCTUARY</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FARMER ENCOUNTER OVERLAY ===== -->
+    <div id="policeOverlay" class="overlay">
+        <div class="overlay-content police-content">
+            <div class="event-icon">🚜</div>
+            <h2>FARMER AHEAD!</h2>
+            <p>A farmer is looking for you! How do you escape?</p>
+            <div id="policeChoices" class="event-choices"></div>
+        </div>
+    </div>
+
+    <!-- ===== UPGRADE SHOP OVERLAY ===== -->
+    <div id="upgradeOverlay" class="overlay">
+        <div class="overlay-content upgrade-content">
+            <h2>🍃 NATURE'S BOUNTY</h2>
+            <p class="upgrade-cash" id="upgradeCash">🪙 0</p>
+            <div class="upgrade-grid" id="upgradeGrid"></div>
+            <button class="close-overlay-btn" id="upgradeCloseBtn">BACK TO PATH</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
