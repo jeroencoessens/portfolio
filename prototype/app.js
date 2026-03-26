@@ -14,8 +14,8 @@ const DICE_REFILL_AMT = 5;
 const DICE_REFILL_TIME = 30000; // 30 seconds
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 const SAVE_KEY = 'animal_escape_p1_save';
-const FARMER_SPAWN_CHANCE = 0.3;
-const FARMER_COST = 500;
+const FARMER_SPAWN_CHANCE = 0.25;
+const FARMER_COST = 750;
 
 // Checkpoint milestones
 const TRACK_CITIES = [
@@ -270,7 +270,7 @@ function initGame() {
 function createScene() {
     const scene = new BABYLON.Scene(game.engine);
     // Light blue sky
-    scene.clearColor = new BABYLON.Color4(0.53, 0.81, 0.95, 1);
+    scene.clearColor = new BABYLON.Color4(0.43, 0.65, 0.75, 1);
 
     const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
     hemi.intensity = 0.6;
@@ -322,7 +322,7 @@ function buildBoard(scene) {
         if (!matCache[tileDef.color]) {
             const mat = new BABYLON.StandardMaterial('mat_' + tileDef.color, scene);
             mat.diffuseColor = BABYLON.Color3.FromHexString(tileDef.color);
-            mat.specularColor = new BABYLON.Color3(0, 0, 0);
+            mat.specularColor = new BABYLON.Color3(0.25, 0.25, 0.25);
             matCache[tileDef.color] = mat;
         }
         tile.material = matCache[tileDef.color];
