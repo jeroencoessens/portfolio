@@ -270,7 +270,7 @@ function initGame() {
 function createScene() {
     const scene = new BABYLON.Scene(game.engine);
     // Light blue sky
-    scene.clearColor = new BABYLON.Color4(0.43, 0.65, 0.75, 1);
+    scene.clearColor = new BABYLON.Color4(0.43, 0.65, 0.84, 1);
 
     const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
     hemi.intensity = 0.6;
@@ -322,7 +322,7 @@ function buildBoard(scene) {
         if (!matCache[tileDef.color]) {
             const mat = new BABYLON.StandardMaterial('mat_' + tileDef.color, scene);
             mat.diffuseColor = BABYLON.Color3.FromHexString(tileDef.color);
-            mat.specularColor = new BABYLON.Color3(0.25, 0.25, 0.25);
+            mat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
             matCache[tileDef.color] = mat;
         }
         tile.material = matCache[tileDef.color];
@@ -337,7 +337,7 @@ function buildBoard(scene) {
     core.position.set(0, -game.boardRadius, 0);
     const coreMat = new BABYLON.StandardMaterial("coreMat", scene);
     coreMat.diffuseColor = new BABYLON.Color3(0.05, 0.15, 0.05);
-    coreMat.specularColor = new BABYLON.Color3(0, 0, 0);
+    coreMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
     core.material = coreMat;
     core.parent = boardRoot;
     core.receiveShadows = true;
