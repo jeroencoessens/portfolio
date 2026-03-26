@@ -269,8 +269,8 @@ function initGame() {
 
 function createScene() {
     const scene = new BABYLON.Scene(game.engine);
-    // Vibrant nature background
-    scene.clearColor = new BABYLON.Color4(0.1, 0.25, 0.1, 1);
+    // Light blue sky
+    scene.clearColor = new BABYLON.Color4(0.53, 0.81, 0.95, 1);
 
     const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
     hemi.intensity = 0.6;
@@ -322,6 +322,7 @@ function buildBoard(scene) {
         if (!matCache[tileDef.color]) {
             const mat = new BABYLON.StandardMaterial('mat_' + tileDef.color, scene);
             mat.diffuseColor = BABYLON.Color3.FromHexString(tileDef.color);
+            mat.specularColor = new BABYLON.Color3(0, 0, 0);
             matCache[tileDef.color] = mat;
         }
         tile.material = matCache[tileDef.color];
@@ -336,6 +337,7 @@ function buildBoard(scene) {
     core.position.set(0, -game.boardRadius, 0);
     const coreMat = new BABYLON.StandardMaterial("coreMat", scene);
     coreMat.diffuseColor = new BABYLON.Color3(0.05, 0.15, 0.05);
+    coreMat.specularColor = new BABYLON.Color3(0, 0, 0);
     core.material = coreMat;
     core.parent = boardRoot;
     core.receiveShadows = true;
@@ -345,11 +347,11 @@ function buildPlanetProps(scene) {
     const propRoot = new BABYLON.TransformNode("propRoot", scene);
 
     // ---- Shared materials ----
-    const treeMat    = new BABYLON.StandardMaterial("treeMat",    scene); treeMat.diffuseColor    = new BABYLON.Color3(0.15, 0.65, 0.10);
-    const trunkMat   = new BABYLON.StandardMaterial("trunkMat",   scene); trunkMat.diffuseColor   = new BABYLON.Color3(0.30, 0.15, 0.05);
-    const coniferMat = new BABYLON.StandardMaterial("coniferMat", scene); coniferMat.diffuseColor = new BABYLON.Color3(0.05, 0.42, 0.06);
-    const bushMat    = new BABYLON.StandardMaterial("bushMat",    scene); bushMat.diffuseColor    = new BABYLON.Color3(0.10, 0.52, 0.07);
-    const grassMat   = new BABYLON.StandardMaterial("grassMat",   scene); grassMat.diffuseColor   = new BABYLON.Color3(0.28, 0.74, 0.12);
+    const treeMat    = new BABYLON.StandardMaterial("treeMat",    scene); treeMat.diffuseColor    = new BABYLON.Color3(0.15, 0.65, 0.10); treeMat.specularColor    = new BABYLON.Color3(0, 0, 0);
+    const trunkMat   = new BABYLON.StandardMaterial("trunkMat",   scene); trunkMat.diffuseColor   = new BABYLON.Color3(0.30, 0.15, 0.05); trunkMat.specularColor   = new BABYLON.Color3(0, 0, 0);
+    const coniferMat = new BABYLON.StandardMaterial("coniferMat", scene); coniferMat.diffuseColor = new BABYLON.Color3(0.05, 0.42, 0.06); coniferMat.specularColor = new BABYLON.Color3(0, 0, 0);
+    const bushMat    = new BABYLON.StandardMaterial("bushMat",    scene); bushMat.diffuseColor    = new BABYLON.Color3(0.10, 0.52, 0.07); bushMat.specularColor    = new BABYLON.Color3(0, 0, 0);
+    const grassMat   = new BABYLON.StandardMaterial("grassMat",   scene); grassMat.diffuseColor   = new BABYLON.Color3(0.28, 0.74, 0.12); grassMat.specularColor   = new BABYLON.Color3(0, 0, 0);
 
     // ---- Helper: anchor a prop to the planet surface ----
     const makeAnchor = (side, angle) => {
@@ -429,6 +431,7 @@ function buildPlayer(scene, shadowGen) {
     const animal = game.carDef;
     const mat = new BABYLON.StandardMaterial("animalMat", scene);
     mat.diffuseColor = BABYLON.Color3.FromHexString(animal.color);
+    mat.specularColor = new BABYLON.Color3(0, 0, 0);
 
     let body;
     if (animal.id === 'quick_chick') {
@@ -437,7 +440,7 @@ function buildPlayer(scene, shadowGen) {
         head.position.set(0, 0.6, 0.4); head.parent = body; head.material = mat;
         const beak = BABYLON.MeshBuilder.CreateBox("beak", { width: 0.2, height: 0.1, depth: 0.2 }, scene);
         beak.position.set(0, 0.6, 0.7); beak.parent = body;
-        const bMat = new BABYLON.StandardMaterial("bMat", scene); bMat.diffuseColor = new BABYLON.Color3(1, 0.5, 0);
+        const bMat = new BABYLON.StandardMaterial("bMat", scene); bMat.diffuseColor = new BABYLON.Color3(1, 0.5, 0); bMat.specularColor = new BABYLON.Color3(0, 0, 0);
         beak.material = bMat;
         [[ -0.2, 0 ], [ 0.2, 0 ]].forEach(p => {
             const leg = BABYLON.MeshBuilder.CreateBox("leg", { width: 0.1, height: 0.4, depth: 0.1 }, scene);
@@ -461,7 +464,7 @@ function buildPlayer(scene, shadowGen) {
         wool.scaling.set(1.05, 0.85, 1.25); wool.position.set(0, 0.2, 0); wool.parent = body; wool.material = mat;
         const sHead = BABYLON.MeshBuilder.CreateBox("sHead", { width: 0.55, height: 0.60, depth: 0.55 }, scene);
         sHead.position.set(0, 0.4, 0.95); sHead.parent = body; sHead.material = mat;
-        const earMat = new BABYLON.StandardMaterial("sEarMat", scene); earMat.diffuseColor = new BABYLON.Color3(0.8, 0.75, 0.7);
+        const earMat = new BABYLON.StandardMaterial("sEarMat", scene); earMat.diffuseColor = new BABYLON.Color3(0.8, 0.75, 0.7); earMat.specularColor = new BABYLON.Color3(0, 0, 0);
         [-0.32, 0.32].forEach(x => {
             const ear = BABYLON.MeshBuilder.CreateBox("ear", { width: 0.22, height: 0.14, depth: 0.08 }, scene);
             ear.position.set(x, 0.18, 0); ear.parent = sHead; ear.material = earMat;
@@ -477,7 +480,7 @@ function buildPlayer(scene, shadowGen) {
         body = BABYLON.MeshBuilder.CreateBox("body", { width: 0.85, height: 0.90, depth: 1.25 }, scene);
         const rHead = BABYLON.MeshBuilder.CreateBox("rHead", { width: 0.62, height: 0.62, depth: 0.58 }, scene);
         rHead.position.set(0, 0.5, 0.72); rHead.parent = body; rHead.material = mat;
-        const innerEarMat = new BABYLON.StandardMaterial("ieM", scene); innerEarMat.diffuseColor = new BABYLON.Color3(1.0, 0.72, 0.72);
+        const innerEarMat = new BABYLON.StandardMaterial("ieM", scene); innerEarMat.diffuseColor = new BABYLON.Color3(1.0, 0.72, 0.72); innerEarMat.specularColor = new BABYLON.Color3(0, 0, 0);
         [-0.16, 0.16].forEach(x => {
             const ear = BABYLON.MeshBuilder.CreateBox("ear", { width: 0.14, height: 0.72, depth: 0.10 }, scene);
             ear.position.set(x, 0.68, 0.08); ear.parent = rHead; ear.material = mat;
@@ -499,7 +502,7 @@ function buildPlayer(scene, shadowGen) {
         neck.position.set(0, 0.55, 0.55); neck.parent = body; neck.material = mat;
         const dHead = BABYLON.MeshBuilder.CreateSphere("dHead", { diameter: 0.50, segments: 6 }, scene);
         dHead.position.set(0, 0.46, 0.12); dHead.parent = neck; dHead.material = mat;
-        const billMat = new BABYLON.StandardMaterial("billMat", scene); billMat.diffuseColor = new BABYLON.Color3(1.0, 0.62, 0.05);
+        const billMat = new BABYLON.StandardMaterial("billMat", scene); billMat.diffuseColor = new BABYLON.Color3(1.0, 0.62, 0.05); billMat.specularColor = new BABYLON.Color3(0, 0, 0);
         const bill = BABYLON.MeshBuilder.CreateBox("bill", { width: 0.30, height: 0.08, depth: 0.30 }, scene);
         bill.position.set(0, -0.03, 0.27); bill.parent = dHead; bill.material = billMat;
         const dTail = BABYLON.MeshBuilder.CreateBox("dtail", { width: 0.25, height: 0.35, depth: 0.12 }, scene);
@@ -541,8 +544,8 @@ function buildFarmerAt(scene, physIdx) {
     root.rotation.x = tile.rotation.x;
 
     // Simple Tractor Model
-    const tMat = new BABYLON.StandardMaterial('tMat', scene); tMat.diffuseColor = new BABYLON.Color3(0.8, 0.1, 0.1);
-    const wMat = new BABYLON.StandardMaterial('wMat', scene); wMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    const tMat = new BABYLON.StandardMaterial('tMat', scene); tMat.diffuseColor = new BABYLON.Color3(0.8, 0.1, 0.1); tMat.specularColor = new BABYLON.Color3(0, 0, 0);
+    const wMat = new BABYLON.StandardMaterial('wMat', scene); wMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1); wMat.specularColor = new BABYLON.Color3(0, 0, 0);
 
     const body = BABYLON.MeshBuilder.CreateBox('tBody', { width: 1.2, height: 0.8, depth: 1.6 }, scene);
     body.position.set(2.5, 0.5, 0); body.parent = root; body.material = tMat;
