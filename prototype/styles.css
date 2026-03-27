@@ -455,6 +455,7 @@ body {
     left: 50%;
     transform: translateX(-50%);
     font-size: 5.5rem;
+    font-family: 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols', 'Noto Sans Symbols 2', 'DejaVu Sans', sans-serif;
     color: white;
     text-shadow: 0 0 20px rgba(0,0,0,0.8);
     pointer-events: none;
@@ -629,38 +630,121 @@ body {
 /* ===== ESCAPE COMPLETE ===== */
 .lap-content {
     border-color: var(--leaf);
-    background: linear-gradient(160deg, #1a2e1a, #0d2e0d);
+    border-width: 2px;
+    background: linear-gradient(160deg, #0a2a0a 0%, #12221a 50%, #0a1c0a 100%);
+    animation: lapGlow 3s ease-in-out infinite alternate;
+    padding: 2rem 1.5rem 1.8rem;
+    max-width: min(96vw, 430px);
+    width: 100%;
+    text-align: center;
 }
 
-.lap-celebration { font-size: 2.4rem; margin-bottom: 0.3rem; animation: lapPulse 0.8s ease-in-out infinite alternate; }
+@keyframes lapGlow {
+    from { box-shadow: 0 0 30px rgba(112,224,0,0.2),  0 0 70px  rgba(112,224,0,0.08); }
+    to   { box-shadow: 0 0 55px rgba(112,224,0,0.45), 0 0 110px rgba(112,224,0,0.2);  }
+}
+
+.lap-celebration {
+    font-size: 4.5rem;
+    margin-bottom: 0.4rem;
+    animation: lapPulse 0.85s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 14px rgba(112,224,0,0.6));
+    line-height: 1;
+}
 
 @keyframes lapPulse {
-    from { transform: scale(1); }
-    to { transform: scale(1.08); }
+    from { transform: scale(1);    filter: drop-shadow(0 0 10px rgba(112,224,0,0.4)); }
+    to   { transform: scale(1.12); filter: drop-shadow(0 0 22px rgba(245,203,92,0.9)); }
 }
 
-.lap-rewards { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.5rem 0; }
+.lap-content h2 {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: clamp(2.4rem, 9vw, 3.4rem);
+    letter-spacing: 0.15em;
+    color: var(--leaf);
+    text-shadow: 0 0 24px rgba(112,224,0,0.6), 0 0 48px rgba(112,224,0,0.2), 0 2px 0 rgba(0,0,0,0.7);
+    margin-bottom: 0.15rem;
+    line-height: 1;
+}
+
+.lap-desc {
+    font-size: 0.84rem;
+    color: var(--safe);
+    opacity: 0.8;
+    margin-bottom: 0.9rem;
+}
+
+.lap-rewards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin: 0.6rem 0 1.2rem;
+}
 
 .lap-reward {
-    padding: 0.3rem 0.7rem;
-    background: rgba(255,255,255,0.04);
-    border-radius: 8px;
-    font-size: 0.82rem;
+    padding: 0.5rem 0.9rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    font-size: 0.92rem;
+    font-weight: 600;
     color: var(--white);
+    letter-spacing: 0.03em;
 }
+.lap-reward-gold  { border-color: rgba(245,203,92,0.4); color: var(--gold); background: rgba(245,203,92,0.08); }
+.lap-reward-green { border-color: rgba(112,224,0,0.35); color: var(--leaf); background: rgba(112,224,0,0.07); }
+.lap-reward-info  { font-size: 0.78rem; font-weight: 400; color: var(--safe); opacity: 0.7; }
 
 .lap-actions {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    margin-top: 0.6rem;
+    gap: 0.7rem;
+    margin-top: 0.4rem;
 }
 
-.lap-garage-btn {
-    border-color: var(--safe);
-    color: var(--safe);
+/* Primary CTA — big glowing gradient button */
+.lap-btn-primary {
+    display: block;
+    width: 100%;
+    padding: 0.9rem;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--leaf) 0%, #c8ff40 45%, var(--gold) 100%);
+    background-size: 250% 100%;
+    animation: lapBtnShimmer 2.5s ease-in-out infinite alternate;
+    color: var(--black);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.45rem;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: transform 0.15s;
+    box-shadow: 0 4px 28px rgba(112,224,0,0.55), 0 0 50px rgba(112,224,0,0.18);
+    font-weight: bold;
 }
-.lap-garage-btn:active { background: var(--safe); color: var(--black); }
+.lap-btn-primary:active { transform: scale(0.96); }
+
+@keyframes lapBtnShimmer {
+    from { background-position: 0%   50%; box-shadow: 0 4px 28px rgba(112,224,0,0.55); }
+    to   { background-position: 100% 50%; box-shadow: 0 4px 28px rgba(245,203,92,0.55); }
+}
+
+/* Secondary CTA — outlined, calmer */
+.lap-btn-secondary {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid rgba(112,224,0,0.5);
+    border-radius: 14px;
+    background: rgba(112,224,0,0.06);
+    color: var(--leaf);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.15rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.lap-btn-secondary:hover  { background: rgba(112,224,0,0.14); border-color: var(--leaf); }
+.lap-btn-secondary:active { background: var(--leaf); color: var(--black); transform: scale(0.97); }
 
 /* ===== UPGRADE SHOP ===== */
 .upgrade-cash {

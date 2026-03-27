@@ -451,16 +451,16 @@ function buildPlanetProps(scene) {
 function buildSmallChicken(scene, parent, offsetX, offsetZ, mat, accentMat) {
     const root = new BABYLON.TransformNode("chick", scene);
     root.parent = parent;
-    root.position.set(offsetX, 0.35, offsetZ);
-    const b = BABYLON.MeshBuilder.CreateBox("cb", { width: 0.35, height: 0.3, depth: 0.45 }, scene);
+    root.position.set(offsetX, 0.0, offsetZ); // y controlled by parent body.position.y
+    const b = BABYLON.MeshBuilder.CreateBox("cb", { width: 0.60, height: 0.50, depth: 0.76 }, scene);
     b.parent = root; b.material = mat;
-    const h = BABYLON.MeshBuilder.CreateBox("ch", { width: 0.22, height: 0.22, depth: 0.22 }, scene);
-    h.position.set(0, 0.24, 0.18); h.parent = root; h.material = mat;
-    const bk = BABYLON.MeshBuilder.CreateBox("cbk", { width: 0.09, height: 0.06, depth: 0.09 }, scene);
-    bk.position.set(0, 0.22, 0.30); bk.parent = root; bk.material = accentMat;
-    [[-0.1, 0], [0.1, 0]].forEach(p => {
-        const leg = BABYLON.MeshBuilder.CreateBox("cl", { width: 0.06, height: 0.18, depth: 0.06 }, scene);
-        leg.position.set(p[0], -0.22, p[1]); leg.parent = root; leg.material = accentMat;
+    const h = BABYLON.MeshBuilder.CreateBox("ch", { width: 0.38, height: 0.38, depth: 0.38 }, scene);
+    h.position.set(0, 0.40, 0.30); h.parent = root; h.material = mat;
+    const bk = BABYLON.MeshBuilder.CreateBox("cbk", { width: 0.15, height: 0.10, depth: 0.15 }, scene);
+    bk.position.set(0, 0.38, 0.50); bk.parent = root; bk.material = accentMat;
+    [[-0.17, 0], [0.17, 0]].forEach(p => {
+        const leg = BABYLON.MeshBuilder.CreateBox("cl", { width: 0.10, height: 0.30, depth: 0.10 }, scene);
+        leg.position.set(p[0], -0.37, p[1]); leg.parent = root; leg.material = accentMat;
     });
     return root;
 }
@@ -560,16 +560,17 @@ function buildPlayer(scene, shadowGen) {
         const accentMat = new BABYLON.StandardMaterial("chickAccent", scene);
         accentMat.diffuseColor = new BABYLON.Color3(1, 0.5, 0);
         accentMat.specularColor = new BABYLON.Color3(0, 0, 0);
-        [[-0.55, 0], [0, 0.25], [0.55, 0]].forEach(p => {
+        [[-0.70, 0], [0, 0.38], [0.70, 0]].forEach(p => {
             game.frontChickenMeshes.push(buildSmallChicken(scene, body, p[0], p[1], mat, accentMat));
         });
-        body.position.y = 0.0;
+        body.position.y = 0.62; // lifts chickens so feet sit near tile surface
         game.rearPlayerRoot = new BABYLON.TransformNode("rearRoot", scene);
         const rearBody = BABYLON.MeshBuilder.CreateBox("rearBody", { width: 0.01, height: 0.01, depth: 0.01 }, scene);
         rearBody.isVisible = false; rearBody.parent = game.rearPlayerRoot;
-        [[-0.35, 0], [0.35, 0]].forEach(p => {
+        [[-0.45, 0], [0.45, 0]].forEach(p => {
             game.rearChickenMeshes.push(buildSmallChicken(scene, rearBody, p[0], p[1], mat, accentMat));
         });
+        rearBody.position.y = 0.62;
 
     } else {
         // Default: Brave Pig
@@ -684,11 +685,15 @@ function doRoll() {
         const rearPhysIdx = game.flockMode ? (game.tileIndex - 1 + BOARD_SIZE) % BOARD_SIZE : -1;
 
         const passedFarmerIndices = [];
-        for (let i = 1; i <= roll; i++) {
-            const checkIdx = (currentTile + i) % BOARD_SIZE;
-            if (game.policeOnTiles[checkIdx]) passedFarmerIndices.push(checkIdx);
+        // Front group path — only check if front chickens are alive (or normal mode)
+        if (!game.flockMode || game.frontChickens > 0) {
+            for (let i = 1; i <= roll; i++) {
+                const checkIdx = (currentTile + i) % BOARD_SIZE;
+                if (game.policeOnTiles[checkIdx] && !passedFarmerIndices.includes(checkIdx)) passedFarmerIndices.push(checkIdx);
+            }
         }
-        if (game.flockMode) {
+        // Rear group starting tile — only check if rear chickens are alive
+        if (game.flockMode && game.rearChickens > 0) {
             const rearCheck = currentTile % BOARD_SIZE;
             if (game.policeOnTiles[rearCheck] && !passedFarmerIndices.includes(rearCheck)) passedFarmerIndices.push(rearCheck);
         }
@@ -700,15 +705,19 @@ function doRoll() {
             }
             if (!game.flockMode || game.frontChickens > 0) handleTileLanding(physIdx);
             if (game.flockMode && game.rearChickens > 0) handleTileLanding(rearPhysIdx);
-            if (Math.random() < FARMER_SPAWN_CHANCE) buildFarmerAt(game.scene, (physIdx + 40) % BOARD_SIZE);
-            if (game.flockMode && Math.random() < FARMER_SPAWN_CHANCE) buildFarmerAt(game.scene, (rearPhysIdx + 40) % BOARD_SIZE);
+            // Spawn farmers only for active groups
+            if (!game.flockMode || game.frontChickens > 0) if (Math.random() < FARMER_SPAWN_CHANCE) buildFarmerAt(game.scene, (physIdx + 40) % BOARD_SIZE);
+            if (game.flockMode && game.rearChickens > 0) if (Math.random() < FARMER_SPAWN_CHANCE) buildFarmerAt(game.scene, (rearPhysIdx + 40) % BOARD_SIZE);
             updateUI();
         };
 
         if (passedFarmerIndices.length > 0) {
             game.fuel += 20 * passedFarmerIndices.length;
             showFeedback('🍎 Successfully escaped the farmer! +20 Meals');
-            const landedOnFarmer = game.policeOnTiles[physIdx] || (game.flockMode && game.policeOnTiles[rearPhysIdx]);
+            // Only count landing as a farmer encounter if that group still has chickens
+            const frontLanded = game.frontChickens > 0 && game.policeOnTiles[physIdx];
+            const rearLanded  = game.flockMode && game.rearChickens > 0 && game.policeOnTiles[rearPhysIdx];
+            const landedOnFarmer = frontLanded || rearLanded;
             passedFarmerIndices.forEach(idx => removeFarmerAt(idx));
             if (landedOnFarmer) finish();
             else if (game.flockMode) showFlockFarmerEncounter(finish);
@@ -967,8 +976,15 @@ function showEventPopup(icon, title, desc, choices) {
 }
 
 function showEscapeOverlay(laps, bonus) {
-    $('lapTitle').textContent = 'FREEDOM REACHED #' + laps;
-    $('lapRewards').innerHTML = `<div class="lap-reward">🪙 Bonus: ${bonus}</div><div class="lap-reward">🍎 +50 Meals</div>`;
+    const ordinal = laps === 1 ? '1ST' : laps === 2 ? '2ND' : laps === 3 ? '3RD' : laps + 'TH';
+    const emojis = ['🌿🦋🌿', '🌻🌞🌻', '🦊🍀🦊', '🌈🕊️🌈', '🦋🌺🦋'];
+    $('lapCelebration').textContent = emojis[(laps - 1) % emojis.length];
+    $('lapTitle').textContent = ordinal + ' ESCAPE!';
+    $('lapDesc').textContent = laps === 1 ? 'You reached the wild for the first time!' : 'Keep running — nature awaits!';
+    $('lapRewards').innerHTML =
+        `<div class="lap-reward lap-reward-gold">🪙 Coins: +${bonus.toLocaleString()}</div>` +
+        `<div class="lap-reward lap-reward-green">🍎 Meals: +50</div>` +
+        `<div class="lap-reward lap-reward-info">★ Total laps: ${laps}</div>`;
     $('lapKeepBtn').onclick = () => closeOverlay('lapOverlay');
     $('lapGarageBtn').onclick = () => { closeOverlay('lapOverlay'); returnToGarage(); };
     openOverlay('lapOverlay');
