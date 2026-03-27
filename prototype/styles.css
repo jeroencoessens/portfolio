@@ -472,7 +472,7 @@ body {
     font-family: 'Bebas Neue', Impact, sans-serif;
     font-size: 1.5rem;
     letter-spacing: 0.06em;
-    color: var(--leaf);
+    color: var(--white);
     text-shadow: 0 2px 8px rgba(0,0,0,0.9);
     pointer-events: none;
     z-index: 50;

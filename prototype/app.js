@@ -17,6 +17,7 @@ const SAVE_KEY = 'animal_escape_p1_save';
 const FARMER_SPAWN_CHANCE = 0.25;
 const FARMER_COST = 750;
 const PLAYER_TILE_OFFSET = 0.5; // vertical offset above tile surface — tweak to fix floating
+const PROP_SURFACE_OFFSET = 1.0; // distance below tile center for props — increase to push props down
 
 // Checkpoint milestones
 const TRACK_CITIES = [
@@ -36,6 +37,7 @@ const ANIMALS = [
     { id: 'woolly_sheep', name: 'Woolly Sheep', emoji: '🐑', color: '#EFEFEF', speed: 0, armor: 1, stealth: 1, price: 2000,  ability: 'Fleece Veil', desc: 'Blends in anywhere. Quiet and steady.' },
     { id: 'swift_rabbit', name: 'Swift Rabbit', emoji: '🐰', color: '#D4C5B2', speed: 3, armor: 0, stealth: 1, price: 4000,  ability: 'Burrow',      desc: 'Lightning fast. Gone in a flash.' },
     { id: 'lucky_duck',   name: 'Lucky Duck',   emoji: '🦆', color: '#6B9E5E', speed: 1, armor: 0, stealth: 2, price: 5500,  ability: 'Wing Splash', desc: 'Master of disguise. Slips away unseen.' },
+    { id: 'chicken_flock', name: 'Chicken Flock', emoji: '🐔', color: '#FFF380', speed: 1, armor: 0, stealth: 0, price: 8000,  ability: 'Scatter',     desc: '5 chickens. Two tiles, double trouble!' },
 ];
 
 // ===== IN-GAME UPGRADES =====
@@ -111,6 +113,12 @@ const game = {
     abilityUsed: false,
     purchasedUpgrades: [],
     diceTimer: null,
+    flockMode: false,
+    frontChickens: 0,
+    rearChickens: 0,
+    rearPlayerRoot: null,
+    frontChickenMeshes: [],
+    rearChickenMeshes: [],
 };
 
 const $ = id => document.getElementById(id);
@@ -226,6 +234,12 @@ function startRun(animal) {
     game.tileIndex = 0; game.multiplier = 1; game.isMoving = false;
     game.tiles = []; game.tileDefs = []; game.policeOnTiles = {};
     game.abilityUsed = false; game.purchasedUpgrades = [];
+    game.flockMode = (animal.id === 'chicken_flock');
+    game.frontChickens = game.flockMode ? 3 : 0;
+    game.rearChickens = game.flockMode ? 2 : 0;
+    game.rearPlayerRoot = null;
+    game.frontChickenMeshes = [];
+    game.rearChickenMeshes = [];
 
     $('startScreen').classList.add('hidden');
     $('gameScreen').classList.remove('hidden');
@@ -295,6 +309,13 @@ function createScene() {
     game.playerRoot.position = startPos;
     game.playerRoot.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(startRot);
 
+    if (game.flockMode && game.rearPlayerRoot) {
+        const rearPos = getTileWorldPosition(BOARD_SIZE - 1);
+        const rearRot = getTileRotation(BOARD_SIZE - 1);
+        game.rearPlayerRoot.position = rearPos;
+        game.rearPlayerRoot.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(rearRot);
+    }
+
     game.cameraAnchor = new BABYLON.TransformNode("camAnchor", scene);
     game.cameraAnchor.position = startPos.clone();
     game.cameraAnchor.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(startRot);
@@ -357,7 +378,7 @@ function buildPlanetProps(scene) {
     // ---- Helper: anchor a prop to the planet surface ----
     const makeAnchor = (side, angle) => {
         const a = new BABYLON.TransformNode("a", scene);
-        a.position.set(side, (game.boardRadius - 0.5) * Math.cos(angle) - game.boardRadius, (game.boardRadius - 0.5) * Math.sin(angle));
+        a.position.set(side, (game.boardRadius - PROP_SURFACE_OFFSET) * Math.cos(angle) - game.boardRadius, (game.boardRadius - PROP_SURFACE_OFFSET) * Math.sin(angle));
         a.rotation.x = angle;
         a.parent = propRoot;
         return a;
@@ -425,6 +446,23 @@ function buildPlanetProps(scene) {
             blade.parent = anchor;
         }
     }
+}
+
+function buildSmallChicken(scene, parent, offsetX, offsetZ, mat, accentMat) {
+    const root = new BABYLON.TransformNode("chick", scene);
+    root.parent = parent;
+    root.position.set(offsetX, 0.35, offsetZ);
+    const b = BABYLON.MeshBuilder.CreateBox("cb", { width: 0.35, height: 0.3, depth: 0.45 }, scene);
+    b.parent = root; b.material = mat;
+    const h = BABYLON.MeshBuilder.CreateBox("ch", { width: 0.22, height: 0.22, depth: 0.22 }, scene);
+    h.position.set(0, 0.24, 0.18); h.parent = root; h.material = mat;
+    const bk = BABYLON.MeshBuilder.CreateBox("cbk", { width: 0.09, height: 0.06, depth: 0.09 }, scene);
+    bk.position.set(0, 0.22, 0.30); bk.parent = root; bk.material = accentMat;
+    [[-0.1, 0], [0.1, 0]].forEach(p => {
+        const leg = BABYLON.MeshBuilder.CreateBox("cl", { width: 0.06, height: 0.18, depth: 0.06 }, scene);
+        leg.position.set(p[0], -0.22, p[1]); leg.parent = root; leg.material = accentMat;
+    });
+    return root;
 }
 
 function buildPlayer(scene, shadowGen) {
@@ -516,6 +554,23 @@ function buildPlayer(scene, shadowGen) {
         });
         body.position.y = 0.65;
 
+    } else if (animal.id === 'chicken_flock') {
+        body = BABYLON.MeshBuilder.CreateBox("body", { width: 0.01, height: 0.01, depth: 0.01 }, scene);
+        body.isVisible = false;
+        const accentMat = new BABYLON.StandardMaterial("chickAccent", scene);
+        accentMat.diffuseColor = new BABYLON.Color3(1, 0.5, 0);
+        accentMat.specularColor = new BABYLON.Color3(0, 0, 0);
+        [[-0.55, 0], [0, 0.25], [0.55, 0]].forEach(p => {
+            game.frontChickenMeshes.push(buildSmallChicken(scene, body, p[0], p[1], mat, accentMat));
+        });
+        body.position.y = 0.0;
+        game.rearPlayerRoot = new BABYLON.TransformNode("rearRoot", scene);
+        const rearBody = BABYLON.MeshBuilder.CreateBox("rearBody", { width: 0.01, height: 0.01, depth: 0.01 }, scene);
+        rearBody.isVisible = false; rearBody.parent = game.rearPlayerRoot;
+        [[-0.35, 0], [0.35, 0]].forEach(p => {
+            game.rearChickenMeshes.push(buildSmallChicken(scene, rearBody, p[0], p[1], mat, accentMat));
+        });
+
     } else {
         // Default: Brave Pig
         body = BABYLON.MeshBuilder.CreateBox("body", { width: 1.2, height: 1.0, depth: 1.8 }, scene);
@@ -531,10 +586,13 @@ function buildPlayer(scene, shadowGen) {
     }
 
     body.parent = game.playerRoot;
-    body.material = mat;
+    if (body.isVisible !== false) body.material = mat;
     game.playerMesh = body;
     body.getChildMeshes().forEach(m => shadowGen.addShadowCaster(m));
-    shadowGen.addShadowCaster(body);
+    if (body.isVisible !== false) shadowGen.addShadowCaster(body);
+    if (game.rearPlayerRoot) {
+        game.rearPlayerRoot.getChildMeshes().forEach(m => shadowGen.addShadowCaster(m));
+    }
 }
 
 function buildFarmerAt(scene, physIdx) {
@@ -591,6 +649,7 @@ function getTileRotation(index) { return game.tiles[index % BOARD_SIZE].rotation
 
 function doRoll() {
     if (game.isMoving || game.dice < game.multiplier) return;
+    if (game.flockMode && game.frontChickens + game.rearChickens <= 0) return;
     game.dice -= game.multiplier;
     writeSave();
     
@@ -603,9 +662,17 @@ function doRoll() {
 
     const currentTile = game.tileIndex;
     const positions = [], rotations = [];
+    let rearPositions = null, rearRotations = null;
     for (let i = 1; i <= roll; i++) {
         const next = (currentTile + i) % BOARD_SIZE;
         positions.push(getTileWorldPosition(next)); rotations.push(getTileRotation(next));
+    }
+    if (game.flockMode) {
+        rearPositions = []; rearRotations = [];
+        for (let i = 1; i <= roll; i++) {
+            const rearNext = (currentTile + i - 1) % BOARD_SIZE;
+            rearPositions.push(getTileWorldPosition(rearNext)); rearRotations.push(getTileRotation(rearNext));
+        }
     }
 
     game.isMoving = true;
@@ -614,11 +681,16 @@ function doRoll() {
         const prevIndex = game.tileIndex;
         game.tileIndex += roll;
         const physIdx = game.tileIndex % BOARD_SIZE;
+        const rearPhysIdx = game.flockMode ? (game.tileIndex - 1 + BOARD_SIZE) % BOARD_SIZE : -1;
 
         const passedFarmerIndices = [];
         for (let i = 1; i <= roll; i++) {
             const checkIdx = (currentTile + i) % BOARD_SIZE;
             if (game.policeOnTiles[checkIdx]) passedFarmerIndices.push(checkIdx);
+        }
+        if (game.flockMode) {
+            const rearCheck = currentTile % BOARD_SIZE;
+            if (game.policeOnTiles[rearCheck] && !passedFarmerIndices.includes(rearCheck)) passedFarmerIndices.push(rearCheck);
         }
 
         const finish = () => {
@@ -626,25 +698,29 @@ function doRoll() {
                 game.laps++; game.cash += 500 * game.multiplier; game.fuel += 50;
                 showEscapeOverlay(game.laps, 500 * game.multiplier);
             }
-            handleTileLanding(physIdx);
+            if (!game.flockMode || game.frontChickens > 0) handleTileLanding(physIdx);
+            if (game.flockMode && game.rearChickens > 0) handleTileLanding(rearPhysIdx);
             if (Math.random() < FARMER_SPAWN_CHANCE) buildFarmerAt(game.scene, (physIdx + 40) % BOARD_SIZE);
+            if (game.flockMode && Math.random() < FARMER_SPAWN_CHANCE) buildFarmerAt(game.scene, (rearPhysIdx + 40) % BOARD_SIZE);
             updateUI();
         };
 
         if (passedFarmerIndices.length > 0) {
             game.fuel += 20 * passedFarmerIndices.length;
             showFeedback('🍎 Successfully escaped the farmer! +20 Meals');
-            const landedOnFarmer = game.policeOnTiles[physIdx];
+            const landedOnFarmer = game.policeOnTiles[physIdx] || (game.flockMode && game.policeOnTiles[rearPhysIdx]);
             passedFarmerIndices.forEach(idx => removeFarmerAt(idx));
-            if (landedOnFarmer) finish(); else showFarmerEncounter(finish);
+            if (landedOnFarmer) finish();
+            else if (game.flockMode) showFlockFarmerEncounter(finish);
+            else showFarmerEncounter(finish);
         } else {
             finish();
         }
-    });
+    }, rearPositions, rearRotations);
     animateCamera(positions, rotations);
 }
 
-function movePlayer(pos, rot, cb) {
+function movePlayer(pos, rot, cb, rearPos, rearRot) {
     let idx = 0; const fps = 60, dur = 10;
     const step = () => {
         if (idx >= pos.length) { cb(); return; }
@@ -654,6 +730,15 @@ function movePlayer(pos, rot, cb) {
         animP.setKeys([{ frame: 0, value: startPos }, { frame: dur, value: endPos }]);
         const animR = new BABYLON.Animation("mR", "rotationQuaternion", fps, BABYLON.Animation.ANIMATIONTYPE_QUATERNION, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
         animR.setKeys([{ frame: 0, value: startRot }, { frame: dur, value: endRot }]);
+        if (rearPos && rearRot && game.rearPlayerRoot) {
+            const rs = game.rearPlayerRoot.position.clone(), rr = game.rearPlayerRoot.rotationQuaternion.clone();
+            const reP = rearPos[idx], reR = BABYLON.Quaternion.FromEulerVector(rearRot[idx]);
+            const raP = new BABYLON.Animation("rP", "position", fps, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+            raP.setKeys([{ frame: 0, value: rs }, { frame: dur, value: reP }]);
+            const raR = new BABYLON.Animation("rR", "rotationQuaternion", fps, BABYLON.Animation.ANIMATIONTYPE_QUATERNION, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+            raR.setKeys([{ frame: 0, value: rr }, { frame: dur, value: reR }]);
+            game.scene.beginDirectAnimation(game.rearPlayerRoot, [raP, raR], 0, dur, false, 1.0);
+        }
         game.scene.beginDirectAnimation(game.playerRoot, [animP, animR], 0, dur, false, 1.0, () => { idx++; step(); });
     };
     step();
@@ -688,7 +773,9 @@ function handleTileLanding(physIdx) {
             } else showFeedback('🛡️ Resilience saved you from a trap!');
             break;
         case 'cop':
-            if (Math.random() < 0.2 + getStealth() * 0.1) {
+            if (game.flockMode) {
+                game.heat = Math.max(0, game.heat - 10); showFeedback('🐔 Chickens scattered! Alert reduced.');
+            } else if (Math.random() < 0.2 + getStealth() * 0.1) {
                 game.heat = Math.max(0, game.heat - 10); showFeedback('🦊 Slipped away unseen!');
             } else {
                 game.heat += 15; showEventPopup('🚨', 'SPOTTED!', 'A farmer saw you! Alert +15.');
@@ -731,6 +818,72 @@ function showFarmerEncounter(onResolved) {
         }, 800);
     });
     openOverlay('policeOverlay');
+}
+
+function showFlockFarmerEncounter(onResolved) {
+    const div = $('policeChoices'); div.innerHTML = '';
+    const addBtn = (txt, active, fn) => {
+        const b = document.createElement('button'); b.className = 'choice-btn' + (active ? '' : ' choice-disabled');
+        b.textContent = txt; if (active) b.onclick = () => { fn(); };
+        div.appendChild(b);
+    };
+    const total = game.frontChickens + game.rearChickens;
+    addBtn('🐔 Sacrifice a Chicken (' + total + ' left)', total > 1, () => {
+        sacrificeRandomChicken();
+        closeOverlay('policeOverlay');
+        showFeedback('🐔 Left a chicken behind as bait!');
+        onResolved();
+    });
+    const hasPowerup = game.purchasedUpgrades.length > 0;
+    addBtn('🍃 Sacrifice a Powerup' + (hasPowerup ? ' (' + game.purchasedUpgrades.length + ')' : ' (none)'), hasPowerup, () => {
+        const sacIdx = Math.floor(Math.random() * game.purchasedUpgrades.length);
+        const sacId = game.purchasedUpgrades.splice(sacIdx, 1)[0];
+        const sacUp = UPGRADES.find(u => u.id === sacId);
+        closeOverlay('policeOverlay');
+        showFeedback('🍃 Dropped ' + (sacUp ? sacUp.icon + ' ' + sacUp.name : 'a powerup') + ' as a distraction!');
+        onResolved();
+    });
+    addBtn('🎲 Run for it! (4-6 success)', true, () => {
+        const r = Math.floor(Math.random() * 6) + 1;
+        showDiceResult(r);
+        closeOverlay('policeOverlay');
+        setTimeout(() => {
+            if (r >= 4) {
+                showEventPopup('🏃', 'SUCCESS!', 'The flock outran the farmer!', [{ label: 'CONTINUE', action: onResolved }]);
+            } else {
+                sacrificeRandomChicken();
+                const remaining = game.frontChickens + game.rearChickens;
+                if (remaining <= 0) {
+                    showEventPopup('🚜', 'ALL LOST!', 'The farmer caught all your chickens!', [{ label: 'BACK TO SANCTUARY', action: () => { game.cash = 0; returnToGarage(); } }]);
+                } else {
+                    showEventPopup('🚜', 'CAUGHT!', 'Lost a chicken! ' + remaining + ' remaining.', [{ label: 'CONTINUE', action: onResolved }]);
+                }
+            }
+        }, 800);
+    });
+    openOverlay('policeOverlay');
+}
+
+function sacrificeRandomChicken() {
+    const candidates = [];
+    if (game.frontChickens > 0) candidates.push('front');
+    if (game.rearChickens > 0) candidates.push('rear');
+    if (candidates.length === 0) return;
+    const group = candidates[Math.floor(Math.random() * candidates.length)];
+    if (group === 'front') {
+        game.frontChickens--;
+        if (game.frontChickenMeshes.length > 0) {
+            const c = game.frontChickenMeshes.pop();
+            c.getChildMeshes().forEach(m => m.dispose()); c.dispose();
+        }
+    } else {
+        game.rearChickens--;
+        if (game.rearChickenMeshes.length > 0) {
+            const c = game.rearChickenMeshes.pop();
+            c.getChildMeshes().forEach(m => m.dispose()); c.dispose();
+        }
+    }
+    updateRibbon();
 }
 
 function openUpgradeShop() {
@@ -779,8 +932,13 @@ function updateRibbon() {
     if (!game.carDef) return;
     $('ribbonCar').textContent = game.carDef.emoji + ' ' + game.carDef.name;
     $('ribbonSpd').textContent = 'SPD ' + getSpeed();
-    $('ribbonArm').textContent = 'RES ' + getArmor();
-    $('ribbonStl').textContent = 'STH ' + getStealth();
+    if (game.flockMode) {
+        $('ribbonArm').textContent = '🐔 Front ' + game.frontChickens;
+        $('ribbonStl').textContent = '🐔 Rear ' + game.rearChickens;
+    } else {
+        $('ribbonArm').textContent = 'RES ' + getArmor();
+        $('ribbonStl').textContent = 'STH ' + getStealth();
+    }
 }
 
 function showDiceResult(r) {
