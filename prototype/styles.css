@@ -148,6 +148,28 @@ body {
     font-size: 0.6rem;
     opacity: 0.6;
 }
+.animal-card-meals {
+    font-size: 0.52rem;
+    color: var(--orange);
+    margin-top: 0.1rem;
+    font-weight: 600;
+}
+
+/* Golden animal card — earned by collecting enough meals */
+.animal-card.golden {
+    background: linear-gradient(135deg, #3a2e0a 0%, #5c4a14 40%, #3a2e0a 100%);
+    border-color: var(--gold);
+    box-shadow: 0 0 10px rgba(245,203,92,0.25), inset 0 0 12px rgba(245,203,92,0.08);
+    animation: goldenShimmer 3s ease-in-out infinite alternate;
+}
+.animal-card.golden.selected {
+    border-color: var(--gold);
+    box-shadow: 0 0 16px rgba(245,203,92,0.45), inset 0 0 16px rgba(245,203,92,0.12);
+}
+@keyframes goldenShimmer {
+    from { box-shadow: 0 0 8px rgba(245,203,92,0.2), inset 0 0 10px rgba(245,203,92,0.06); }
+    to   { box-shadow: 0 0 16px rgba(245,203,92,0.4), inset 0 0 16px rgba(245,203,92,0.12); }
+}
 
 /* ===== SELECTED ANIMAL PANEL ===== */
 .selected-animal-panel {
@@ -199,6 +221,8 @@ body {
 .sel-stat-spd { color: var(--orange); }
 .sel-stat-arm { color: var(--sky); }
 .sel-stat-stl { color: var(--purple); }
+.sel-stat-meals { color: var(--orange); background: rgba(255,159,28,0.10); }
+.sel-stat-golden { color: var(--gold); background: rgba(245,203,92,0.12); border: 1px solid rgba(245,203,92,0.3); }
 
 .start-run-btn {
     display: block;

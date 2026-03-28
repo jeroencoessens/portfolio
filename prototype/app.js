@@ -43,11 +43,60 @@ const DICE_REFILL_TIME  = 30000;     // ms between auto-refills
 const DICE_FACES        = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
 // --- Economy ---
-const FARMER_SPAWN_CHANCE = 0.25;    // chance a farmer spawns after each roll
-const FARMER_BRIBE_COST   = 750;     // coins to bribe past a farmer
+// (economy constants moved to BALANCE object below)
 
 // --- Persistence ---
 const SAVE_KEY          = 'animal_escape_p1_save';
+
+// ============================================================
+//  BALANCING LEVERS — tweak these to tune the game feel
+// ============================================================
+const BALANCE = {
+    // --- Meals ---
+    MEAL_TILE_BASE:       3,     // meals earned from a meal-type tile (before bonuses)
+    MEAL_ROAD_BASE:       0,     // meals from normal road tiles (0 = no meals by default)
+    MEAL_LAP_BONUS:       8,     // meals awarded per lap completion
+    MEAL_GOLDEN_THRESHOLD: 250,  // total meals for an animal to get golden status
+
+    // --- Passive meal bonuses from powerups (added per tile landed) ---
+    MEAL_PASSIVE_CHEAP:   0.4,   // per-tile meal bonus from cheap powerups
+    MEAL_PASSIVE_MID:     0.8,   // per-tile meal bonus from mid-tier powerups
+    MEAL_PASSIVE_EXPENSIVE: 0,   // expensive tile-altering powerups give no passive
+
+    // --- Meal multiplier on meal tiles from powerups ---
+    MEAL_TILE_BONUS_CHEAP:  0,   // extra meals on meal tiles from cheap powerups
+    MEAL_TILE_BONUS_MID:    2,   // extra meals on meal tiles from mid-tier powerups
+    MEAL_TILE_BONUS_EXPENSIVE: 0,// tile-altering powerups don't boost meal tiles directly
+
+    // --- Instant meal grants from powerups ---
+    MEAL_INSTANT_CHEAP:   5,     // instant meals from cheap powerups (e.g. Wild Berries)
+    MEAL_INSTANT_MID:     3,     // instant meals from mid powerups
+    MEAL_INSTANT_EXPENSIVE: 0,   // tile-altering powerups give no instant meals
+
+    // --- Tile alteration: chance that non-meal tiles become meal tiles ---
+    TILE_ALTER_CHANCE:    0.35,  // probability a road/nothing tile becomes a meal source
+
+    // --- Coins ---
+    COIN_ROAD:            30,    // coins from road tiles
+    COIN_CASH_LOW:        80,    // coins from low-value cash tiles
+    COIN_CASH_MID:        120,   // coins from mid-value cash tiles
+    COIN_CASH_HIGH:       180,   // coins from high-value cash tiles
+    COIN_LAP_BONUS:       500,   // coins per lap completion
+    COIN_TRACTOR_CLEAR:   120,   // coins earned for clearing a tractor successfully
+
+    // --- Farmer / Tractor ---
+    FARMER_BRIBE_BASE:     400,  // starting bribe cost
+    FARMER_BRIBE_ESCALATION: 200,// how much bribe increases each time it's paid
+    FARMER_SPAWN_CHANCE:   0.25, // chance a farmer spawns per roll
+
+    // --- Alert ---
+    ALERT_CASH_TILE:      2,     // alert from landing on cash tiles
+    ALERT_DANGER_FAIL:    5,     // alert from danger tile failure
+    ALERT_FARMER_SPOTTED: 15,    // alert from being spotted by farmer
+    ALERT_PIT_REDUCE:     10,    // alert reduced at rest stops
+    ALERT_FLOCK_REDUCE:   10,    // alert reduced by flock scatter
+    ALERT_SNEAK_REDUCE:   10,    // alert reduced by sneaking past farmer
+};
 
 // --- 3D Positioning ---
 const PLAYER_TILE_OFFSET = 0.5;      // height above tile surface for player mesh
@@ -76,39 +125,45 @@ const ANIMALS = [
 ];
 
 // --- In-run upgrade shop items ---
+// mealEffect: 'passive' = bonus meals every tile, 'instant' = immediate meals,
+//             'tileAlter' = converts some non-meal tiles into meal sources
+// tier: 'cheap' | 'mid' | 'expensive' — maps into BALANCE for meal amounts
 const UPGRADES = [
-    { id: 'dice30',    name: '30 Rolls',      icon: '🎲', desc: 'Ancient luck stones',           stat: 'dice',    cost: 1000 },
-    { id: 'berries',   name: 'Wild Berries',   icon: '🍒', desc: '+1 Speed (Energy boost)',       stat: 'speed',   cost: 500  },
-    { id: 'clover',    name: 'Lucky Clover',   icon: '🍀', desc: '+1 Stealth (Natural camo)',     stat: 'stealth', cost: 600  },
-    { id: 'bark',      name: 'Oak Bark',       icon: '🌳', desc: '+1 Resilience (Tough skin)',    stat: 'armor',   cost: 700  },
-    { id: 'apple',     name: 'Sweet Apple',    icon: '🍎', desc: '+30 Meals (Stamina)',           stat: 'fuel',    cost: 400  },
-    { id: 'mushrooms', name: 'Magic Fungi',    icon: '🍄', desc: '+2 Speed (Wild rush)',          stat: 'speed',   cost: 1500 },
-    { id: 'feathers',  name: 'Hawk Feather',   icon: '🪶', desc: '+2 Stealth (Silent movement)',  stat: 'stealth', cost: 1200 },
-    { id: 'stones',    name: 'River Stones',   icon: '🪨', desc: '+2 Resilience (Hardened)',      stat: 'armor',   cost: 1400 },
+    { id: 'dice30',    name: '30 Rolls',      icon: '🎲', desc: 'Ancient luck stones',                             stat: 'dice',    cost: 1000, tier: 'mid',       mealEffect: 'instant'   },
+    { id: 'berries',   name: 'Wild Berries',   icon: '🍒', desc: '+1 Speed, passive meals every tile',              stat: 'speed',   cost: 500,  tier: 'cheap',     mealEffect: 'passive'   },
+    { id: 'clover',    name: 'Lucky Clover',   icon: '🍀', desc: '+1 Stealth, passive meals every tile',            stat: 'stealth', cost: 600,  tier: 'cheap',     mealEffect: 'passive'   },
+    { id: 'bark',      name: 'Oak Bark',       icon: '🌳', desc: '+1 Resilience, instant meals & small passive',    stat: 'armor',   cost: 700,  tier: 'cheap',     mealEffect: 'instant'   },
+    { id: 'apple',     name: 'Sweet Apple',    icon: '🍎', desc: 'Instant meals for your animal',                   stat: 'fuel',    cost: 400,  tier: 'cheap',     mealEffect: 'instant'   },
+    { id: 'mushrooms', name: 'Magic Fungi',    icon: '🍄', desc: '+2 Speed, boosts meal tiles',                     stat: 'speed',   cost: 1500, tier: 'mid',       mealEffect: 'passive'   },
+    { id: 'feathers',  name: 'Hawk Feather',   icon: '🪶', desc: '+2 Stealth, boosts meal tiles',                   stat: 'stealth', cost: 1200, tier: 'mid',       mealEffect: 'passive'   },
+    { id: 'stones',    name: 'River Stones',   icon: '🪨', desc: '+2 Resilience, boosts meal tiles',                stat: 'armor',   cost: 1400, tier: 'mid',       mealEffect: 'passive'   },
+    { id: 'vines',     name: 'Wild Vines',     icon: '🌿', desc: 'Road tiles now sometimes yield meals',            stat: 'none',    cost: 1800, tier: 'expensive',  mealEffect: 'tileAlter' },
+    { id: 'flowers',   name: 'Blossom Path',   icon: '🌸', desc: 'Even more tiles become meal sources',             stat: 'none',    cost: 2500, tier: 'expensive',  mealEffect: 'tileAlter' },
 ];
 
 // --- Tile pattern (repeats every 20 tiles to fill the 80-tile board) ---
+// value = coins for cash/road tiles, meals for fuel tiles, 0 for special tiles
 const TILE_PATTERN = [
     { type: 'start',  color: '#228B22', value: 0   },
-    { type: 'road',   color: '#8B4513', value: 50  },
-    { type: 'cash',   color: '#FFD700', value: 100 },
-    { type: 'road',   color: '#8B4513', value: 50  },
+    { type: 'road',   color: '#8B4513', value: 0   },
+    { type: 'cash',   color: '#FFD700', value: 0   },
+    { type: 'road',   color: '#8B4513', value: 0   },
     { type: 'danger', color: '#FF4500', value: 0   },
-    { type: 'road',   color: '#8B4513', value: 50  },
-    { type: 'fuel',   color: '#32CD32', value: 15  },
-    { type: 'farmer',    color: '#E63946', value: 0   },
-    { type: 'road',   color: '#8B4513', value: 50  },
+    { type: 'fuel',   color: '#32CD32', value: 0   },
+    { type: 'road',   color: '#8B4513', value: 0   },
+    { type: 'farmer', color: '#E63946', value: 0   },
+    { type: 'road',   color: '#8B4513', value: 0   },
     { type: 'bonus',  color: '#00FA9A', value: 0   },
-    { type: 'cash',   color: '#FFD700', value: 150 },
-    { type: 'road',   color: '#8B4513', value: 50  },
+    { type: 'cash',   color: '#FFD700', value: 0   },
+    { type: 'road',   color: '#8B4513', value: 0   },
     { type: 'event',  color: '#4169E1', value: 0   },
-    { type: 'road',   color: '#8B4513', value: 50  },
+    { type: 'fuel',   color: '#32CD32', value: 0   },
     { type: 'rival',  color: '#FF69B4', value: 0   },
-    { type: 'fuel',   color: '#32CD32', value: 20  },
-    { type: 'road',   color: '#8B4513', value: 50  },
-    { type: 'cash',   color: '#FFD700', value: 200 },
+    { type: 'road',   color: '#8B4513', value: 0   },
+    { type: 'road',   color: '#8B4513', value: 0   },
+    { type: 'cash',   color: '#FFD700', value: 0   },
     { type: 'pit',    color: '#98FB98', value: 0   },
-    { type: 'road',   color: '#8B4513', value: 50  },
+    { type: 'fuel',   color: '#32CD32', value: 0   },
 ];
 
 // ============================================================
@@ -121,6 +176,7 @@ let persist = {
     unlockedAnimals: ['brave_pig'],
     dice: STARTING_DICE,
     lastDiceUpdate: Date.now(),
+    animalMeals: {},   // { animal_id: totalMeals } — permanent per-animal meal count
 };
 
 // Runtime state — reset at the start of each run
@@ -136,6 +192,16 @@ const game = {
     cash: 0,
     fuel: 0,
     heat: 0,
+
+    // Meal system (run-scoped bonuses, accumulate into persist.animalMeals)
+    runMeals: 0,           // meals collected this run (displayed as grand total in HUD)
+    passiveMealBonus: 0,   // fractional meals earned per tile from powerups
+    mealTileBonus: 0,      // extra meals on fuel/meal tiles from powerups
+    tileAlterCount: 0,     // how many tile-alter powerups purchased (stacks chance)
+    alteredTiles: {},       // { tileIndex: true } — tiles converted to meal sources
+
+    // Farmer / tractor
+    bribeCount: 0,         // times bribe has been paid this run (escalates cost)
 
     // Progress
     laps: 0,
@@ -191,6 +257,7 @@ function loadSave() {
         persist.unlockedAnimals = data.unlockedAnimals || ['brave_pig'];
         persist.dice = data.dice !== undefined ? data.dice : STARTING_DICE;
         persist.lastDiceUpdate = data.lastDiceUpdate || Date.now();
+        persist.animalMeals = data.animalMeals || {};
     } catch (_) { /* corrupt save — use defaults */ }
 }
 
@@ -238,11 +305,17 @@ function renderSanctuary() {
     ANIMALS.forEach(animal => {
         const owned = persist.unlockedAnimals.includes(animal.id);
         const selected = animal.id === game.selectedAnimalId;
+        const meals = getAnimalMeals(animal.id);
+        const isGolden = meals >= BALANCE.MEAL_GOLDEN_THRESHOLD;
         const card = document.createElement('div');
-        card.className = 'animal-card' + (selected ? ' selected' : '') + (!owned ? ' locked' : '');
+        card.className = 'animal-card'
+            + (selected ? ' selected' : '')
+            + (!owned ? ' locked' : '')
+            + (isGolden && owned ? ' golden' : '');
         card.innerHTML =
             '<div class="animal-card-emoji">' + animal.emoji + '</div>' +
             '<div class="animal-card-name">' + animal.name + '</div>' +
+            (owned ? '<div class="animal-card-meals">🍎 ' + meals + '</div>' : '') +
             (!owned ? '<div class="animal-card-price">🪙 ' + animal.price.toLocaleString() + '</div>' : '') +
             (!owned ? '<div class="animal-card-lock">🔒</div>' : '');
 
@@ -264,12 +337,16 @@ function renderSanctuary() {
 
     // Update the selected-animal detail panel
     const animal = ANIMALS.find(a => a.id === game.selectedAnimalId) || ANIMALS[0];
+    const selMeals = getAnimalMeals(animal.id);
+    const selGolden = selMeals >= BALANCE.MEAL_GOLDEN_THRESHOLD;
     $('selAnimalEmoji').textContent = animal.emoji;
     $('selAnimalName').textContent = animal.name;
     $('selAnimalStats').innerHTML =
         '<span class="sel-stat sel-stat-spd">SPD ' + animal.speed + '</span>' +
         '<span class="sel-stat sel-stat-arm">RES ' + animal.armor + '</span>' +
-        '<span class="sel-stat sel-stat-stl">STH ' + animal.stealth + '</span>';
+        '<span class="sel-stat sel-stat-stl">STH ' + animal.stealth + '</span>' +
+        '<span class="sel-stat sel-stat-meals">🍎 ' + selMeals + ' MEALS</span>' +
+        (selGolden ? '<span class="sel-stat sel-stat-golden">✨ GOLDEN</span>' : '');
 
     const isOwned = persist.unlockedAnimals.includes(animal.id);
     $('startRunBtn').disabled = !isOwned;
@@ -287,6 +364,61 @@ function renderSanctuary() {
 function getSpeed()   { return (game.animalDef ? game.animalDef.speed : 0) + game.runSpeed; }
 function getArmor()   { return (game.animalDef ? game.animalDef.armor : 0) + game.runArmor; }
 function getStealth() { return (game.animalDef ? game.animalDef.stealth : 0) + game.runStealth; }
+
+/** Returns the current bribe cost, escalating each time it's been paid. */
+function getBribeCost() {
+    return BALANCE.FARMER_BRIBE_BASE + game.bribeCount * BALANCE.FARMER_BRIBE_ESCALATION;
+}
+
+/**
+ * Awards meals to the current animal. Updates both run total and persistent save.
+ * @param {number} amount — meals to add (can be fractional; floored before display)
+ */
+function awardMeals(amount) {
+    if (amount <= 0) return;
+    game.runMeals += amount;
+    game.fuel += Math.floor(amount);
+    const id = game.animalDef ? game.animalDef.id : game.selectedAnimalId;
+    persist.animalMeals[id] = (persist.animalMeals[id] || 0) + amount;
+    writeSave();
+}
+
+/** Returns the grand total of meals for the given animal id. */
+function getAnimalMeals(animalId) {
+    return Math.floor(persist.animalMeals[animalId] || 0);
+}
+
+/**
+ * Checks if a tile has been altered by a tileAlter powerup to yield meals.
+ * Only non-meal, non-special tiles can be altered.
+ */
+function isTileAlteredToMeal(physIdx) {
+    return !!game.alteredTiles[physIdx];
+}
+
+/**
+ * When a tile-alter powerup is purchased, randomly convert eligible tiles.
+ * Each tile-alter purchase re-rolls all eligible tiles with cumulative chance.
+ */
+function applyTileAlterations() {
+    const chance = BALANCE.TILE_ALTER_CHANCE * game.tileAlterCount;
+    const eligibleTypes = ['road', 'start', 'bonus', 'event'];
+    for (let i = 0; i < BOARD_SIZE; i++) {
+        const def = game.tileDefs[i];
+        if (eligibleTypes.includes(def.type) && !game.alteredTiles[i]) {
+            if (Math.random() < chance) {
+                game.alteredTiles[i] = true;
+                // Visually tint the tile slightly green
+                if (game.tiles[i] && game.scene) {
+                    const mat = new BABYLON.StandardMaterial('altMat_' + i, game.scene);
+                    mat.diffuseColor = BABYLON.Color3.FromHexString('#5DBB63');
+                    mat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                    game.tiles[i].material = mat;
+                }
+            }
+        }
+    }
+}
 
 /** Transitions from sanctuary to gameplay, resets run state, boots 3D scene. */
 function startRun(animal) {
@@ -313,6 +445,16 @@ function startRun(animal) {
     game.abilityUsed = false;
     game.purchasedUpgrades = [];
 
+    // Meal system reset for new run
+    game.runMeals = 0;
+    game.passiveMealBonus = 0;
+    game.mealTileBonus = 0;
+    game.tileAlterCount = 0;
+    game.alteredTiles = {};
+
+    // Tractor bribe escalation reset
+    game.bribeCount = 0;
+
     // Chicken Flock splits into front (3) and rear (2) groups
     game.flockMode = (animal.id === 'chicken_flock');
     game.frontChickens = game.flockMode ? 3 : 0;
@@ -334,6 +476,7 @@ function startRun(animal) {
 function returnToSanctuary() {
     if (game.diceTimer) clearInterval(game.diceTimer);
     persist.totalCash += game.cash;
+    // Meals are already persisted incrementally via awardMeals()
     writeSave();
 
     if (game.engine) {
@@ -890,9 +1033,10 @@ function doRoll() {
             // Check for lap completion
             if (Math.floor(game.tileIndex / BOARD_SIZE) > Math.floor(prevIndex / BOARD_SIZE)) {
                 game.laps++;
-                game.cash += 500 * game.multiplier;
-                game.fuel += 50;
-                showEscapeOverlay(game.laps, 500 * game.multiplier);
+                const lapCoins = BALANCE.COIN_LAP_BONUS * game.multiplier;
+                game.cash += lapCoins;
+                awardMeals(BALANCE.MEAL_LAP_BONUS * game.multiplier);
+                showEscapeOverlay(game.laps, lapCoins);
             }
 
             // Handle tile landing effects for active groups
@@ -901,12 +1045,12 @@ function doRoll() {
 
             // Possibly spawn new farmers ahead
             if (!game.flockMode || game.frontChickens > 0) {
-                if (Math.random() < FARMER_SPAWN_CHANCE) {
+                if (Math.random() < BALANCE.FARMER_SPAWN_CHANCE) {
                     buildFarmerAt(game.scene, (physIdx + 40) % BOARD_SIZE);
                 }
             }
             if (game.flockMode && game.rearChickens > 0) {
-                if (Math.random() < FARMER_SPAWN_CHANCE) {
+                if (Math.random() < BALANCE.FARMER_SPAWN_CHANCE) {
                     buildFarmerAt(game.scene, (rearPhysIdx + 40) % BOARD_SIZE);
                 }
             }
@@ -915,8 +1059,11 @@ function doRoll() {
         };
 
         if (passedFarmerIndices.length > 0) {
-            game.fuel += 20 * passedFarmerIndices.length;
-            showFeedback('🍎 Successfully escaped the farmer! +20 Meals');
+            // Reward for successfully passing/clearing tractors
+            const clearBonus = BALANCE.COIN_TRACTOR_CLEAR * passedFarmerIndices.length;
+            game.cash += clearBonus;
+            awardMeals(2 * passedFarmerIndices.length);
+            showFeedback('🍎 Escaped the farmer! +🪙' + clearBonus + ' +🍎' + (2 * passedFarmerIndices.length));
 
             // Did the player land directly on a farmer tile?
             const frontLanded = game.frontChickens > 0 && game.farmersOnTiles[physIdx];
@@ -1041,24 +1188,48 @@ function handleTileLanding(physIdx) {
     const def = game.tileDefs[physIdx];
     const mult = game.multiplier;
 
+    // --- Passive meals from powerups (earned on every tile) ---
+    if (game.passiveMealBonus > 0) {
+        awardMeals(game.passiveMealBonus * mult);
+    }
+
+    // --- Tile-altered meal bonus (non-meal tiles converted by tileAlter powerups) ---
+    if (isTileAlteredToMeal(physIdx) && def.type !== 'fuel') {
+        const alteredMeals = BALANCE.MEAL_TILE_BASE * mult;
+        awardMeals(alteredMeals);
+        showFeedback('🌿 Altered path! +🍎' + Math.floor(alteredMeals));
+        updateUI();
+        return; // Altered tiles override their original effect
+    }
+
     switch (def.type) {
         case 'road':
-            game.cash += 50 * mult;
-            showFeedback('🍃 Peaceful path +🪙' + (50 * mult));
+            game.cash += BALANCE.COIN_ROAD * mult;
+            showFeedback('🍃 Peaceful path +🪙' + (BALANCE.COIN_ROAD * mult));
             break;
-        case 'cash':
-            game.cash += 100 * mult;
-            game.heat += 2;
-            showFeedback('🪙 Found shiny coins! + ' + (100 * mult));
+        case 'cash': {
+            // Vary the cash amount based on tile position in the pattern
+            const patIdx = physIdx % TILE_PATTERN.length;
+            let coinAmount;
+            if (patIdx <= 5) coinAmount = BALANCE.COIN_CASH_LOW;
+            else if (patIdx <= 12) coinAmount = BALANCE.COIN_CASH_MID;
+            else coinAmount = BALANCE.COIN_CASH_HIGH;
+            game.cash += coinAmount * mult;
+            game.heat += BALANCE.ALERT_CASH_TILE;
+            showFeedback('🪙 Found shiny coins! +' + (coinAmount * mult));
             break;
-        case 'fuel':
-            game.fuel += 15 * mult;
-            showFeedback('🍎 Found a meal! +' + (15 * mult));
+        }
+        case 'fuel': {
+            const baseMeals = BALANCE.MEAL_TILE_BASE + game.mealTileBonus;
+            const totalMeals = baseMeals * mult;
+            awardMeals(totalMeals);
+            showFeedback('🍎 Found a meal! +' + Math.floor(totalMeals));
             break;
+        }
         case 'danger':
             if (Math.random() > 0.3 + getArmor() * 0.1) {
                 game.cash = Math.max(0, game.cash - 100);
-                game.heat += 5;
+                game.heat += BALANCE.ALERT_DANGER_FAIL;
                 showEventPopup('🕸️', 'TRAPPED!', 'Got caught in a bramble! Lost 🪙100.');
             } else {
                 showFeedback('🛡️ Resilience saved you from a trap!');
@@ -1066,19 +1237,19 @@ function handleTileLanding(physIdx) {
             break;
         case 'farmer':
             if (game.flockMode) {
-                game.heat = Math.max(0, game.heat - 10);
+                game.heat = Math.max(0, game.heat - BALANCE.ALERT_FLOCK_REDUCE);
                 showFeedback('🐔 Chickens scattered! Alert reduced.');
             } else if (Math.random() < 0.2 + getStealth() * 0.1) {
-                game.heat = Math.max(0, game.heat - 10);
+                game.heat = Math.max(0, game.heat - BALANCE.ALERT_SNEAK_REDUCE);
                 showFeedback('🦊 Slipped away unseen!');
             } else {
-                game.heat += 15;
-                showEventPopup('🚨', 'SPOTTED!', 'A farmer saw you! Alert +15.');
+                game.heat += BALANCE.ALERT_FARMER_SPOTTED;
+                showEventPopup('🚨', 'SPOTTED!', 'A farmer saw you! Alert +' + BALANCE.ALERT_FARMER_SPOTTED + '.');
             }
             break;
         case 'pit':
             game.dice = Math.min(MAX_DICE, game.dice + 15);
-            game.heat = Math.max(0, game.heat - 10);
+            game.heat = Math.max(0, game.heat - BALANCE.ALERT_PIT_REDUCE);
             showFeedback('💤 Rested in a burrow. +15 Rolls');
             break;
     }
@@ -1112,8 +1283,10 @@ function showFarmerEncounter(onResolved) {
     const div = $('farmerChoices');
     div.innerHTML = '';
 
-    addChoiceButton(div, '🪙 Bribe the farmer (🪙' + FARMER_BRIBE_COST + ')', game.cash >= FARMER_BRIBE_COST, () => {
-        game.cash -= FARMER_BRIBE_COST;
+    const bribeCost = getBribeCost();
+    addChoiceButton(div, '🪙 Bribe the farmer (🪙' + bribeCost + ')', game.cash >= bribeCost, () => {
+        game.cash -= bribeCost;
+        game.bribeCount++;
         closeOverlay('farmerOverlay');
         onResolved();
     });
@@ -1232,7 +1405,9 @@ function cycleMultiplier() {
 function updateUI() {
     $('statDice').querySelector('.hud-stat-val').textContent = game.dice;
     $('statCash').querySelector('.hud-stat-val').textContent = game.cash;
-    $('statFuel').querySelector('.hud-stat-val').textContent = game.fuel;
+    // Show grand total meals for this animal (persistent + current run)
+    const animalId = game.animalDef ? game.animalDef.id : game.selectedAnimalId;
+    $('statFuel').querySelector('.hud-stat-val').textContent = getAnimalMeals(animalId);
     $('statHeat').querySelector('.hud-stat-val').textContent = game.heat;
 
     const pct = ((game.tileIndex % BOARD_SIZE) / BOARD_SIZE) * 100;
@@ -1307,6 +1482,7 @@ function showEventPopup(icon, title, desc, choices) {
 function showEscapeOverlay(laps, bonus) {
     const ordinal = laps === 1 ? '1ST' : laps === 2 ? '2ND' : laps === 3 ? '3RD' : laps + 'TH';
     const emojis = ['🌿🦋🌿', '🌻🌞🌻', '🦊🍀🦊', '🌈🕊️🌈', '🦋🌺🦋'];
+    const lapMeals = BALANCE.MEAL_LAP_BONUS * game.multiplier;
 
     $('lapCelebration').textContent = emojis[(laps - 1) % emojis.length];
     $('lapTitle').textContent = ordinal + ' ESCAPE!';
@@ -1315,7 +1491,7 @@ function showEscapeOverlay(laps, bonus) {
         : 'Keep running — nature awaits!';
     $('lapRewards').innerHTML =
         '<div class="lap-reward lap-reward-gold">🪙 Coins: +' + bonus.toLocaleString() + '</div>' +
-        '<div class="lap-reward lap-reward-green">🍎 Meals: +50</div>' +
+        '<div class="lap-reward lap-reward-green">🍎 Meals: +' + lapMeals + '</div>' +
         '<div class="lap-reward lap-reward-info">★ Total laps: ' + laps + '</div>';
 
     $('lapKeepBtn').onclick = () => closeOverlay('lapOverlay');
@@ -1355,15 +1531,44 @@ function openUpgradeShop() {
     openOverlay('upgradeOverlay');
 }
 
-/** Applies a purchased upgrade's stat bonus. */
+/** Applies a purchased upgrade's stat bonus and meal effect. */
 function applyUpgrade(up) {
+    // --- Stat bonuses ---
     switch (up.stat) {
         case 'dice':    game.dice = Math.min(MAX_DICE, game.dice + 30); break;
         case 'speed':   game.runSpeed += (up.id === 'mushrooms' ? 2 : 1); break;
         case 'stealth': game.runStealth += (up.id === 'feathers' ? 2 : 1); break;
         case 'armor':   game.runArmor += (up.id === 'stones' ? 2 : 1); break;
-        case 'fuel':    game.fuel += 30; break;
+        case 'fuel':    /* meals handled below */ break;
+        case 'none':    /* tile-alter powerups have no stat */ break;
     }
+
+    // --- Meal effects ---
+    const tier = up.tier;
+    if (up.mealEffect === 'passive') {
+        const passiveAmount = tier === 'cheap' ? BALANCE.MEAL_PASSIVE_CHEAP
+                            : tier === 'mid'   ? BALANCE.MEAL_PASSIVE_MID
+                            :                    BALANCE.MEAL_PASSIVE_EXPENSIVE;
+        game.passiveMealBonus += passiveAmount;
+
+        const tileBonus = tier === 'cheap' ? BALANCE.MEAL_TILE_BONUS_CHEAP
+                        : tier === 'mid'   ? BALANCE.MEAL_TILE_BONUS_MID
+                        :                    BALANCE.MEAL_TILE_BONUS_EXPENSIVE;
+        game.mealTileBonus += tileBonus;
+    }
+
+    if (up.mealEffect === 'instant') {
+        const instantMeals = tier === 'cheap' ? BALANCE.MEAL_INSTANT_CHEAP
+                           : tier === 'mid'   ? BALANCE.MEAL_INSTANT_MID
+                           :                    BALANCE.MEAL_INSTANT_EXPENSIVE;
+        if (instantMeals > 0) awardMeals(instantMeals);
+    }
+
+    if (up.mealEffect === 'tileAlter') {
+        game.tileAlterCount++;
+        applyTileAlterations();
+    }
+
     showFeedback('🍃 ' + up.name + ' used!');
     writeSave();
 }
