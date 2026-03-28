@@ -243,6 +243,27 @@ body {
 .start-run-btn:active { transform: scale(0.96); }
 .start-run-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
 
+/* ===== DEBUG BUTTONS ===== */
+.debug-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1.2rem;
+    padding-bottom: 0.5rem;
+}
+.debug-btn {
+    padding: 0.35rem 0.8rem;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.35);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.68rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.debug-btn:active { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+
 /* ===== GAME SCREEN ===== */
 .game-screen {
     display: flex;
@@ -354,6 +375,11 @@ body {
     color: var(--leaf);
     font-size: 0.75rem;
     letter-spacing: 0.04em;
+}
+.track-endpoint .ep-emoji {
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0;
 }
 
 .track-road {
@@ -513,8 +539,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.6rem;
-    padding: 0.5rem 1rem;
+    gap: 1rem;
+    padding: 0.55rem 1rem;
     background: var(--dark);
     border-top: 1px solid rgba(112,224,0,0.08);
     flex-shrink: 0;
@@ -537,7 +563,9 @@ body {
 .mult-btn:active { transform: scale(0.92); background: rgba(112,224,0,0.3); }
 
 .roll-btn {
-    padding: 0.55rem 2rem;
+    flex: 1;
+    max-width: 180px;
+    padding: 0.55rem 1rem;
     border: none;
     border-radius: 14px;
     background: linear-gradient(135deg, var(--leaf), var(--safe));
@@ -558,6 +586,29 @@ body {
     font-weight: bold;
 }
 .roll-cost { display: block; font-size: 0.55rem; opacity: 0.6; }
+
+/* ===== BOTTOM DICE DISPLAY ===== */
+.bottom-dice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 68px;
+    padding: 0 0.25rem;
+}
+.bottom-dice .dice-count-wrapper { gap: 0.35rem; }
+.bottom-dice .hud-stat-icon { font-size: 1.15rem; }
+.bottom-dice .hud-stat-val {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.25rem;
+    color: var(--white);
+    line-height: 1;
+}
+.bottom-dice .dice-timer-bar {
+    width: 100%;
+    margin-top: 4px;
+}
 
 /* ===== OVERLAYS ===== */
 .overlay {

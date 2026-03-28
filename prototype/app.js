@@ -294,6 +294,8 @@ function startDiceTimer() {
 function initStartScreen() {
     loadSave();
     renderSanctuary();
+    $('debugResetBtn').onclick = debugReset;
+    $('debugCoinsBtn').onclick = debugCoins;
 }
 
 /** Renders the animal selection grid and selected-animal detail panel. */
@@ -1592,5 +1594,23 @@ function closeOverlay(id) { $(id).classList.remove('active'); }
 // ============================================================
 //  11. ENTRY POINT
 // ============================================================
+
+function debugReset() {
+    if (!confirm('Reset all progress? This cannot be undone.')) return;
+    localStorage.removeItem(SAVE_KEY);
+    persist.totalCash = 0;
+    persist.unlockedAnimals = ['brave_pig'];
+    persist.dice = STARTING_DICE;
+    persist.lastDiceUpdate = Date.now();
+    persist.animalMeals = {};
+    game.selectedAnimalId = 'brave_pig';
+    renderSanctuary();
+}
+
+function debugCoins() {
+    persist.totalCash += 5000;
+    writeSave();
+    renderSanctuary();
+}
 
 document.addEventListener('DOMContentLoaded', initStartScreen);

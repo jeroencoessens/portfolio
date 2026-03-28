@@ -34,6 +34,11 @@
                 <div class="selected-animal-stats" id="selAnimalStats"></div>
                 <button class="start-run-btn" id="startRunBtn">BEGIN ESCAPE 🌿</button>
             </div>
+
+            <div class="debug-buttons">
+                <button class="debug-btn" id="debugResetBtn">🗑️ Reset Progress</button>
+                <button class="debug-btn" id="debugCoinsBtn">🪙 +5000 Coins</button>
+            </div>
         </div>
     </div>
 
@@ -42,15 +47,7 @@
         <!-- Top HUD -->
         <header class="top-hud">
             <div class="hud-stats">
-                <div class="hud-stat" id="statDice">
-                    <div class="dice-count-wrapper">
-                        <span class="hud-stat-icon">🎲</span>
-                        <span class="hud-stat-val">200</span>
-                    </div>
-                    <div class="dice-timer-bar">
-                        <div id="diceTimerFill" class="dice-timer-fill"></div>
-                    </div>
-                </div>
+
                 <div class="hud-stat" id="statCash">
                     <span class="hud-stat-icon">🪙</span>
                     <span class="hud-stat-val">0</span>
@@ -72,14 +69,14 @@
 
         <!-- Escape Track: Factory Farm → Freedom -->
         <div class="cannonball-track">
-            <div class="track-endpoint track-la">🌳<span>FREEDOM</span></div>
+            <div class="track-endpoint track-la"><span class="ep-emoji">🏭</span><span>FARM</span></div>
             <div class="track-road" id="trackRoad">
                 <div class="track-fill" id="trackFill"></div>
                 <div class="track-cities" id="trackCities"></div>
                 <div class="track-marker" id="trackMarker">🐷</div>
                 <span class="track-progress" id="trackProgress">0/80</span>
             </div>
-            <div class="track-endpoint track-ny"><span>FARM</span>🏭</div>
+            <div class="track-endpoint track-ny"><span>FREEDOM</span><span class="ep-emoji">🌳</span></div>
         </div>
 
         <!-- Animal Stats Ribbon -->
@@ -99,6 +96,15 @@
 
         <!-- Bottom Controls -->
         <div class="bottom-controls">
+            <div class="bottom-dice" id="statDice">
+                <div class="dice-count-wrapper">
+                    <span class="hud-stat-icon">🎲</span>
+                    <span class="hud-stat-val">200</span>
+                </div>
+                <div class="dice-timer-bar">
+                    <div id="diceTimerFill" class="dice-timer-fill"></div>
+                </div>
+            </div>
             <button class="mult-btn" id="multBtn">x1</button>
             <button class="roll-btn" id="rollBtn">
                 <span class="roll-text">RUN!</span>
