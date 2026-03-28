@@ -36,9 +36,9 @@ const TILE_SIZE         = 3;         // visual width of a tile (BabylonJS units)
 const TILE_SPACING      = 6;         // arc distance between tile centers
 
 // --- Dice / Rolls ---
-const STARTING_DICE     = 150;       // rolls given at start of each run
+const STARTING_DICE     = 100;       // rolls given at start of each run
 const MAX_DICE          = 250;       // hard cap on stored rolls
-const DICE_REFILL_AMT   = 5;         // rolls recovered per refill tick
+const DICE_REFILL_AMT   = 10;         // rolls recovered per refill tick
 const DICE_REFILL_TIME  = 30000;     // ms between auto-refills
 const DICE_FACES        = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
