@@ -77,7 +77,7 @@ body {
 
 .start-tagline { font-size: 0.78rem; color: var(--safe); opacity: 0.5; font-style: italic; margin-top: 0.4rem; }
 
-.garage-bank {
+.sanctuary-bank {
     display: inline-block;
     margin-top: 0.8rem;
     padding: 0.3rem 1rem;
@@ -100,14 +100,14 @@ body {
 }
 
 /* ===== ANIMAL GRID ===== */
-.car-grid {
+.animal-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 0.45rem;
     margin-bottom: 0.8rem;
 }
 
-.car-card {
+.animal-card {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -119,29 +119,29 @@ body {
     transition: all 0.2s ease;
     position: relative;
 }
-.car-card:active { transform: scale(0.96); }
-.car-card.selected {
+.animal-card:active { transform: scale(0.96); }
+.animal-card.selected {
     border-color: var(--leaf);
     box-shadow: 0 0 12px rgba(112,224,0,0.3);
 }
-.car-card.locked {
+.animal-card.locked {
     opacity: 0.45;
 }
 
-.car-card-emoji { font-size: 1.6rem; margin-bottom: 0.15rem; }
-.car-card-name {
+.animal-card-emoji { font-size: 1.6rem; margin-bottom: 0.15rem; }
+.animal-card-name {
     font-size: 0.6rem;
     font-weight: 600;
     text-align: center;
     line-height: 1.2;
     color: var(--white);
 }
-.car-card-price {
+.animal-card-price {
     font-size: 0.55rem;
     color: var(--gold);
     margin-top: 0.1rem;
 }
-.car-card-lock {
+.animal-card-lock {
     position: absolute;
     top: 2px;
     right: 4px;
@@ -150,7 +150,7 @@ body {
 }
 
 /* ===== SELECTED ANIMAL PANEL ===== */
-.selected-car-panel {
+.selected-animal-panel {
     background: var(--dark2);
     border: 1px solid rgba(112,224,0,0.15);
     border-radius: 14px;
@@ -159,30 +159,30 @@ body {
     margin-top: 0.4rem;
 }
 
-.selected-car-header {
+.selected-animal-header {
     display: flex;
     align-items: center;
     gap: 0.7rem;
     margin-bottom: 0.5rem;
 }
 
-.selected-car-emoji { font-size: 2rem; }
+.selected-animal-emoji { font-size: 2rem; }
 
-.selected-car-name {
+.selected-animal-name {
     font-family: 'Bebas Neue', Impact, sans-serif;
     font-size: 1.2rem;
     letter-spacing: 0.06em;
     color: var(--white);
 }
 
-.selected-car-desc {
+.selected-animal-desc {
     font-size: 0.72rem;
     color: var(--safe);
     opacity: 0.7;
     line-height: 1.3;
 }
 
-.selected-car-stats {
+.selected-animal-stats {
     display: flex;
     gap: 0.5rem;
     margin-bottom: 0.6rem;
@@ -401,7 +401,7 @@ body {
 }
 
 /* ===== ANIMAL STATS RIBBON ===== */
-.car-stats-ribbon {
+.animal-stats-ribbon {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -413,7 +413,7 @@ body {
     overflow-x: auto;
 }
 
-.ribbon-car {
+.ribbon-animal {
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--white);
@@ -616,7 +616,7 @@ body {
 .close-overlay-btn:active { background: var(--leaf); color: var(--black); }
 
 /* ===== FARMER ENCOUNTER ===== */
-.police-content {
+.farmer-content {
     border-color: var(--red);
     background: linear-gradient(160deg, #1a2e1a, #2e0d0d);
 }

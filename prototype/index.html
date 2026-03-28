@@ -18,20 +18,20 @@
             <h2 class="start-subtitle">RUN TO FREEDOM</h2>
             <p class="start-tagline">Roll the dice. Escape the farm. Reach the wild.</p>
 
-            <div class="garage-bank" id="garageBank">🪙 0</div>
+            <div class="sanctuary-bank" id="sanctuaryBank">🪙 0</div>
 
             <p class="start-prompt">THE SANCTUARY</p>
-            <div class="car-grid" id="carGrid"></div>
+            <div class="animal-grid" id="animalGrid"></div>
 
-            <div class="selected-car-panel" id="selectedCarPanel">
-                <div class="selected-car-header">
-                    <span class="selected-car-emoji" id="selCarEmoji">🐷</span>
-                    <div class="selected-car-info">
-                        <div class="selected-car-name" id="selCarName">Brave Piggy</div>
-                        <div class="selected-car-desc">Eager to see the green fields.</div>
+            <div class="selected-animal-panel" id="selectedAnimalPanel">
+                <div class="selected-animal-header">
+                    <span class="selected-animal-emoji" id="selAnimalEmoji">🐷</span>
+                    <div class="selected-animal-info">
+                        <div class="selected-animal-name" id="selAnimalName">Brave Piggy</div>
+                        <div class="selected-animal-desc">Eager to see the green fields.</div>
                     </div>
                 </div>
-                <div class="selected-car-stats" id="selCarStats"></div>
+                <div class="selected-animal-stats" id="selAnimalStats"></div>
                 <button class="start-run-btn" id="startRunBtn">BEGIN ESCAPE 🌿</button>
             </div>
         </div>
@@ -83,8 +83,8 @@
         </div>
 
         <!-- Animal Stats Ribbon -->
-        <div class="car-stats-ribbon" id="carStatsRibbon">
-            <span class="ribbon-car" id="ribbonCar">🐷 Brave Piggy</span>
+        <div class="animal-stats-ribbon" id="animalStatsRibbon">
+            <span class="ribbon-animal" id="ribbonAnimal">🐷 Brave Piggy</span>
             <span class="ribbon-stat ribbon-spd" id="ribbonSpd">SPD 0</span>
             <span class="ribbon-stat ribbon-arm" id="ribbonArm">RES 0</span>
             <span class="ribbon-stat ribbon-stl" id="ribbonStl">STH 0</span>
@@ -127,18 +127,18 @@
             <div id="lapRewards" class="lap-rewards"></div>
             <div class="lap-actions">
                 <button class="lap-btn-primary" id="lapKeepBtn">🌿 KEEP RUNNING →</button>
-                <button class="lap-btn-secondary" id="lapGarageBtn">🏠 BACK TO SANCTUARY</button>
+                <button class="lap-btn-secondary" id="lapSanctuaryBtn">🏠 BACK TO SANCTUARY</button>
             </div>
         </div>
     </div>
 
     <!-- ===== FARMER ENCOUNTER OVERLAY ===== -->
-    <div id="policeOverlay" class="overlay">
-        <div class="overlay-content police-content">
+    <div id="farmerOverlay" class="overlay">
+        <div class="overlay-content farmer-content">
             <div class="event-icon">🚜</div>
             <h2>FARMER AHEAD!</h2>
             <p>A farmer is looking for you! How do you escape?</p>
-            <div id="policeChoices" class="event-choices"></div>
+            <div id="farmerChoices" class="event-choices"></div>
         </div>
     </div>
 

@@ -10,7 +10,7 @@ A 3D dice-rolling board game where farm animals escape to the wild. Built as a w
 
 ### Core Loop
 
-1. **Garage/Sanctuary** — Pick an animal (or buy a new one with banked coins)
+1. **Sanctuary** — Pick an animal (or buy a new one with banked coins)
 2. **Roll dice** — Move 1–6 tiles (plus speed bonuses) along the circular track
 3. **Tile effects** — Land on tiles that give coins, food, traps, farmer sightings, rest spots
 4. **Farmer encounters** — When passing/landing on a farmer, choose: bribe, use ability, sacrifice a powerup, or gamble with a dice roll
@@ -59,7 +59,7 @@ The code is organized into clearly labeled sections that roughly map to Unity Mo
 | 1. CONFIG & DATA | Constants, animal/upgrade/tile definitions | `GameConfig` ScriptableObject |
 | 2. GAME STATE | Persistent + per-run state objects | `GameManager` singleton |
 | 3. SAVE SYSTEM | LocalStorage load/save | `SaveManager` (PlayerPrefs or JSON serialization) |
-| 4. GARAGE / START | Animal selection, purchase flow | `GarageUI` MonoBehaviour |
+| 4. SANCTUARY / START | Animal selection, purchase flow | `SanctuaryUI` MonoBehaviour |
 | 5. SCENE SETUP | BabylonJS scene, lighting, board, camera | `BoardBuilder`, `SceneManager` |
 | 6. PLAYER MODELS | Per-animal mesh builders (7 functions) | Prefabs with `AnimalModel` components |
 | 7. FARMER OBSTACLES | Spawn/remove tractor meshes | `FarmerSpawner` + `Farmer` prefab |
@@ -112,7 +112,7 @@ Assets/
 │   │   └── UpgradeShop.cs             # In-run upgrades (Section 10)
 │   └── UI/
 │       ├── HUDController.cs           # Stats display (Section 10)
-│       ├── GarageUI.cs                # Animal select screen (Section 4)
+│       ├── SanctuaryUI.cs                # Animal select screen (Section 4)
 │       ├── OverlayManager.cs          # Modal overlay system (Section 10)
 │       └── TrackProgressUI.cs         # Progress bar + checkpoints
 ├── Prefabs/
@@ -125,7 +125,7 @@ Assets/
 │   ├── Upgrades/                      # 8 UpgradeDefinition assets
 │   └── GameConfig.asset               # Singleton config
 └── Scenes/
-    ├── Garage.unity                   # Start/sanctuary screen
+    ├── Sanctuary.unity                   # Start/sanctuary screen
     └── Game.unity                     # Main gameplay scene
 ```
 

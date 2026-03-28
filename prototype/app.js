@@ -8,7 +8,7 @@
 //  │ 1. CONFIG & DATA     Constants, definitions  │
 //  │ 2. GAME STATE        Persistent + per-run    │
 //  │ 3. SAVE SYSTEM       LocalStorage I/O        │
-//  │ 4. GARAGE / START    Animal select, purchase  │
+//  │ 4. SANCTUARY / START    Animal select, purchase  │
 //  │ 5. SCENE SETUP       3D world, board, props  │
 //  │ 6. PLAYER MODELS     Per-animal mesh builders │
 //  │ 7. FARMER OBSTACLES  Spawn, remove, models   │
@@ -96,7 +96,7 @@ const TILE_PATTERN = [
     { type: 'danger', color: '#FF4500', value: 0   },
     { type: 'road',   color: '#8B4513', value: 50  },
     { type: 'fuel',   color: '#32CD32', value: 15  },
-    { type: 'cop',    color: '#E63946', value: 0   },
+    { type: 'farmer',    color: '#E63946', value: 0   },
     { type: 'road',   color: '#8B4513', value: 50  },
     { type: 'bonus',  color: '#00FA9A', value: 0   },
     { type: 'cash',   color: '#FFD700', value: 150 },
@@ -118,7 +118,7 @@ const TILE_PATTERN = [
 // Persistent state — survives between runs (saved to localStorage)
 let persist = {
     totalCash: 0,
-    unlockedCars: ['brave_pig'],
+    unlockedAnimals: ['brave_pig'],
     dice: STARTING_DICE,
     lastDiceUpdate: Date.now(),
 };
@@ -126,7 +126,7 @@ let persist = {
 // Runtime state — reset at the start of each run
 const game = {
     // Current animal definition & stat bonuses from upgrades
-    carDef: null,
+    animalDef: null,
     runSpeed: 0,
     runArmor: 0,
     runStealth: 0,
@@ -142,7 +142,7 @@ const game = {
     tileIndex: 0,
     multiplier: 1,
     isMoving: false,
-    selectedCarId: 'brave_pig',
+    selectedAnimalId: 'brave_pig',
 
     // BabylonJS references
     engine: null,
@@ -158,7 +158,7 @@ const game = {
     boardRadius: 0,    // computed radius of the circular track
 
     // Farmer obstacles keyed by tile index
-    policeOnTiles: {},
+    farmersOnTiles: {},
 
     // Run-specific flags
     abilityUsed: false,
@@ -188,7 +188,7 @@ function loadSave() {
         if (!raw) return;
         const data = JSON.parse(raw);
         persist.totalCash = data.totalCash || 0;
-        persist.unlockedCars = data.unlockedCars || ['brave_pig'];
+        persist.unlockedAnimals = data.unlockedAnimals || ['brave_pig'];
         persist.dice = data.dice !== undefined ? data.dice : STARTING_DICE;
         persist.lastDiceUpdate = data.lastDiceUpdate || Date.now();
     } catch (_) { /* corrupt save — use defaults */ }
@@ -221,57 +221,57 @@ function startDiceTimer() {
 }
 
 // ============================================================
-//  4. GARAGE / START SCREEN
+//  4. SANCTUARY / START SCREEN
 // ============================================================
 
 function initStartScreen() {
     loadSave();
-    renderGarage();
+    renderSanctuary();
 }
 
 /** Renders the animal selection grid and selected-animal detail panel. */
-function renderGarage() {
-    $('garageBank').textContent = '🪙 ' + persist.totalCash.toLocaleString();
-    const grid = $('carGrid');
+function renderSanctuary() {
+    $('sanctuaryBank').textContent = '🪙 ' + persist.totalCash.toLocaleString();
+    const grid = $('animalGrid');
     grid.innerHTML = '';
 
     ANIMALS.forEach(animal => {
-        const owned = persist.unlockedCars.includes(animal.id);
-        const selected = animal.id === game.selectedCarId;
+        const owned = persist.unlockedAnimals.includes(animal.id);
+        const selected = animal.id === game.selectedAnimalId;
         const card = document.createElement('div');
-        card.className = 'car-card' + (selected ? ' selected' : '') + (!owned ? ' locked' : '');
+        card.className = 'animal-card' + (selected ? ' selected' : '') + (!owned ? ' locked' : '');
         card.innerHTML =
-            '<div class="car-card-emoji">' + animal.emoji + '</div>' +
-            '<div class="car-card-name">' + animal.name + '</div>' +
-            (!owned ? '<div class="car-card-price">🪙 ' + animal.price.toLocaleString() + '</div>' : '') +
-            (!owned ? '<div class="car-card-lock">🔒</div>' : '');
+            '<div class="animal-card-emoji">' + animal.emoji + '</div>' +
+            '<div class="animal-card-name">' + animal.name + '</div>' +
+            (!owned ? '<div class="animal-card-price">🪙 ' + animal.price.toLocaleString() + '</div>' : '') +
+            (!owned ? '<div class="animal-card-lock">🔒</div>' : '');
 
         card.addEventListener('click', () => {
             if (owned) {
-                game.selectedCarId = animal.id;
-                renderGarage();
+                game.selectedAnimalId = animal.id;
+                renderSanctuary();
             } else if (persist.totalCash >= animal.price) {
                 // Purchase and auto-select
                 persist.totalCash -= animal.price;
-                persist.unlockedCars.push(animal.id);
-                game.selectedCarId = animal.id;
+                persist.unlockedAnimals.push(animal.id);
+                game.selectedAnimalId = animal.id;
                 writeSave();
-                renderGarage();
+                renderSanctuary();
             }
         });
         grid.appendChild(card);
     });
 
     // Update the selected-animal detail panel
-    const animal = ANIMALS.find(a => a.id === game.selectedCarId) || ANIMALS[0];
-    $('selCarEmoji').textContent = animal.emoji;
-    $('selCarName').textContent = animal.name;
-    $('selCarStats').innerHTML =
+    const animal = ANIMALS.find(a => a.id === game.selectedAnimalId) || ANIMALS[0];
+    $('selAnimalEmoji').textContent = animal.emoji;
+    $('selAnimalName').textContent = animal.name;
+    $('selAnimalStats').innerHTML =
         '<span class="sel-stat sel-stat-spd">SPD ' + animal.speed + '</span>' +
         '<span class="sel-stat sel-stat-arm">RES ' + animal.armor + '</span>' +
         '<span class="sel-stat sel-stat-stl">STH ' + animal.stealth + '</span>';
 
-    const isOwned = persist.unlockedCars.includes(animal.id);
+    const isOwned = persist.unlockedAnimals.includes(animal.id);
     $('startRunBtn').disabled = !isOwned;
     $('startRunBtn').textContent = isOwned
         ? 'BEGIN ESCAPE 🌿'
@@ -284,14 +284,14 @@ function renderGarage() {
 // ============================================================
 
 /** Combine base animal stats with upgrade bonuses. */
-function getSpeed()   { return (game.carDef ? game.carDef.speed : 0) + game.runSpeed; }
-function getArmor()   { return (game.carDef ? game.carDef.armor : 0) + game.runArmor; }
-function getStealth() { return (game.carDef ? game.carDef.stealth : 0) + game.runStealth; }
+function getSpeed()   { return (game.animalDef ? game.animalDef.speed : 0) + game.runSpeed; }
+function getArmor()   { return (game.animalDef ? game.animalDef.armor : 0) + game.runArmor; }
+function getStealth() { return (game.animalDef ? game.animalDef.stealth : 0) + game.runStealth; }
 
-/** Transitions from garage to gameplay, resets run state, boots 3D scene. */
+/** Transitions from sanctuary to gameplay, resets run state, boots 3D scene. */
 function startRun(animal) {
     // Reset all run state
-    game.carDef = animal;
+    game.animalDef = animal;
     game.runSpeed = 0;
     game.runArmor = 0;
     game.runStealth = 0;
@@ -309,7 +309,7 @@ function startRun(animal) {
     game.isMoving = false;
     game.tiles = [];
     game.tileDefs = [];
-    game.policeOnTiles = {};
+    game.farmersOnTiles = {};
     game.abilityUsed = false;
     game.purchasedUpgrades = [];
 
@@ -331,7 +331,7 @@ function startRun(animal) {
 }
 
 /** Ends the run, banks earned coins, tears down the 3D engine. */
-function returnToGarage() {
+function returnToSanctuary() {
     if (game.diceTimer) clearInterval(game.diceTimer);
     persist.totalCash += game.cash;
     writeSave();
@@ -345,7 +345,7 @@ function returnToGarage() {
 
     $('gameScreen').classList.add('hidden');
     $('startScreen').classList.remove('hidden');
-    renderGarage();
+    renderSanctuary();
 }
 
 /** Boots BabylonJS, creates the 3D scene, wires up control buttons. */
@@ -589,7 +589,7 @@ function makeFlatMat(scene, name, r, g, b) {
  */
 function buildPlayer(scene, shadowGen) {
     game.playerRoot = new BABYLON.TransformNode('playerRoot', scene);
-    const animal = game.carDef;
+    const animal = game.animalDef;
     const c3 = BABYLON.Color3.FromHexString(animal.color);
     const mat = makeFlatMat(scene, 'animalMat', c3.r, c3.g, c3.b);
 
@@ -773,7 +773,7 @@ function buildSmallChicken(scene, parent, offsetX, offsetZ, mat, accentMat) {
 
 /** Spawns a tractor (farmer obstacle) on the given tile index. */
 function buildFarmerAt(scene, physIdx) {
-    if (game.policeOnTiles[physIdx]) return;
+    if (game.farmersOnTiles[physIdx]) return;
     const tile = game.tiles[physIdx];
     const root = new BABYLON.TransformNode('farmer_' + physIdx, scene);
     root.position.copyFrom(getTileWorldPosition(physIdx));
@@ -800,19 +800,19 @@ function buildFarmerAt(scene, physIdx) {
         w.rotation.z = Math.PI / 2; w.position.set(x, -0.3, z); w.parent = body; w.material = wMat;
     });
 
-    game.policeOnTiles[physIdx] = { root };
+    game.farmersOnTiles[physIdx] = { root };
 }
 
 /** Removes a farmer obstacle from the given tile and disposes its meshes. */
 function removeFarmerAt(physIdx) {
-    const data = game.policeOnTiles[physIdx];
+    const data = game.farmersOnTiles[physIdx];
     if (!data) return;
     data.root.getChildMeshes().forEach(m => {
         if (m.material) m.material.dispose();
         m.dispose();
     });
     data.root.dispose();
-    delete game.policeOnTiles[physIdx];
+    delete game.farmersOnTiles[physIdx];
 }
 
 // ============================================================
@@ -919,8 +919,8 @@ function doRoll() {
             showFeedback('🍎 Successfully escaped the farmer! +20 Meals');
 
             // Did the player land directly on a farmer tile?
-            const frontLanded = game.frontChickens > 0 && game.policeOnTiles[physIdx];
-            const rearLanded = game.flockMode && game.rearChickens > 0 && game.policeOnTiles[rearPhysIdx];
+            const frontLanded = game.frontChickens > 0 && game.farmersOnTiles[physIdx];
+            const rearLanded = game.flockMode && game.rearChickens > 0 && game.farmersOnTiles[rearPhysIdx];
             passedFarmerIndices.forEach(idx => removeFarmerAt(idx));
 
             if (frontLanded || rearLanded) {
@@ -949,7 +949,7 @@ function collectFarmerEncounters(currentTile, roll, physIdx, rearPhysIdx) {
     if (!game.flockMode || game.frontChickens > 0) {
         for (let i = 1; i <= roll; i++) {
             const checkIdx = (currentTile + i) % BOARD_SIZE;
-            if (game.policeOnTiles[checkIdx] && !indices.includes(checkIdx)) {
+            if (game.farmersOnTiles[checkIdx] && !indices.includes(checkIdx)) {
                 indices.push(checkIdx);
             }
         }
@@ -958,7 +958,7 @@ function collectFarmerEncounters(currentTile, roll, physIdx, rearPhysIdx) {
     // Rear group starting tile
     if (game.flockMode && game.rearChickens > 0) {
         const rearCheck = currentTile % BOARD_SIZE;
-        if (game.policeOnTiles[rearCheck] && !indices.includes(rearCheck)) {
+        if (game.farmersOnTiles[rearCheck] && !indices.includes(rearCheck)) {
             indices.push(rearCheck);
         }
     }
@@ -1064,7 +1064,7 @@ function handleTileLanding(physIdx) {
                 showFeedback('🛡️ Resilience saved you from a trap!');
             }
             break;
-        case 'cop':
+        case 'farmer':
             if (game.flockMode) {
                 game.heat = Math.max(0, game.heat - 10);
                 showFeedback('🐔 Chickens scattered! Alert reduced.');
@@ -1102,25 +1102,25 @@ function sacrificePowerup(onDone) {
     const idx = Math.floor(Math.random() * game.purchasedUpgrades.length);
     const upId = game.purchasedUpgrades.splice(idx, 1)[0];
     const up = UPGRADES.find(u => u.id === upId);
-    closeOverlay('policeOverlay');
+    closeOverlay('farmerOverlay');
     showFeedback('🍃 Dropped ' + (up ? up.icon + ' ' + up.name : 'a powerup') + ' as a distraction!');
     onDone();
 }
 
 /** Shows the farmer encounter overlay for normal (non-flock) animals. */
 function showFarmerEncounter(onResolved) {
-    const div = $('policeChoices');
+    const div = $('farmerChoices');
     div.innerHTML = '';
 
     addChoiceButton(div, '🪙 Bribe the farmer (🪙' + FARMER_BRIBE_COST + ')', game.cash >= FARMER_BRIBE_COST, () => {
         game.cash -= FARMER_BRIBE_COST;
-        closeOverlay('policeOverlay');
+        closeOverlay('farmerOverlay');
         onResolved();
     });
 
-    addChoiceButton(div, '⚡ Use ' + game.carDef.ability, !game.abilityUsed, () => {
+    addChoiceButton(div, '⚡ Use ' + game.animalDef.ability, !game.abilityUsed, () => {
         game.abilityUsed = true;
-        closeOverlay('policeOverlay');
+        closeOverlay('farmerOverlay');
         onResolved();
     });
 
@@ -1133,7 +1133,7 @@ function showFarmerEncounter(onResolved) {
     addChoiceButton(div, '🎲 Run for it! (4-6 success)', true, () => {
         const r = Math.floor(Math.random() * 6) + 1;
         showDiceResult(r);
-        closeOverlay('policeOverlay');
+        closeOverlay('farmerOverlay');
         setTimeout(() => {
             if (r >= 4) {
                 showEventPopup('🏃', 'SUCCESS!', 'You outran the farmer!', [
@@ -1141,24 +1141,24 @@ function showFarmerEncounter(onResolved) {
                 ]);
             } else {
                 showEventPopup('🚜', 'FAILURE!', 'The farmer caught you!', [
-                    { label: 'BACK TO SANCTUARY', action: () => { game.cash = 0; returnToGarage(); } }
+                    { label: 'BACK TO SANCTUARY', action: () => { game.cash = 0; returnToSanctuary(); } }
                 ]);
             }
         }, 800);
     });
 
-    openOverlay('policeOverlay');
+    openOverlay('farmerOverlay');
 }
 
 /** Shows the farmer encounter overlay for the Chicken Flock (sacrifice chicken option). */
 function showFlockFarmerEncounter(onResolved) {
-    const div = $('policeChoices');
+    const div = $('farmerChoices');
     div.innerHTML = '';
 
     const total = game.frontChickens + game.rearChickens;
     addChoiceButton(div, '🐔 Sacrifice a Chicken (' + total + ' left)', total > 1, () => {
         sacrificeRandomChicken();
-        closeOverlay('policeOverlay');
+        closeOverlay('farmerOverlay');
         showFeedback('🐔 Left a chicken behind as bait!');
         onResolved();
     });
@@ -1172,7 +1172,7 @@ function showFlockFarmerEncounter(onResolved) {
     addChoiceButton(div, '🎲 Run for it! (4-6 success)', true, () => {
         const r = Math.floor(Math.random() * 6) + 1;
         showDiceResult(r);
-        closeOverlay('policeOverlay');
+        closeOverlay('farmerOverlay');
         setTimeout(() => {
             if (r >= 4) {
                 showEventPopup('🏃', 'SUCCESS!', 'The flock outran the farmer!', [
@@ -1183,7 +1183,7 @@ function showFlockFarmerEncounter(onResolved) {
                 const remaining = game.frontChickens + game.rearChickens;
                 if (remaining <= 0) {
                     showEventPopup('🚜', 'ALL LOST!', 'The farmer caught all your chickens!', [
-                        { label: 'BACK TO SANCTUARY', action: () => { game.cash = 0; returnToGarage(); } }
+                        { label: 'BACK TO SANCTUARY', action: () => { game.cash = 0; returnToSanctuary(); } }
                     ]);
                 } else {
                     showEventPopup('🚜', 'CAUGHT!', remaining + ' chickens remaining.', [
@@ -1194,7 +1194,7 @@ function showFlockFarmerEncounter(onResolved) {
         }, 800);
     });
 
-    openOverlay('policeOverlay');
+    openOverlay('farmerOverlay');
 }
 
 /** Removes one random chicken from either the front or rear flock group. */
@@ -1238,14 +1238,14 @@ function updateUI() {
     const pct = ((game.tileIndex % BOARD_SIZE) / BOARD_SIZE) * 100;
     $('trackFill').style.width = pct + '%';
     $('trackMarker').style.left = pct + '%';
-    $('trackMarker').textContent = game.carDef ? game.carDef.emoji : '🐷';
+    $('trackMarker').textContent = game.animalDef ? game.animalDef.emoji : '🐷';
     $('trackProgress').textContent = (game.tileIndex % BOARD_SIZE) + '/' + BOARD_SIZE;
 }
 
 /** Updates the animal stats ribbon under the progress track. */
 function updateRibbon() {
-    if (!game.carDef) return;
-    $('ribbonCar').textContent = game.carDef.emoji + ' ' + game.carDef.name;
+    if (!game.animalDef) return;
+    $('ribbonAnimal').textContent = game.animalDef.emoji + ' ' + game.animalDef.name;
     $('ribbonSpd').textContent = 'SPD ' + getSpeed();
     if (game.flockMode) {
         $('ribbonArm').textContent = '🐔 Front ' + game.frontChickens;
@@ -1319,7 +1319,7 @@ function showEscapeOverlay(laps, bonus) {
         '<div class="lap-reward lap-reward-info">★ Total laps: ' + laps + '</div>';
 
     $('lapKeepBtn').onclick = () => closeOverlay('lapOverlay');
-    $('lapGarageBtn').onclick = () => { closeOverlay('lapOverlay'); returnToGarage(); };
+    $('lapSanctuaryBtn').onclick = () => { closeOverlay('lapOverlay'); returnToSanctuary(); };
 
     openOverlay('lapOverlay');
 }
