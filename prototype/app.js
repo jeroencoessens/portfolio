@@ -429,10 +429,7 @@ function startRun(animal) {
     game.runSpeed = 0;
     game.runArmor = 0;
     game.runStealth = 0;
-    game.dice = STARTING_DICE;
-    persist.dice = game.dice;
-    persist.lastDiceUpdate = Date.now();
-    writeSave();
+    game.dice = persist.dice;   // carry over persistent dice — NOT reset each run
 
     game.cash = 0;
     game.fuel = 0;
@@ -477,6 +474,7 @@ function startRun(animal) {
 /** Ends the run, banks earned coins, tears down the 3D engine. */
 function returnToSanctuary() {
     if (game.diceTimer) clearInterval(game.diceTimer);
+    persist.lastDiceUpdate = Date.now(); // pause refill clock while in menu
     persist.totalCash += game.cash;
     // Meals are already persisted incrementally via awardMeals()
     writeSave();
@@ -1067,17 +1065,29 @@ function doRoll() {
             awardMeals(2 * passedFarmerIndices.length);
             showFeedback('🍎 Escaped the farmer! +🪙' + clearBonus + ' +🍎' + (2 * passedFarmerIndices.length));
 
-            // Did the player land directly on a farmer tile?
-            const frontLanded = game.frontChickens > 0 && game.farmersOnTiles[physIdx];
-            const rearLanded = game.flockMode && game.rearChickens > 0 && game.farmersOnTiles[rearPhysIdx];
+            // Did either group land directly on a farmer tile?
+            const frontLandedOnFarmer = (!game.flockMode || game.frontChickens > 0) && !!game.farmersOnTiles[physIdx];
+            const rearLandedOnFarmer = game.flockMode && game.rearChickens > 0 && !!game.farmersOnTiles[rearPhysIdx];
+
+            // Farmers that were passed through (not at a landing tile) require an encounter
+            const passedThroughFarmers = passedFarmerIndices.filter(idx =>
+                idx !== physIdx && !(game.flockMode && idx === rearPhysIdx)
+            );
+
             passedFarmerIndices.forEach(idx => removeFarmerAt(idx));
 
-            if (frontLanded || rearLanded) {
+            if (frontLandedOnFarmer || rearLandedOnFarmer) {
+                // Landed directly on a tractor — insta-clear, coins already awarded above
                 finishTurn();
-            } else if (game.flockMode) {
-                showFlockFarmerEncounter(finishTurn);
+            } else if (passedThroughFarmers.length > 0) {
+                // Passed through a tractor without landing on it — show escape options
+                if (game.flockMode) {
+                    showFlockFarmerEncounter(finishTurn);
+                } else {
+                    showFarmerEncounter(finishTurn);
+                }
             } else {
-                showFarmerEncounter(finishTurn);
+                finishTurn();
             }
         } else {
             finishTurn();
