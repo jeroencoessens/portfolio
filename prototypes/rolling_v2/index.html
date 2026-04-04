@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Animal Escape: Run to Freedom</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- ===== START / SANCTUARY SCREEN ===== -->
+    <div id="startScreen" class="screen start-screen">
+        <div class="start-content">
+            <div class="start-badge">🌿</div>
+            <h1 class="start-title">ANIMAL ESCAPE</h1>
+            <h2 class="start-subtitle">RUN TO FREEDOM</h2>
+            <p class="start-tagline">Roll the dice. Escape the farm. Reach the wild.</p>
+
+            <div class="sanctuary-bank" id="sanctuaryBank">🪙 0</div>
+
+            <div class="animal-section">
+                <p class="start-prompt">SOLO ESCAPERS</p>
+                <div class="animal-grid" id="soloAnimalGrid"></div>
+            </div>
+
+            <div class="animal-section">
+                <p class="start-prompt">GROUP FORMS</p>
+                <p class="section-note">Unlock each solo animal first, then buy its linked group.</p>
+                <div class="animal-grid" id="groupAnimalGrid"></div>
+            </div>
+
+            <div class="selected-animal-panel" id="selectedAnimalPanel">
+                <div class="selected-animal-header">
+                    <span class="selected-animal-emoji" id="selAnimalEmoji">🐷</span>
+                    <div class="selected-animal-info">
+                        <div class="selected-animal-name" id="selAnimalName">Brave Piggy</div>
+                        <div class="selected-animal-desc" id="selAnimalDesc">Eager to see the green fields.</div>
+                    </div>
+                </div>
+                <div class="selected-animal-stats" id="selAnimalStats"></div>
+                <button class="start-run-btn" id="startRunBtn">
+                    <span class="start-run-main">BEGIN ESCAPE 🌿</span>
+                    <span class="start-run-bonus">+25 🎲 on start</span>
+                </button>
+            </div>
+
+            <div class="debug-buttons">
+                <button class="debug-btn" id="debugResetBtn">🗑️ Reset Progress</button>
+                <button class="debug-btn" id="debugCoinsBtn">🪙 +5000 Coins</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== GAME SCREEN ===== -->
+    <div id="gameScreen" class="screen game-screen hidden">
+        <!-- Top HUD -->
+        <header class="top-hud">
+            <div class="hud-stats">
+
+                <div class="hud-stat" id="statCash">
+                    <span class="hud-stat-icon">🪙</span>
+                    <span class="hud-stat-val">0</span>
+                    <span class="hud-stat-label">COINS</span>
+                </div>
+                <div class="hud-stat" id="statFuel">
+                    <span class="hud-stat-icon">🍎</span>
+                    <span class="hud-stat-val">0</span>
+                    <span class="hud-stat-label">MEALS</span>
+                </div>
+                <div class="hud-stat" id="statHeat">
+                    <span class="hud-stat-icon">👨‍🌾</span>
+                    <span class="hud-stat-val">0</span>
+                    <span class="hud-stat-label">ALERT</span>
+                </div>
+            </div>
+            <button class="upgrade-btn" id="upgradeBtn" title="Nature's Help">🍃</button>
+        </header>
+
+        <!-- Escape Track: Factory Farm → Freedom -->
+        <div class="cannonball-track">
+            <div class="track-endpoint track-la"><span class="ep-emoji">🏭</span><span>FARM</span></div>
+            <div class="track-road" id="trackRoad">
+                <div class="track-fill" id="trackFill"></div>
+                <div class="track-cities" id="trackCities"></div>
+                <div class="track-marker" id="trackMarker">🐷</div>
+                <span class="track-progress" id="trackProgress">0/80</span>
+            </div>
+            <div class="track-endpoint track-ny"><span>FREEDOM</span><span class="ep-emoji">🌳</span></div>
+        </div>
+
+        <!-- Animal Stats Ribbon -->
+        <div class="animal-stats-ribbon" id="animalStatsRibbon">
+            <span class="ribbon-animal" id="ribbonAnimal">🐷 Brave Piggy</span>
+            <span class="ribbon-stat ribbon-spd" id="ribbonSpd">SPD 0</span>
+            <span class="ribbon-stat ribbon-arm" id="ribbonArm">RES 0</span>
+            <span class="ribbon-stat ribbon-stl" id="ribbonStl">STH 0</span>
+        </div>
+
+        <!-- 3D Canvas -->
+        <div class="canvas-wrapper">
+            <canvas id="renderCanvas"></canvas>
+            <div class="dice-result" id="diceResult"></div>
+            <div class="feedback-text" id="feedbackText"></div>
+            <div class="farmer-debug" id="farmerDebug">🚜 0</div>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="bottom-controls">
+            <div class="bottom-dice" id="statDice">
+                <div class="dice-count-wrapper">
+                    <span class="hud-stat-icon">🎲</span>
+                    <span class="hud-stat-val">200</span>
+                </div>
+                <div class="dice-timer-bar">
+                    <div id="diceTimerFill" class="dice-timer-fill"></div>
+                </div>
+            </div>
+            <button class="mult-btn" id="multBtn">x1</button>
+            <button class="roll-btn" id="rollBtn">
+                <span class="roll-text">RUN!</span>
+                <span class="roll-cost" id="rollCost">Cost: 1 🎲</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== EVENT OVERLAY ===== -->
+    <div id="eventOverlay" class="overlay">
+        <div class="overlay-content event-content">
+            <div class="event-icon" id="eventIcon">🍃</div>
+            <h2 id="eventTitle">Event</h2>
+            <p id="eventDesc">Something happened!</p>
+            <div id="eventChoices" class="event-choices"></div>
+            <button class="close-overlay-btn" id="eventCloseBtn">CONTINUE</button>
+        </div>
+    </div>
+
+    <!-- ===== ESCAPE COMPLETE OVERLAY ===== -->
+    <div id="lapOverlay" class="overlay">
+        <div class="overlay-content lap-content">
+            <div class="lap-celebration" id="lapCelebration">🌿🦋🌿</div>
+            <h2 id="lapTitle">FREEDOM!</h2>
+            <p id="lapDesc" class="lap-desc">You've found safety in the great outdoors!</p>
+            <div id="lapRewards" class="lap-rewards"></div>
+            <div class="lap-actions">
+                <button class="lap-btn-primary" id="lapKeepBtn">🌿 KEEP RUNNING →</button>
+                <button class="lap-btn-secondary" id="lapSanctuaryBtn">🏠 BACK TO SANCTUARY</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FARMER ENCOUNTER OVERLAY ===== -->
+    <div id="farmerOverlay" class="overlay">
+        <div class="overlay-content farmer-content">
+            <div class="event-icon">🚜</div>
+            <h2>FARMER AHEAD!</h2>
+            <p>A farmer is looking for you! How do you escape?</p>
+            <div id="farmerChoices" class="event-choices"></div>
+        </div>
+    </div>
+
+    <!-- ===== UPGRADE SHOP OVERLAY ===== -->
+    <div id="upgradeOverlay" class="overlay">
+        <div class="overlay-content upgrade-content">
+            <h2>🍃 NATURE'S BOUNTY</h2>
+            <p class="upgrade-cash" id="upgradeCash">🪙 0</p>
+            <div class="upgrade-grid" id="upgradeGrid"></div>
+            <button class="close-overlay-btn" id="upgradeCloseBtn">BACK TO PATH</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
