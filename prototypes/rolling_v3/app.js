@@ -71,7 +71,8 @@ const BALANCE = {
     COIN_LAP_BONUS:       500,   // coins per lap completion
 
     // --- Seed Planting ---
-    SEED_COST:            150,   // coin cost to plant a seed on current tile
+    SEED_COST:            150,   // base coin cost to plant the first seed
+    SEED_COST_ESCALATION: 75,    // extra coins added per seed already planted this run
     SEED_PASS_COINS:      200,   // coins when passing a grown tree
     SEED_PASS_MEALS:      4,     // meals when passing a grown tree
     SEED_LAND_COINS:      500,   // coins when landing exactly on a grown tree
@@ -209,6 +210,7 @@ const game = {
     // Seed planting system
     seeds: {},             // { tileIndex: { plantedLap: N, grown: false } }
     seedMeshes: {},        // { tileIndex: BABYLON mesh } — 3D seed/tree meshes on tiles
+    seedsPlanted: 0,       // how many seeds planted this run (drives cost escalation)
 
     // Season system
     seasonIndex: 0,        // 0=spring, 1=summer, 2=fall, 3=winter
@@ -522,6 +524,7 @@ function startRun(animal) {
     // Seed system reset
     game.seeds = {};
     game.seedMeshes = {};
+    game.seedsPlanted = 0;
 
     // Season system reset
     game.seasonIndex = 0;
@@ -1103,6 +1106,11 @@ function getCurrentSeason() {
     return SEASONS[game.seasonIndex % SEASONS.length];
 }
 
+/** Returns the current seed planting cost (escalates with each seed planted). */
+function getSeedCost() {
+    return BALANCE.SEED_COST + game.seedsPlanted * BALANCE.SEED_COST_ESCALATION;
+}
+
 /** Plants a seed on the player's current tile. */
 function plantSeed() {
     if (game.isMoving) return;
@@ -1116,14 +1124,16 @@ function plantSeed() {
         showFeedback('🌱 Already planted here!');
         return;
     }
-    if (game.cash < BALANCE.SEED_COST) {
-        showFeedback('🪙 Need ' + BALANCE.SEED_COST + ' coins to plant!');
+    const cost = getSeedCost();
+    if (game.cash < cost) {
+        showFeedback('🪙 Need 🪙' + cost + ' to plant!');
         return;
     }
-    game.cash -= BALANCE.SEED_COST;
+    game.cash -= cost;
+    game.seedsPlanted++;
     game.seeds[physIdx] = { plantedLap: game.laps, grown: false };
     buildSeedMesh(physIdx);
-    showFeedback('🌱 Planted a seed! (🪙' + BALANCE.SEED_COST + ')');
+    showFeedback('🌱 Planted a seed! (🪙' + cost + ')');
     updateUI();
 }
 
@@ -1374,9 +1384,8 @@ function updateSeasonUI() {
     const plantBtn = $('plantBtn');
     if (plantBtn) {
         plantBtn.disabled = !season.canPlant;
-        plantBtn.title = season.canPlant
-            ? 'Plant a seed (🪙' + BALANCE.SEED_COST + ')'
-            : 'Cannot plant in ' + season.name;
+        const costEl = plantBtn.querySelector('.plant-cost');
+        if (costEl) costEl.textContent = season.canPlant ? '🪙' + getSeedCost() : '—';
     }
 }
 
@@ -1668,8 +1677,11 @@ function updateUI() {
     if (plantBtn) {
         const season = getCurrentSeason();
         const physIdx = game.tileIndex % BOARD_SIZE;
-        const canPlant = season.canPlant && game.cash >= BALANCE.SEED_COST && !game.seeds[physIdx] && !game.isMoving;
+        const cost = getSeedCost();
+        const canPlant = season.canPlant && game.cash >= cost && !game.seeds[physIdx] && !game.isMoving;
         plantBtn.disabled = !canPlant;
+        const costEl = plantBtn.querySelector('.plant-cost');
+        if (costEl) costEl.textContent = '🪙' + cost;
     }
 }
 
