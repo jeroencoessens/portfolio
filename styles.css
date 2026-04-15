@@ -265,3 +265,15 @@ footer {
 .btn-outline:hover {
   background: var(--soft-green);
 }
+
+/* Button row for multiple inline buttons */
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn-row .btn {
+  flex: 1;
+  margin-top: 0;
+}
