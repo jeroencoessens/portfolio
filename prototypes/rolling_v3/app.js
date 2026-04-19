@@ -17,7 +17,7 @@ function haptic(ms = 15) {
 }
 
 // ============================================================
-//  1. CONFIG & DATA
+//  1. CONFIG — All tunable constants in one place
 // ============================================================
 
 // --- Board ---
@@ -25,24 +25,44 @@ const BOARD_SIZE        = 80;        // total tiles on the circular track
 const TILE_SIZE         = 3;         // visual width of a tile (BabylonJS units)
 const TILE_SPACING      = 6;         // arc distance between tile centers
 
-// --- Dice / Rolls ---
+// --- Dice & Rolls ---
 const STARTING_DICE     = 100;       // rolls given at start of each run
 const MAX_DICE          = 250;       // hard cap on stored rolls
 const RUN_START_DICE_BONUS = 25;     // instant rolls granted when starting a run
-const GROUP_UNLOCK_MEALS = 200;      // meals required on linked solo animal to unlock group form
-const DICE_REFILL_AMT   = 10;         // rolls recovered per refill tick
+const DICE_REFILL_AMT   = 10;        // rolls recovered per refill tick
 const DICE_REFILL_TIME  = 30000;     // ms between auto-refills
 const DICE_FACES        = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+const DICE_SPIN_DURATION = 250;      // ms of fast chaotic spin before landing
+const DICE_LAND_DURATION = 500;      // ms of smooth deceleration to final face
 
-// --- Economy ---
-// (economy constants moved to BALANCE object below)
+// Maps each die face (1-6) to the X/Y rotation that shows it to the camera
+const DICE_FACE_ROTATIONS = {
+    1: { x:   0, y:   0 },  // front
+    2: { x: -90, y:   0 },  // top
+    3: { x:   0, y: -90 },  // right
+    4: { x:   0, y:  90 },  // left
+    5: { x:  90, y:   0 },  // bottom
+    6: { x:   0, y: 180 },  // back
+};
+
+// --- Roll Multiplier ---
+const MULT_STEPS        = [1, 2, 3, 5, 10, 20, 50]; // cycle through these on tap
+
+// --- Auto-Roll ---
+const AUTO_HOLD_MS      = 800;       // how long to hold RUN to activate auto-mode
+const AUTO_DELAY_MS     = 800;       // delay between auto-rolls after tile resolution
+
+// --- Unlocks ---
+const GROUP_UNLOCK_MEALS = 200;      // meals required on linked solo animal to unlock group form
+
+// --- 3D Positioning ---
+const PLAYER_TILE_OFFSET  = 0.5;     // height above tile surface for player mesh
+const PROP_SURFACE_OFFSET = 1.0;     // depth below tile center for world props
 
 // --- Persistence ---
 const SAVE_KEY          = 'animal_escape_p1_save';
 
-// ============================================================
-//  BALANCING LEVERS — tweak these to tune the game feel
-// ============================================================
+// --- Economy & Balance ---
 const BALANCE = {
     // --- Meals ---
     MEAL_TILE_BASE:       3,     // meals earned from a meal-type tile (before bonuses)
@@ -95,9 +115,9 @@ const BALANCE = {
     SEASON_WINTER_HARVEST_MULT:  3.0, // multiplier for harvesting leftover trees in winter
 };
 
-// --- 3D Positioning ---
-const PLAYER_TILE_OFFSET = 0.5;      // height above tile surface for player mesh
-const PROP_SURFACE_OFFSET = 1.0;     // depth below tile center for world props
+// ============================================================
+//  2. GAME DATA — Static definitions (seasons, animals, tiles, upgrades)
+// ============================================================
 
 // --- Seasons (cycle through each lap) ---
 const SEASONS = [
@@ -180,7 +200,7 @@ const TILE_PATTERN = [
 ];
 
 // ============================================================
-//  2. GAME STATE
+//  3. GAME STATE
 // ============================================================
 
 // Persistent state — survives between runs (saved to localStorage)
@@ -256,18 +276,14 @@ const game = {
     rearGroupMeshes: [],
 };
 
-// Timers for auto-clearing feedback/dice result UI
+// UI timers & animation flags
 let feedbackTimer = null;
-let diceRolling = false;  // whether the 3D dice animation is in progress
-
-// Auto-roll mode
-let autoMode = false;
-let autoHoldTimer = null;
-const AUTO_HOLD_MS = 800;    // how long to hold RUN for auto-mode
-const AUTO_DELAY_MS = 800;    // delay between auto-rolls after tile resolution
+let diceRolling = false;     // whether the 3D dice animation is in progress
+let autoMode = false;        // whether auto-roll mode is active
+let autoHoldTimer = null;    // timer for hold-to-activate gesture
 
 // ============================================================
-//  3. SAVE SYSTEM
+//  4. SAVE SYSTEM
 // ============================================================
 
 function loadSave() {
@@ -310,7 +326,7 @@ function startDiceTimer() {
 }
 
 // ============================================================
-//  4. SANCTUARY / START SCREEN
+//  5. SANCTUARY / START SCREEN
 // ============================================================
 
 function initStartScreen() {
@@ -445,7 +461,7 @@ function renderSanctuary() {
 }
 
 // ============================================================
-//  5. SCENE SETUP
+//  6. STATS & MEALS
 // ============================================================
 
 /** Combine base animal stats with upgrade bonuses. */
@@ -502,6 +518,10 @@ function applyTileAlterations() {
         }
     }
 }
+
+// ============================================================
+//  7. RUN LIFECYCLE — start, return, init
+// ============================================================
 
 /** Transitions from sanctuary to gameplay, resets run state, boots 3D scene. */
 function startRun(animal) {
@@ -607,6 +627,10 @@ function initGame() {
     updateSeasonUI();
     renderTrackCities();
 }
+
+// ============================================================
+//  8. 3D SCENE & WORLD
+// ============================================================
 
 /** Assembles the full 3D scene: lighting, board, props, player, camera. */
 function createScene() {
@@ -814,7 +838,7 @@ function makeFlatMat(scene, name, r, g, b) {
 }
 
 // ============================================================
-//  6. PLAYER MODELS
+//  9. PLAYER MODELS
 // ============================================================
 
 /**
@@ -1110,7 +1134,7 @@ function buildSmallDuck(scene, parent, offsetX, offsetZ, mat) {
 }
 
 // ============================================================
-//  7. SEED PLANTING & GARDEN
+//  10. SEED PLANTING & GARDEN
 // ============================================================
 
 /** Returns the current season definition. */
@@ -1247,7 +1271,7 @@ function removeSeedMesh(physIdx) {
 }
 
 // ============================================================
-//  7b. SEASON SYSTEM
+//  11. SEASON SYSTEM
 // ============================================================
 
 /** Advances to the next season. Called on each lap completion. */
@@ -1403,7 +1427,7 @@ function updateSeasonUI() {
 }
 
 // ============================================================
-//  8. MOVEMENT & CAMERA
+//  12. MOVEMENT & CAMERA
 // ============================================================
 
 /** Returns world-space position for a tile, offset upward by PLAYER_TILE_OFFSET. */
@@ -1422,7 +1446,7 @@ function getTileRotation(index) {
 }
 
 // ============================================================
-//  AUTO-ROLL MODE
+//  13. DICE, ROLLING & AUTO-ROLL
 // ============================================================
 
 /** Wires the RUN button for tap (single roll / stop auto) and hold (start auto). */
@@ -1572,8 +1596,6 @@ function scheduleAutoRoll() {
         doRoll();
     }, AUTO_DELAY_MS);
 }
-
-// ============================================================
 
 /** Main roll action — consumes dice, moves player, then triggers tile events. */
 function doRoll() {
@@ -1728,7 +1750,7 @@ function animateCamera(positions, rotations) {
 }
 
 // ============================================================
-//  9. TILE LOGIC & ENCOUNTERS
+//  14. TILE LOGIC & ENCOUNTERS
 // ============================================================
 
 /** Applies the effect of landing on a specific tile type. */
@@ -1819,11 +1841,10 @@ function handleTileLanding(physIdx) {
 }
 
 // ============================================================
-//  10. UI HELPERS
+//  15. UI & OVERLAYS
 // ============================================================
 
-/** Cycles the roll multiplier: 1 → 2 → 3 → 5 → 10 → 20 → 50 → 1. */
-const MULT_STEPS = [1, 2, 3, 5, 10, 20, 50];
+/** Cycles the roll multiplier through MULT_STEPS. */
 function cycleMultiplier() {
     const idx = MULT_STEPS.indexOf(game.multiplier);
     game.multiplier = MULT_STEPS[(idx + 1) % MULT_STEPS.length];
@@ -1882,18 +1903,10 @@ function updateRibbon() {
 
 /** 
  * 3D Dice Animation — rotates the CSS cube and lands on a given face.
+ * Uses DICE_FACE_ROTATIONS, DICE_SPIN_DURATION, and DICE_LAND_DURATION from config.
  * @param {number} face - target face 1-6
  * @param {function} onComplete - called after the dice has settled
  */
-const DICE_FACE_ROTATIONS = {
-    1: { x:   0, y:   0 },  // front
-    2: { x: -90, y:   0 },  // top
-    3: { x:   0, y: -90 },  // right
-    4: { x:   0, y:  90 },  // left
-    5: { x:  90, y:   0 },  // bottom
-    6: { x:   0, y: 180 },  // back
-};
-
 function rollDice3D(face, onComplete) {
     const cube = $('diceCube');
     diceRolling = true;
@@ -1907,9 +1920,7 @@ function rollDice3D(face, onComplete) {
     const finalY = target.y + extraSpinsY * (Math.random() < 0.5 ? 1 : -1);
 
     // Phase 1: fast chaotic spin using requestAnimationFrame
-    const SPIN_DURATION = 250; // ms of fast spin
     const startTime = performance.now();
-    // Random starting offsets
     let curX = Math.random() * 360;
     let curY = Math.random() * 360;
     const spinSpeedX = (800 + Math.random() * 400) * (Math.random() < 0.5 ? 1 : -1);
@@ -1921,8 +1932,7 @@ function rollDice3D(face, onComplete) {
 
     function spinFrame(now) {
         const elapsed = now - startTime;
-        if (elapsed < SPIN_DURATION) {
-            const t = elapsed / 1000; // seconds
+        if (elapsed < DICE_SPIN_DURATION) {
             curX += spinSpeedX * (1 / 60);
             curY += spinSpeedY * (1 / 60);
             cube.style.transform = `rotateX(${curX}deg) rotateY(${curY}deg)`;
@@ -1931,22 +1941,18 @@ function rollDice3D(face, onComplete) {
             // Phase 2: smooth deceleration to final face
             cube.classList.remove('rolling');
             cube.classList.add('landing');
-            cube.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.05)';
+            const landSec = DICE_LAND_DURATION / 1000;
+            cube.style.transition = `transform ${landSec}s cubic-bezier(0.2, 0.8, 0.3, 1.05)`;
             cube.style.transform = `rotateX(${finalX}deg) rotateY(${finalY}deg)`;
             setTimeout(() => {
                 diceRolling = false;
                 cube.classList.remove('landing');
                 if (onComplete) onComplete();
-            }, 520);
+            }, DICE_LAND_DURATION + 20);
         }
     }
 
     requestAnimationFrame(spinFrame);
-}
-
-/** Shows the dice face briefly in the 3D viewport (legacy wrapper). */
-function showDiceResult(r) {
-    // No-op: replaced by 3D dice animation
 }
 
 /** Shows a floating text feedback message in the 3D viewport. */
@@ -2105,7 +2111,7 @@ function openOverlay(id) { $(id).classList.add('active'); }
 function closeOverlay(id) { $(id).classList.remove('active'); }
 
 // ============================================================
-//  11. ENTRY POINT
+//  16. ENTRY POINT
 // ============================================================
 
 function debugReset() {
