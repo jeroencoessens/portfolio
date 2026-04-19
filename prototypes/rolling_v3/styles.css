@@ -573,21 +573,103 @@ body {
 }
 
 /* ===== FEEDBACK ===== */
-.dice-result {
-    position: absolute;
-    bottom: 14px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 5.5rem;
-    font-family: 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols', 'Noto Sans Symbols 2', 'DejaVu Sans', sans-serif;
-    color: white;
-    text-shadow: 0 0 20px rgba(0,0,0,0.8);
+
+/* ===== 3D DICE ===== */
+.dice-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 80px;
+    perspective: 400px;
+    flex-shrink: 0;
+    z-index: 60;
+    background: transparent;
     pointer-events: none;
-    z-index: 50;
-    opacity: 0;
-    transition: opacity 0.3s;
+    overflow: hidden;
 }
-.dice-result.visible { opacity: 1; }
+
+.auto-hold-fill {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(255,159,28,0.15), rgba(255,159,28,0.35));
+    transition: width 0.05s linear;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.auto-hold-fill.filling {
+    /* width and transition-duration set by JS to match AUTO_HOLD_MS */
+}
+
+.auto-hold-fill.done {
+    transition: opacity 0.3s;
+    opacity: 0;
+}
+
+.dice-cube {
+    width: 54px;
+    height: 54px;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(-25deg) rotateY(30deg);
+    transition: none;
+}
+
+.dice-cube.rolling {
+    transition: none;
+    /* animation driven by JS */
+}
+
+.dice-cube.landing {
+    transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.05);
+}
+
+.dice-face {
+    position: absolute;
+    width: 54px;
+    height: 54px;
+    background: #f8f8f8;
+    border: 2px solid #ccc;
+    border-radius: 7px;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.06);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 6px;
+    backface-visibility: hidden;
+}
+
+/* Face positions on a cube with half-size 27px */
+.dice-face-1 { transform: rotateY(  0deg) translateZ(27px); }  /* front  */
+.dice-face-6 { transform: rotateY(180deg) translateZ(27px); }  /* back   */
+.dice-face-3 { transform: rotateY( 90deg) translateZ(27px); }  /* right  */
+.dice-face-4 { transform: rotateY(-90deg) translateZ(27px); }  /* left   */
+.dice-face-2 { transform: rotateX( 90deg) translateZ(27px); }  /* top    */
+.dice-face-5 { transform: rotateX(-90deg) translateZ(27px); }  /* bottom */
+
+/* Pips (dots) */
+.pip {
+    width: 10px;
+    height: 10px;
+    background: #222;
+    border-radius: 50%;
+    align-self: center;
+    justify-self: center;
+}
+
+/* Grid placement of pips in 3x3 grid */
+.pip.top-left     { grid-column: 1; grid-row: 1; }
+.pip.top-right    { grid-column: 3; grid-row: 1; }
+.pip.mid-left     { grid-column: 1; grid-row: 2; }
+.pip.center       { grid-column: 2; grid-row: 2; }
+.pip.mid-right    { grid-column: 3; grid-row: 2; }
+.pip.bottom-left  { grid-column: 1; grid-row: 3; }
+.pip.bottom-right { grid-column: 3; grid-row: 3; }
 
 .feedback-text {
     position: absolute;
@@ -678,11 +760,22 @@ body {
     color: var(--black);
     cursor: pointer;
     text-align: center;
-    transition: all 0.15s;
+    transition: all 0.2s;
     box-shadow: 0 4px 16px rgba(112,224,0,0.35);
 }
 .roll-btn:active { transform: scale(0.94); }
 .roll-btn:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
+
+.roll-btn.auto-active {
+    background: linear-gradient(135deg, var(--orange), #e6750a);
+    box-shadow: 0 4px 20px rgba(255,159,28,0.45);
+    animation: autoPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes autoPulse {
+    0%, 100% { box-shadow: 0 4px 16px rgba(255,159,28,0.35); }
+    50%      { box-shadow: 0 4px 24px rgba(255,159,28,0.6); }
+}
 
 .roll-text {
     display: block;
@@ -691,7 +784,36 @@ body {
     letter-spacing: 0.12em;
     font-weight: bold;
 }
+.roll-sub {
+    display: block;
+    font-size: 0.5rem;
+    opacity: 0.5;
+    letter-spacing: 0.05em;
+    margin-top: -1px;
+}
 .roll-cost { display: block; font-size: 0.55rem; opacity: 0.6; }
+
+/* Auto-mode badge next to 3D dice */
+.auto-mode-badge {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%) scale(0.8);
+    padding: 0.25rem 0.6rem;
+    background: var(--orange);
+    color: var(--black);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    border-radius: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+}
+.auto-mode-badge.visible {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+}
 
 /* ===== BOTTOM DICE DISPLAY ===== */
 .bottom-dice {

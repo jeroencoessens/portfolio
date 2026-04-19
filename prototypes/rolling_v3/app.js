@@ -11,6 +11,11 @@
 // DOM shorthand
 const $ = id => document.getElementById(id);
 
+// Haptic feedback (Vibration API — works on Android mobile browsers; no-ops elsewhere)
+function haptic(ms = 15) {
+    if (navigator.vibrate) navigator.vibrate(ms);
+}
+
 // ============================================================
 //  1. CONFIG & DATA
 // ============================================================
@@ -253,7 +258,13 @@ const game = {
 
 // Timers for auto-clearing feedback/dice result UI
 let feedbackTimer = null;
-let diceResultTimer = null;
+let diceRolling = false;  // whether the 3D dice animation is in progress
+
+// Auto-roll mode
+let autoMode = false;
+let autoHoldTimer = null;
+const AUTO_HOLD_MS = 800;    // how long to hold RUN for auto-mode
+const AUTO_DELAY_MS = 800;    // delay between auto-rolls after tile resolution
 
 // ============================================================
 //  3. SAVE SYSTEM
@@ -430,7 +441,7 @@ function renderSanctuary() {
     const isOwned = persist.unlockedAnimals.includes(animal.id);
     $('startRunBtn').disabled = !isOwned;
     $('startRunBtn').innerHTML = getRunButtonHtml(animal, isOwned);
-    $('startRunBtn').onclick = () => { if (isOwned) startRun(animal); };
+    $('startRunBtn').onclick = () => { if (isOwned) { haptic(25); startRun(animal); } };
 }
 
 // ============================================================
@@ -551,6 +562,7 @@ function startRun(animal) {
 
 /** Ends the run, banks earned coins, tears down the 3D engine. */
 function returnToSanctuary() {
+    if (autoMode) disableAutoMode();
     if (game.diceTimer) clearInterval(game.diceTimer);
     persist.lastDiceUpdate = Date.now(); // pause refill clock while in menu
     persist.totalCash += game.cash;
@@ -583,7 +595,7 @@ function initGame() {
     window.addEventListener('resize', () => { if (game.engine) game.engine.resize(); });
 
     // Wire controls
-    $('rollBtn').onclick = doRoll;
+    wireRollButton();
     $('multBtn').onclick = cycleMultiplier;
     $('plantBtn').onclick = plantSeed;
     $('eventCloseBtn').onclick = () => closeOverlay('eventOverlay');
@@ -1133,6 +1145,7 @@ function plantSeed() {
     game.seedsPlanted++;
     game.seeds[physIdx] = { plantedLap: game.laps, grown: false };
     buildSeedMesh(physIdx);
+    haptic(20);
     showFeedback('🌱 Planted a seed! (🪙' + cost + ')');
     updateUI();
 }
@@ -1408,79 +1421,244 @@ function getTileRotation(index) {
     return game.tiles[index % BOARD_SIZE].rotation.clone();
 }
 
+// ============================================================
+//  AUTO-ROLL MODE
+// ============================================================
+
+/** Wires the RUN button for tap (single roll / stop auto) and hold (start auto). */
+function wireRollButton() {
+    const btn = $('rollBtn');
+    let holdStarted = false;
+    let ignoreNextUp = false; // skip the pointerup that ends the hold-to-activate gesture
+
+    const fillBar = $('autoHoldFill');
+
+    const startFillBar = () => {
+        fillBar.classList.remove('done', 'filling');
+        fillBar.style.transition = 'none';
+        fillBar.style.width = '0%';
+        // Force reflow so the browser registers 0% before we animate
+        void fillBar.offsetWidth;
+        fillBar.classList.add('filling');
+        fillBar.style.transition = 'width ' + (AUTO_HOLD_MS / 1000) + 's linear';
+        fillBar.style.width = '100%';
+    };
+
+    const resetFillBar = () => {
+        fillBar.classList.remove('filling');
+        fillBar.classList.remove('done');
+        fillBar.style.width = '0%';
+    };
+
+    const completeFillBar = () => {
+        fillBar.classList.remove('filling');
+        fillBar.style.transition = 'none';
+        fillBar.style.width = '100%';
+    };
+
+    const startHold = (e) => {
+        if (autoMode) return; // tap-to-stop handled in endHold
+        holdStarted = true;
+        startFillBar();
+        autoHoldTimer = setTimeout(() => {
+            holdStarted = false;
+            ignoreNextUp = true;
+            completeFillBar();
+            enableAutoMode();
+        }, AUTO_HOLD_MS);
+    };
+
+    const endHold = (e) => {
+        if (autoHoldTimer) { clearTimeout(autoHoldTimer); autoHoldTimer = null; }
+        resetFillBar();
+        if (ignoreNextUp) {
+            // This is the release after hold-to-activate — ignore it
+            ignoreNextUp = false;
+            return;
+        }
+        if (autoMode) {
+            // Tap while auto is running → stop
+            disableAutoMode();
+            return;
+        }
+        if (holdStarted) {
+            // Short press — normal single roll
+            holdStarted = false;
+            doRoll();
+        }
+    };
+
+    const cancelHold = () => {
+        if (autoHoldTimer) { clearTimeout(autoHoldTimer); autoHoldTimer = null; }
+        resetFillBar();
+        holdStarted = false;
+    };
+
+    btn.addEventListener('pointerdown', startHold);
+    btn.addEventListener('pointerup', endHold);
+    btn.addEventListener('pointerleave', cancelHold);
+    btn.addEventListener('pointercancel', cancelHold);
+    // Prevent context menu on long-press (mobile)
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function enableAutoMode() {
+    autoMode = true;
+    haptic(30);
+    updateRollButtonUI();
+    // Show badge briefly
+    const badge = $('autoModeBadge');
+    badge.classList.add('visible');
+    setTimeout(() => badge.classList.remove('visible'), 2000);
+    // Kick off the first auto-roll
+    scheduleAutoRoll();
+}
+
+function disableAutoMode() {
+    autoMode = false;
+    haptic(15);
+    // Reset the hold fill bar
+    const fillBar = $('autoHoldFill');
+    fillBar.classList.remove('filling', 'done');
+    fillBar.style.transition = 'none';
+    fillBar.style.width = '0%';
+    updateRollButtonUI();
+}
+
+function updateRollButtonUI() {
+    const btn = $('rollBtn');
+    const text = $('rollText');
+    const sub = $('rollSub');
+    if (autoMode) {
+        btn.classList.add('auto-active');
+        text.textContent = 'AUTO RUNNING';
+        sub.textContent = 'TAP TO STOP';
+        sub.style.opacity = '0.7';
+    } else {
+        btn.classList.remove('auto-active');
+        text.textContent = 'RUN!';
+        sub.textContent = 'HOLD FOR AUTO';
+        sub.style.opacity = '';
+    }
+}
+
+/** Checks if any overlay/popup is currently blocking the game. */
+function isOverlayOpen() {
+    return document.querySelector('.overlay.active') !== null;
+}
+
+/** Schedules the next auto-roll, waiting for overlays to close first. */
+function scheduleAutoRoll() {
+    if (!autoMode) return;
+
+    // Not enough dice → stop auto mode
+    if (game.dice < game.multiplier) {
+        disableAutoMode();
+        return;
+    }
+
+    // If an overlay is open, poll until it closes
+    if (isOverlayOpen() || game.isMoving || diceRolling) {
+        setTimeout(() => scheduleAutoRoll(), 300);
+        return;
+    }
+
+    setTimeout(() => {
+        if (!autoMode) return;
+        if (isOverlayOpen() || game.isMoving || diceRolling) {
+            scheduleAutoRoll();
+            return;
+        }
+        doRoll();
+    }, AUTO_DELAY_MS);
+}
+
+// ============================================================
+
 /** Main roll action — consumes dice, moves player, then triggers tile events. */
 function doRoll() {
-    if (game.isMoving || game.dice < game.multiplier) return;
+    if (game.isMoving || diceRolling || game.dice < game.multiplier) return;
     if (game.flockMode && game.frontGroup + game.rearGroup <= 0) return;
+
+    haptic(15);
 
     // Consume dice
     game.dice -= game.multiplier;
     writeSave();
 
-    // Roll 1-6, add speed bonus
+    // Roll 1-6, add speed bonus (backend result determined immediately)
     let roll = Math.floor(Math.random() * 6) + 1;
+    const diceFace = Math.min(roll, 6); // face to show on the 3D die
     roll += Math.floor(getSpeed() / 2);
 
-    showDiceResult(Math.min(roll, 6));
-    showFeedback('Moved ' + roll + ' fields!');
+    // Animate the 3D dice, then move the player once it lands
+    rollDice3D(diceFace, () => {
+        showFeedback('Moved ' + roll + ' fields!');
 
-    // Build the sequence of positions to animate through
-    const currentTile = game.tileIndex;
-    const positions = [];
-    const rotations = [];
-    for (let i = 1; i <= roll; i++) {
-        const next = (currentTile + i) % BOARD_SIZE;
-        positions.push(getTileWorldPosition(next));
-        rotations.push(getTileRotation(next));
-    }
-
-    // Rear flock group follows one tile behind
-    let rearPositions = null;
-    let rearRotations = null;
-    if (game.flockMode) {
-        rearPositions = [];
-        rearRotations = [];
+        // Build the sequence of positions to animate through
+        const currentTile = game.tileIndex;
+        const positions = [];
+        const rotations = [];
         for (let i = 1; i <= roll; i++) {
-            const rearNext = (currentTile + i - 1) % BOARD_SIZE;
-            rearPositions.push(getTileWorldPosition(rearNext));
-            rearRotations.push(getTileRotation(rearNext));
-        }
-    }
-
-    game.isMoving = true;
-    movePlayer(positions, rotations, () => {
-        game.isMoving = false;
-        const prevIndex = game.tileIndex;
-        game.tileIndex += roll;
-        const physIdx = game.tileIndex % BOARD_SIZE;
-        const rearPhysIdx = game.flockMode
-            ? (game.tileIndex - 1 + BOARD_SIZE) % BOARD_SIZE
-            : -1;
-
-        // Check for lap completion → advance season
-        if (Math.floor(game.tileIndex / BOARD_SIZE) > Math.floor(prevIndex / BOARD_SIZE)) {
-            game.laps++;
-            const seasonMult = getSeasonRewardMult();
-            const lapCoins = Math.floor(BALANCE.COIN_LAP_BONUS * game.multiplier * seasonMult);
-            const lapMeals = Math.floor(BALANCE.MEAL_LAP_BONUS * game.multiplier * seasonMult);
-            game.cash += lapCoins;
-            awardMeals(lapMeals);
-            growSeeds();
-            advanceSeason();
-            showEscapeOverlay(game.laps, lapCoins);
+            const next = (currentTile + i) % BOARD_SIZE;
+            positions.push(getTileWorldPosition(next));
+            rotations.push(getTileRotation(next));
         }
 
-        // Check seed harvests (pass-through and landing)
-        checkSeedHarvest(prevIndex, game.tileIndex);
+        // Rear flock group follows one tile behind
+        let rearPositions = null;
+        let rearRotations = null;
+        if (game.flockMode) {
+            rearPositions = [];
+            rearRotations = [];
+            for (let i = 1; i <= roll; i++) {
+                const rearNext = (currentTile + i - 1) % BOARD_SIZE;
+                rearPositions.push(getTileWorldPosition(rearNext));
+                rearRotations.push(getTileRotation(rearNext));
+            }
+        }
 
-        // Handle tile landing effects for active groups
-        if (!game.flockMode || game.frontGroup > 0) handleTileLanding(physIdx);
-        if (game.flockMode && game.rearGroup > 0) handleTileLanding(rearPhysIdx);
+        game.isMoving = true;
+        movePlayer(positions, rotations, () => {
+            game.isMoving = false;
+            haptic(10);
+            const prevIndex = game.tileIndex;
+            game.tileIndex += roll;
+            const physIdx = game.tileIndex % BOARD_SIZE;
+            const rearPhysIdx = game.flockMode
+                ? (game.tileIndex - 1 + BOARD_SIZE) % BOARD_SIZE
+                : -1;
 
-        updateUI();
-    }, rearPositions, rearRotations);
+            // Check for lap completion → advance season
+            if (Math.floor(game.tileIndex / BOARD_SIZE) > Math.floor(prevIndex / BOARD_SIZE)) {
+                game.laps++;
+                const seasonMult = getSeasonRewardMult();
+                const lapCoins = Math.floor(BALANCE.COIN_LAP_BONUS * game.multiplier * seasonMult);
+                const lapMeals = Math.floor(BALANCE.MEAL_LAP_BONUS * game.multiplier * seasonMult);
+                game.cash += lapCoins;
+                awardMeals(lapMeals);
+                growSeeds();
+                advanceSeason();
+                showEscapeOverlay(game.laps, lapCoins);
+            }
 
-    animateCamera(positions, rotations);
+            // Check seed harvests (pass-through and landing)
+            checkSeedHarvest(prevIndex, game.tileIndex);
+
+            // Handle tile landing effects for active groups
+            if (!game.flockMode || game.frontGroup > 0) handleTileLanding(physIdx);
+            if (game.flockMode && game.rearGroup > 0) handleTileLanding(rearPhysIdx);
+
+            updateUI();
+
+            // If auto-mode is on, queue the next roll
+            if (autoMode) scheduleAutoRoll();
+        }, rearPositions, rearRotations);
+
+        animateCamera(positions, rotations);
+    });
+
+    updateUI();
 }
 
 /** Animates the player (and optionally the rear flock) tile-by-tile. */
@@ -1644,9 +1822,11 @@ function handleTileLanding(physIdx) {
 //  10. UI HELPERS
 // ============================================================
 
-/** Cycles the roll multiplier: 1 → 5 → 20 → 1. */
+/** Cycles the roll multiplier: 1 → 2 → 3 → 5 → 10 → 20 → 50 → 1. */
+const MULT_STEPS = [1, 2, 3, 5, 10, 20, 50];
 function cycleMultiplier() {
-    game.multiplier = game.multiplier === 1 ? 5 : (game.multiplier === 5 ? 20 : 1);
+    const idx = MULT_STEPS.indexOf(game.multiplier);
+    game.multiplier = MULT_STEPS[(idx + 1) % MULT_STEPS.length];
     $('multBtn').textContent = 'x' + game.multiplier;
     $('rollCost').textContent = 'Cost: ' + game.multiplier + ' 🎲';
 }
@@ -1700,13 +1880,73 @@ function updateRibbon() {
     }
 }
 
-/** Displays the dice face briefly in the 3D viewport. */
+/** 
+ * 3D Dice Animation — rotates the CSS cube and lands on a given face.
+ * @param {number} face - target face 1-6
+ * @param {function} onComplete - called after the dice has settled
+ */
+const DICE_FACE_ROTATIONS = {
+    1: { x:   0, y:   0 },  // front
+    2: { x: -90, y:   0 },  // top
+    3: { x:   0, y: -90 },  // right
+    4: { x:   0, y:  90 },  // left
+    5: { x:  90, y:   0 },  // bottom
+    6: { x:   0, y: 180 },  // back
+};
+
+function rollDice3D(face, onComplete) {
+    const cube = $('diceCube');
+    diceRolling = true;
+
+    // Target rotation that shows the correct face toward camera
+    const target = DICE_FACE_ROTATIONS[face];
+    // Add full spins to make it look like a proper tumble
+    const extraSpinsX = (2 + Math.floor(Math.random() * 2)) * 360;
+    const extraSpinsY = (2 + Math.floor(Math.random() * 2)) * 360;
+    const finalX = target.x + extraSpinsX * (Math.random() < 0.5 ? 1 : -1);
+    const finalY = target.y + extraSpinsY * (Math.random() < 0.5 ? 1 : -1);
+
+    // Phase 1: fast chaotic spin using requestAnimationFrame
+    const SPIN_DURATION = 250; // ms of fast spin
+    const startTime = performance.now();
+    // Random starting offsets
+    let curX = Math.random() * 360;
+    let curY = Math.random() * 360;
+    const spinSpeedX = (800 + Math.random() * 400) * (Math.random() < 0.5 ? 1 : -1);
+    const spinSpeedY = (700 + Math.random() * 500) * (Math.random() < 0.5 ? 1 : -1);
+
+    cube.classList.remove('landing');
+    cube.classList.add('rolling');
+    cube.style.transition = 'none';
+
+    function spinFrame(now) {
+        const elapsed = now - startTime;
+        if (elapsed < SPIN_DURATION) {
+            const t = elapsed / 1000; // seconds
+            curX += spinSpeedX * (1 / 60);
+            curY += spinSpeedY * (1 / 60);
+            cube.style.transform = `rotateX(${curX}deg) rotateY(${curY}deg)`;
+            requestAnimationFrame(spinFrame);
+        } else {
+            // Phase 2: smooth deceleration to final face
+            cube.classList.remove('rolling');
+            cube.classList.add('landing');
+            cube.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.05)';
+            cube.style.transform = `rotateX(${finalX}deg) rotateY(${finalY}deg)`;
+            setTimeout(() => {
+                diceRolling = false;
+                cube.classList.remove('landing');
+                if (onComplete) onComplete();
+            }, 520);
+        }
+    }
+
+    requestAnimationFrame(spinFrame);
+}
+
+/** Shows the dice face briefly in the 3D viewport (legacy wrapper). */
 function showDiceResult(r) {
-    const el = $('diceResult');
-    el.textContent = DICE_FACES[r - 1];
-    el.classList.add('visible');
-    clearTimeout(diceResultTimer);
-    diceResultTimer = setTimeout(() => el.classList.remove('visible'), 1500);
+    // No-op: replaced by 3D dice animation
 }
 
 /** Shows a floating text feedback message in the 3D viewport. */
@@ -1770,6 +2010,7 @@ function showEscapeOverlay(laps, bonus) {
     $('lapKeepBtn').onclick = () => closeOverlay('lapOverlay');
     $('lapSanctuaryBtn').onclick = () => { closeOverlay('lapOverlay'); returnToSanctuary(); };
 
+    haptic(30);
     openOverlay('lapOverlay');
 }
 
@@ -1790,6 +2031,7 @@ function openUpgradeShop() {
 
         if (canAfford) {
             item.onclick = () => {
+                haptic(20);
                 game.cash -= up.cost;
                 game.purchasedUpgrades.push(up.id);
                 applyUpgrade(up);

@@ -102,8 +102,48 @@
         <!-- 3D Canvas -->
         <div class="canvas-wrapper">
             <canvas id="renderCanvas"></canvas>
-            <div class="dice-result" id="diceResult"></div>
             <div class="feedback-text" id="feedbackText"></div>
+        </div>
+
+        <!-- 3D Dice -->
+        <div class="dice-stage" id="diceStage">
+            <div class="auto-hold-fill" id="autoHoldFill"></div>
+            <div class="auto-mode-badge" id="autoModeBadge">AUTO MODE ON</div>
+            <div class="dice-cube" id="diceCube">
+                <div class="dice-face dice-face-1">
+                    <span class="pip center"></span>
+                </div>
+                <div class="dice-face dice-face-2">
+                    <span class="pip top-right"></span>
+                    <span class="pip bottom-left"></span>
+                </div>
+                <div class="dice-face dice-face-3">
+                    <span class="pip top-right"></span>
+                    <span class="pip center"></span>
+                    <span class="pip bottom-left"></span>
+                </div>
+                <div class="dice-face dice-face-4">
+                    <span class="pip top-left"></span>
+                    <span class="pip top-right"></span>
+                    <span class="pip bottom-left"></span>
+                    <span class="pip bottom-right"></span>
+                </div>
+                <div class="dice-face dice-face-5">
+                    <span class="pip top-left"></span>
+                    <span class="pip top-right"></span>
+                    <span class="pip center"></span>
+                    <span class="pip bottom-left"></span>
+                    <span class="pip bottom-right"></span>
+                </div>
+                <div class="dice-face dice-face-6">
+                    <span class="pip top-left"></span>
+                    <span class="pip mid-left"></span>
+                    <span class="pip bottom-left"></span>
+                    <span class="pip top-right"></span>
+                    <span class="pip mid-right"></span>
+                    <span class="pip bottom-right"></span>
+                </div>
+            </div>
         </div>
 
         <!-- Bottom Controls -->
@@ -119,7 +159,8 @@
             </div>
             <button class="mult-btn" id="multBtn">x1</button>
             <button class="roll-btn" id="rollBtn">
-                <span class="roll-text">RUN!</span>
+                <span class="roll-text" id="rollText">RUN!</span>
+                <span class="roll-sub" id="rollSub">HOLD FOR AUTO</span>
                 <span class="roll-cost" id="rollCost">Cost: 1 🎲</span>
             </button>
             <button class="plant-btn" id="plantBtn">
