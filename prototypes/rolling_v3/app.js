@@ -51,6 +51,7 @@ const MULT_STEPS        = [1, 2, 3, 5, 10, 20, 50]; // cycle through these on ta
 // --- Auto-Roll ---
 const AUTO_HOLD_MS      = 800;       // how long to hold RUN to activate auto-mode
 const AUTO_DELAY_MS     = 800;       // delay between auto-rolls after tile resolution
+const AUTO_FILL_DELAY   = 200;       // ms before the hold-bar starts filling (hides bar on quick taps)
 
 // --- Unlocks ---
 const GROUP_UNLOCK_MEALS = 200;      // meals required on linked solo animal to unlock group form
@@ -1454,23 +1455,28 @@ function wireRollButton() {
     const btn = $('rollBtn');
     let holdStarted = false;
     let ignoreNextUp = false; // skip the pointerup that ends the hold-to-activate gesture
+    let fillDelayTimer = null; // delays fill bar so quick taps don't flash it
 
     const fillBar = $('autoHoldFill');
 
     const startFillBar = () => {
         fillBar.classList.remove('done', 'filling');
         fillBar.style.transition = 'none';
-        fillBar.style.width = '0%';
-        // Force reflow so the browser registers 0% before we animate
+        // Jump to the proportional starting point (delay already elapsed)
+        const startPct = (AUTO_FILL_DELAY / AUTO_HOLD_MS) * 100;
+        fillBar.style.width = startPct + '%';
         void fillBar.offsetWidth;
         fillBar.classList.add('filling');
-        fillBar.style.transition = 'width ' + (AUTO_HOLD_MS / 1000) + 's linear';
+        const remainMs = AUTO_HOLD_MS - AUTO_FILL_DELAY;
+        fillBar.style.transition = 'width ' + (remainMs / 1000) + 's linear';
         fillBar.style.width = '100%';
     };
 
     const resetFillBar = () => {
+        if (fillDelayTimer) { clearTimeout(fillDelayTimer); fillDelayTimer = null; }
         fillBar.classList.remove('filling');
         fillBar.classList.remove('done');
+        fillBar.style.transition = 'none';
         fillBar.style.width = '0%';
     };
 
@@ -1483,7 +1489,11 @@ function wireRollButton() {
     const startHold = (e) => {
         if (autoMode) return; // tap-to-stop handled in endHold
         holdStarted = true;
-        startFillBar();
+        // Delay the fill bar so quick taps don't flash it
+        fillDelayTimer = setTimeout(() => {
+            fillDelayTimer = null;
+            startFillBar();
+        }, AUTO_FILL_DELAY);
         autoHoldTimer = setTimeout(() => {
             holdStarted = false;
             ignoreNextUp = true;
