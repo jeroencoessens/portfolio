@@ -83,6 +83,14 @@ body {
 
 .start-tagline { font-size: 0.78rem; color: var(--safe); opacity: 0.5; font-style: italic; margin-top: 0.4rem; }
 
+.section-divider {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(to right, transparent, var(--leaf), transparent);
+    margin: 1.2rem auto;
+    border-radius: 1px;
+}
+
 .sanctuary-bank {
     display: inline-block;
     margin-top: 0.8rem;
@@ -94,6 +102,42 @@ body {
     font-size: 1.1rem;
     color: var(--gold);
     letter-spacing: 0.06em;
+}
+
+.sanctuary-dice-wrapper {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 0.4rem;
+    margin-left: 0.5rem;
+}
+
+.sanctuary-dice {
+    display: inline-block;
+    padding: 0.3rem 1rem;
+    background: rgba(100,180,255,0.1);
+    border: 1px solid rgba(100,180,255,0.25);
+    border-radius: 8px;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.1rem;
+    color: #7ec8ff;
+    letter-spacing: 0.06em;
+}
+
+.sanctuary-dice-timer {
+    width: 100%;
+    height: 3px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    margin-top: 0.2rem;
+    overflow: hidden;
+}
+
+.sanctuary-dice-hint {
+    font-size: 0.55rem;
+    color: rgba(255,255,255,0.35);
+    margin-top: 0.15rem;
+    letter-spacing: 0.03em;
 }
 
 .start-prompt {
@@ -293,6 +337,10 @@ body {
 }
 .start-run-main {
     display: block;
+}
+.run-spacer {
+    display: inline-block;
+    width: 1.5rem;
 }
 .start-run-bonus {
     display: block;

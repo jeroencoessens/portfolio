@@ -27,13 +27,14 @@ const TILE_SPACING      = 6;         // arc distance between tile centers
 
 // --- Dice & Rolls ---
 const STARTING_DICE     = 100;       // rolls given at start of each run
-const MAX_DICE          = 250;       // hard cap on stored rolls
-const RUN_START_DICE_BONUS = 25;     // instant rolls granted when starting a run
+const MAX_DICE          = 100;       // hard cap on stored rolls
+const RUN_START_DICE_BONUS = 0;     // instant rolls granted when starting a run
+const END_RUN_DICE_BONUS = 15;       // base dice reward for completing a run
 const DICE_REFILL_AMT   = 10;        // rolls recovered per refill tick
-const DICE_REFILL_TIME  = 30000;     // ms between auto-refills
+const DICE_REFILL_TIME  = 600000;    // ms between auto-refills (10 minutes)
 const DICE_FACES        = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 const DICE_SPIN_DURATION = 250;      // ms of fast chaotic spin before landing
-const DICE_LAND_DURATION = 500;      // ms of smooth deceleration to final face
+const DICE_LAND_DURATION = 400;      // ms of smooth deceleration to final face
 
 // Maps each die face (1-6) to the X/Y rotation that shows it to the camera
 const DICE_FACE_ROTATIONS = {
@@ -123,9 +124,9 @@ const BALANCE = {
 // --- Seasons (cycle through each lap) ---
 const SEASONS = [
     { id: 'spring', name: '🌸 Spring',  rewardMult: 1.0, canPlant: true,  canWager: false, skyColor: [0.3, 0.65, 0.81],  coreColor: [0.1, 0.4, 0.1],  tileHue: null },
-    { id: 'summer', name: '☀️ Summer',  rewardMult: null, canPlant: true,  canWager: true,  skyColor: [0.45, 0.72, 0.92], coreColor: [0.15, 0.5, 0.08], tileHue: null },
-    { id: 'fall',   name: '🍂 Fall',    rewardMult: null, canPlant: true,  canWager: false, skyColor: [0.55, 0.38, 0.22], coreColor: [0.35, 0.22, 0.06], tileHue: null },
-    { id: 'winter', name: '❄️ Winter',  rewardMult: 1.0, canPlant: false, canWager: false, skyColor: [0.6, 0.65, 0.75],  coreColor: [0.55, 0.6, 0.65], tileHue: null },
+    { id: 'summer', name: '☀️ Summer',  rewardMult: 1.25, canPlant: true,  canWager: true,  skyColor: [0.45, 0.72, 0.92], coreColor: [0.15, 0.5, 0.08], tileHue: null },
+    { id: 'fall',   name: '🍂 Fall',    rewardMult: 1.5, canPlant: true,  canWager: true, skyColor: [0.55, 0.38, 0.22], coreColor: [0.35, 0.22, 0.06], tileHue: null },
+    { id: 'winter', name: '❄️ Winter',  rewardMult: 2.0, canPlant: false, canWager: false, skyColor: [0.6, 0.65, 0.75],  coreColor: [0.55, 0.6, 0.65], tileHue: null },
 ];
 
 // --- Checkpoint milestones shown on the progress bar ---
@@ -305,25 +306,60 @@ function writeSave() {
     localStorage.setItem(SAVE_KEY, JSON.stringify(persist));
 }
 
-/** Periodically refills dice and updates the timer bar in the HUD. */
-function startDiceTimer() {
-    if (game.diceTimer) clearInterval(game.diceTimer);
-    game.diceTimer = setInterval(() => {
+/**
+ * Calculates and awards any dice refills that accumulated while the player was away.
+ * Called once on page load after loadSave(). Only refills up to MAX_DICE.
+ */
+function applyOfflineDiceRefill() {
+    const now = Date.now();
+    const elapsed = now - persist.lastDiceUpdate;
+    if (elapsed >= DICE_REFILL_TIME && persist.dice < MAX_DICE) {
+        const ticks = Math.floor(elapsed / DICE_REFILL_TIME);
+        const diceToAdd = ticks * DICE_REFILL_AMT;
+        persist.dice = Math.min(MAX_DICE, persist.dice + diceToAdd);
+        // Preserve leftover time toward the next refill
+        persist.lastDiceUpdate = now - (elapsed % DICE_REFILL_TIME);
+        game.dice = persist.dice;
+        writeSave();
+    }
+}
+
+/**
+ * Global dice refill timer — runs on both sanctuary and game screens.
+ * Only auto-refills up to MAX_DICE. Manual dice gains can exceed it.
+ */
+let globalDiceTimer = null;
+
+function startGlobalDiceTimer() {
+    if (globalDiceTimer) clearInterval(globalDiceTimer);
+    globalDiceTimer = setInterval(() => {
         const elapsed = Date.now() - persist.lastDiceUpdate;
         const progress = Math.min(100, (elapsed / DICE_REFILL_TIME) * 100);
 
+        // Update timer bar (works on both sanctuary and game screen)
         const bar = $('diceTimerFill');
         if (bar) bar.style.width = progress + '%';
+        const sanctuaryBar = $('sanctuaryDiceTimerFill');
+        if (sanctuaryBar) sanctuaryBar.style.width = progress + '%';
 
         if (elapsed >= DICE_REFILL_TIME) {
-            if (game.dice < MAX_DICE) {
-                game.dice += DICE_REFILL_AMT;
-                updateUI();
+            if (persist.dice < MAX_DICE) {
+                persist.dice = Math.min(MAX_DICE, persist.dice + DICE_REFILL_AMT);
+                game.dice = persist.dice;
+                // Update whichever screen is visible
+                if (!$('gameScreen').classList.contains('hidden')) updateUI();
+                updateSanctuaryDice();
             }
             persist.lastDiceUpdate = Date.now();
             writeSave();
         }
     }, 100);
+}
+
+/** Updates the dice display on the sanctuary/start screen. */
+function updateSanctuaryDice() {
+    const el = $('sanctuaryDice');
+    if (el) el.textContent = '🎲 ' + persist.dice + '/100';
 }
 
 // ============================================================
@@ -332,8 +368,11 @@ function startDiceTimer() {
 
 function initStartScreen() {
     loadSave();
+    applyOfflineDiceRefill();
+    game.dice = persist.dice;
     sanitizeUnlocks();
     renderSanctuary();
+    startGlobalDiceTimer();
     $('debugResetBtn').onclick = debugReset;
     $('debugCoinsBtn').onclick = debugCoins;
 }
@@ -426,18 +465,13 @@ function renderAnimalGroup(grid, animals) {
 
 function getRunButtonHtml(animal, isOwned) {
     if (!isOwned) return '🔒 UNLOCK FOR 🪙 ' + animal.price.toLocaleString();
-    const currentDice = persist.dice;
-    const bonus = currentDice < RUN_START_DICE_BONUS ? RUN_START_DICE_BONUS - currentDice : 0;
-    const bonusText = bonus > 0
-        ? '+' + bonus + ' 🎲 (now: ' + currentDice + ' → ' + RUN_START_DICE_BONUS + ')'
-        : '🎲 ' + currentDice + ' (minimum met)';
-    return '<span class="start-run-main">BEGIN ESCAPE 🌿</span>' +
-           '<span class="start-run-bonus">' + bonusText + '</span>';
+    return '<span class="start-run-main">BEGIN ESCAPE<span class="run-spacer"></span>🎲 ' + persist.dice + '</span>';
 }
 
 /** Renders the animal selection grid and selected-animal detail panel. */
 function renderSanctuary() {
     $('sanctuaryBank').textContent = '🪙 ' + persist.totalCash.toLocaleString();
+    updateSanctuaryDice();
     renderAnimalGroup($('soloAnimalGrid'), SOLO_ANIMALS);
     renderAnimalGroup($('groupAnimalGrid'), GROUP_ANIMALS);
 
@@ -531,9 +565,7 @@ function startRun(animal) {
     game.runSpeed = 0;
     game.runArmor = 0;
     game.runStealth = 0;
-    const diceBonus = persist.dice < RUN_START_DICE_BONUS ? RUN_START_DICE_BONUS - persist.dice : 0;
-    game.dice = persist.dice + diceBonus;
-    persist.dice = game.dice;
+    game.dice = persist.dice;
 
     game.cash = 0;
     game.fuel = 0;
@@ -578,14 +610,19 @@ function startRun(animal) {
     writeSave();
 
     initGame();
-    startDiceTimer();
 }
 
 /** Ends the run, banks earned coins, tears down the 3D engine. */
 function returnToSanctuary() {
     if (autoMode) disableAutoMode();
-    if (game.diceTimer) clearInterval(game.diceTimer);
-    persist.lastDiceUpdate = Date.now(); // pause refill clock while in menu
+
+    // Award end-of-run dice bonus scaled by season progress
+    // Season multiplier: spring=1, summer=2, fall=3, winter=4, next spring=5, etc.
+    const seasonProgress = game.seasonCycle * SEASONS.length + game.seasonIndex + 1;
+    const endRunDice = END_RUN_DICE_BONUS * seasonProgress;
+    game.dice += endRunDice;
+    persist.dice = game.dice;
+
     persist.totalCash += game.cash;
     // Meals are already persisted incrementally via awardMeals()
     writeSave();
@@ -597,6 +634,7 @@ function returnToSanctuary() {
         game.engine = null;
     }
 
+    // Show end-of-run dice bonus feedback
     $('gameScreen').classList.add('hidden');
     $('startScreen').classList.remove('hidden');
     renderSanctuary();
@@ -1565,7 +1603,7 @@ function updateRollButtonUI() {
     const sub = $('rollSub');
     if (autoMode) {
         btn.classList.add('auto-active');
-        text.textContent = 'AUTO RUNNING';
+        text.textContent = 'AUTO';
         sub.textContent = 'TAP TO STOP';
         sub.style.opacity = '0.7';
     } else {
@@ -1842,7 +1880,7 @@ function handleTileLanding(physIdx) {
             }
             break;
         case 'pit':
-            game.dice = Math.min(MAX_DICE, game.dice + 15);
+            game.dice += 15;
             showFeedback('💤 Rested in a burrow. +15 Rolls');
             break;
     }
@@ -2023,8 +2061,13 @@ function showEscapeOverlay(laps, bonus) {
         '<div class="lap-reward lap-reward-info">★ Total laps: ' + laps + '</div>' +
         '<div class="lap-reward lap-reward-info">' + season.name + (seedCount > 0 ? ' • 🌳 ' + seedCount + ' trees growing' : '') + '</div>';
 
+    // Show the end-of-run dice bonus the player would receive if they stop now
+    const seasonProgress = game.seasonCycle * SEASONS.length + game.seasonIndex + 1;
+    const endRunDicePreview = END_RUN_DICE_BONUS * seasonProgress;
+
     $('lapKeepBtn').onclick = () => closeOverlay('lapOverlay');
     $('lapSanctuaryBtn').onclick = () => { closeOverlay('lapOverlay'); returnToSanctuary(); };
+    $('lapSanctuaryBtn').textContent = '🏠 SANCTUARY (+' + endRunDicePreview + ' 🎲)';
 
     haptic(30);
     openOverlay('lapOverlay');
@@ -2066,7 +2109,7 @@ function openUpgradeShop() {
 function applyUpgrade(up) {
     // --- Stat bonuses ---
     switch (up.stat) {
-        case 'dice':    game.dice = Math.min(MAX_DICE, game.dice + 30); break;
+        case 'dice':    game.dice += 30; break;
         case 'speed':   game.runSpeed += (up.id === 'mushrooms' ? 2 : 1); break;
         case 'stealth': game.runStealth += (up.id === 'feathers' ? 2 : 1); break;
         case 'armor':   game.runArmor += (up.id === 'stones' ? 2 : 1); break;
@@ -2132,6 +2175,7 @@ function debugReset() {
     persist.dice = STARTING_DICE;
     persist.lastDiceUpdate = Date.now();
     persist.animalMeals = {};
+    game.dice = persist.dice;
     game.selectedAnimalId = 'brave_pig';
     renderSanctuary();
 }
