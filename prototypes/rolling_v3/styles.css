@@ -1195,3 +1195,150 @@ body {
     .season-indicator { font-size: 0.7rem; padding: 0 0.35rem; }
     .upgrade-btn { width: 36px; font-size: 1.1rem; }
 }
+
+/* ===== DIORAMA / SANCTUARY VIEW ===== */
+
+.diorama-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    width: 100%;
+    margin-top: 1.2rem;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(135deg, rgba(46,196,182,0.15), rgba(112,224,0,0.10));
+    border: 1px solid rgba(46,196,182,0.35);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.diorama-btn:active { transform: scale(0.97); }
+.diorama-btn-icon { font-size: 1.8rem; }
+.diorama-btn-text {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--green);
+}
+.diorama-btn-sub {
+    font-size: 0.7rem;
+    color: var(--safe);
+    opacity: 0.6;
+}
+
+/* Diorama screen */
+.diorama-screen {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 100;
+}
+.diorama-screen canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+}
+
+.diorama-hud {
+    position: absolute;
+    top: 0;
+    left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.8rem;
+    padding-top: calc(0.6rem + env(safe-area-inset-top, 0px));
+    background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+    pointer-events: none;
+    z-index: 10;
+}
+.diorama-hud > * { pointer-events: auto; }
+
+.diorama-back-btn {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--white);
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 0.35rem 0.7rem;
+    cursor: pointer;
+}
+.diorama-back-btn:active { opacity: 0.7; }
+
+.diorama-title {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 0.1em;
+    color: var(--leaf);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.diorama-animal-count {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.8rem;
+    color: var(--safe);
+    opacity: 0.7;
+}
+
+.diorama-hint {
+    position: absolute;
+    bottom: 1.2rem;
+    left: 50%; transform: translateX(-50%);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.45);
+    text-align: center;
+    pointer-events: none;
+    z-index: 10;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    transition: opacity 0.6s;
+}
+
+.diorama-focus-panel {
+    position: absolute;
+    bottom: 2.5rem;
+    left: 50%; transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 1rem;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    background: rgba(10,20,10,0.85);
+    border: 1px solid rgba(112,224,0,0.25);
+    border-radius: 12px;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.diorama-focus-panel.hidden { display: none; }
+.diorama-focus-emoji { font-size: 1.6rem; }
+.diorama-focus-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--white);
+}
+.diorama-focus-meals {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.8rem;
+    color: var(--safe);
+    opacity: 0.7;
+}
+.diorama-focus-close {
+    font-size: 0.9rem;
+    color: var(--white);
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 50%;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    margin-left: 0.3rem;
+}
+.diorama-focus-close:active { opacity: 0.6; }

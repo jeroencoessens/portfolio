@@ -375,6 +375,7 @@ function initStartScreen() {
     startGlobalDiceTimer();
     $('debugResetBtn').onclick = debugReset;
     $('debugCoinsBtn').onclick = debugCoins;
+    $('dioramaBtn').onclick = openDiorama;
 }
 
 function sanitizeUnlocks() {
@@ -2184,6 +2185,492 @@ function debugCoins() {
     persist.totalCash += 5000;
     writeSave();
     renderSanctuary();
+}
+
+// ============================================================
+//  DIORAMA — 3D Sanctuary World
+//  Shows collected animals in a peaceful terrain diorama.
+//  Camera orbits around the scene; tap an animal to focus on it.
+// ============================================================
+
+const diorama = {
+    engine: null,
+    scene: null,
+    camera: null,
+    canvas: null,
+    animalNodes: [],     // { node, animalDef, worldPos }
+    focusedAnimal: null, // currently focused animal entry
+    animating: false,    // camera transition in progress
+    hintTimeout: null,
+};
+
+// --- Diorama terrain config (tweak these to taste) ---
+const DIO_TERRAIN_SIZE   = 60;       // world units
+const DIO_TERRAIN_SUBDIV = 64;       // heightmap subdivisions
+const DIO_HILL_SCALE     = 3.5;      // max hill height
+const DIO_ANIMAL_SPREAD  = 20;       // radius to spread animals
+
+/** Opens the diorama screen and boots the 3D sanctuary world. */
+function openDiorama() {
+    $('startScreen').classList.add('hidden');
+    $('dioramaScreen').classList.remove('hidden');
+
+    const unlockedDefs = persist.unlockedAnimals
+        .map(id => ANIMALS.find(a => a.id === id))
+        .filter(Boolean);
+
+    $('dioramaCount').textContent = unlockedDefs.length + ' animal' + (unlockedDefs.length !== 1 ? 's' : '');
+
+    diorama.canvas = $('dioramaCanvas');
+    diorama.engine = new BABYLON.Engine(diorama.canvas, true, null, true);
+    diorama.scene  = buildDioramaScene(diorama.engine, unlockedDefs);
+    diorama.engine.runRenderLoop(() => diorama.scene.render());
+
+    // Handle resize
+    diorama._resizeHandler = () => diorama.engine.resize();
+    window.addEventListener('resize', diorama._resizeHandler);
+
+    // Auto-hide hint after 4s
+    $('dioramaHint').style.opacity = '1';
+    diorama.hintTimeout = setTimeout(() => {
+        $('dioramaHint').style.opacity = '0';
+    }, 4000);
+
+    // Reset focus panel
+    $('dioramaFocusPanel').classList.add('hidden');
+    diorama.focusedAnimal = null;
+
+    // Wire up buttons
+    $('dioramaBackBtn').onclick = closeDiorama;
+    $('dioramaFocusClose').onclick = dioramaUnfocus;
+}
+
+/** Closes the diorama and tears down the 3D engine. */
+function closeDiorama() {
+    if (diorama.hintTimeout) clearTimeout(diorama.hintTimeout);
+    window.removeEventListener('resize', diorama._resizeHandler);
+
+    if (diorama.engine) {
+        diorama.engine.stopRenderLoop();
+        diorama.scene.dispose();
+        diorama.engine.dispose();
+        diorama.engine = null;
+        diorama.scene  = null;
+        diorama.camera = null;
+    }
+    diorama.animalNodes = [];
+    diorama.focusedAnimal = null;
+
+    $('dioramaScreen').classList.add('hidden');
+    $('startScreen').classList.remove('hidden');
+}
+
+// ---------------------------------------------------------------
+//  Diorama Scene Builder
+// ---------------------------------------------------------------
+
+function buildDioramaScene(engine, animalDefs) {
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.45, 0.72, 0.92, 1); // bright day sky
+    scene.ambientColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+    scene.fogDensity = 0.008;
+    scene.fogColor = new BABYLON.Color3(0.55, 0.75, 0.90);
+
+    // --- Lighting ---
+    const hemi = new BABYLON.HemisphericLight('dioHemi', new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.55;
+    hemi.groundColor = new BABYLON.Color3(0.15, 0.25, 0.1);
+
+    const sun = new BABYLON.DirectionalLight('dioSun', new BABYLON.Vector3(-0.5, -1, 0.7), scene);
+    sun.intensity = 0.85;
+    sun.position = new BABYLON.Vector3(20, 40, -20);
+
+    const shadowGen = new BABYLON.ShadowGenerator(1024, sun);
+    shadowGen.useBlurExponentialShadowMap = true;
+    shadowGen.blurKernel = 16;
+
+    // --- Terrain ---
+    const ground = buildDioramaTerrain(scene, shadowGen);
+
+    // --- Environment props ---
+    buildDioramaProps(scene, shadowGen);
+
+    // --- Spawn animals ---
+    diorama.animalNodes = [];
+    spawnDioramaAnimals(scene, animalDefs, shadowGen);
+
+    // --- Camera ---
+    const cam = new BABYLON.ArcRotateCamera('dioCam',
+        -Math.PI / 2, Math.PI / 3.5, 35,
+        new BABYLON.Vector3(0, 1, 0), scene);
+    cam.lowerRadiusLimit = 8;
+    cam.upperRadiusLimit = 65;
+    cam.lowerBetaLimit = 0.15;
+    cam.upperBetaLimit = Math.PI / 2.15;
+    cam.wheelDeltaPercentage = 0.02;
+    cam.pinchDeltaPercentage = 0.004;
+    cam.panningSensibility = 0; // disable panning, orbit only
+    cam.inertia = 0.9;
+    cam.angularSensibilityX = 800;
+    cam.angularSensibilityY = 800;
+    cam.attachControl(diorama.canvas, true);
+    diorama.camera = cam;
+
+    // Frame all animals into view
+    if (diorama.animalNodes.length > 0) {
+        const center = averagePosition(diorama.animalNodes.map(a => a.worldPos));
+        cam.target = center.clone();
+        const spread = maxDistance(center, diorama.animalNodes.map(a => a.worldPos));
+        cam.radius = Math.max(20, spread * 2.2);
+    }
+
+    // --- Tap / click to focus animal ---
+    scene.onPointerObservable.add(evt => {
+        if (evt.type !== BABYLON.PointerEventTypes.POINTERTAP) return;
+        const pick = scene.pick(evt.event.offsetX, evt.event.offsetY);
+        if (!pick.hit) return;
+
+        // Walk up parent chain to find if we hit an animal
+        let mesh = pick.pickedMesh;
+        const entry = findAnimalEntry(mesh);
+        if (entry) {
+            dioramaFocusAnimal(entry);
+        }
+    });
+
+    return scene;
+}
+
+/** Finds the diorama animal entry that owns the given mesh (walks parent chain). */
+function findAnimalEntry(mesh) {
+    let node = mesh;
+    while (node) {
+        const entry = diorama.animalNodes.find(a => a.node === node);
+        if (entry) return entry;
+        node = node.parent;
+    }
+    return null;
+}
+
+// ---------------------------------------------------------------
+//  Terrain
+// ---------------------------------------------------------------
+
+function buildDioramaTerrain(scene, shadowGen) {
+    const ground = BABYLON.MeshBuilder.CreateGround('dioGround', {
+        width: DIO_TERRAIN_SIZE,
+        height: DIO_TERRAIN_SIZE,
+        subdivisions: DIO_TERRAIN_SUBDIV,
+        updatable: true,
+    }, scene);
+
+    // Apply procedural hills via vertex displacement
+    const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+    const cols = DIO_TERRAIN_SUBDIV + 1;
+    for (let i = 0; i < positions.length; i += 3) {
+        const x = positions[i];
+        const z = positions[i + 2];
+        positions[i + 1] = dioramaHeightAt(x, z);
+    }
+    ground.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
+    ground.createNormals(false); // recompute normals for lighting
+
+    // Grass material
+    const grassMat = new BABYLON.StandardMaterial('dioGrass', scene);
+    grassMat.diffuseColor = new BABYLON.Color3(0.28, 0.62, 0.15);
+    grassMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    ground.material = grassMat;
+    ground.receiveShadows = true;
+
+    // Edge water plane (flat blue disc under terrain edges)
+    const water = BABYLON.MeshBuilder.CreateGround('dioWater', {
+        width: DIO_TERRAIN_SIZE * 1.6,
+        height: DIO_TERRAIN_SIZE * 1.6,
+    }, scene);
+    water.position.y = -0.3;
+    const waterMat = new BABYLON.StandardMaterial('dioWaterMat', scene);
+    waterMat.diffuseColor = new BABYLON.Color3(0.2, 0.45, 0.7);
+    waterMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    waterMat.alpha = 0.7;
+    water.material = waterMat;
+
+    return ground;
+}
+
+/** Procedural height function — layered sine waves for smooth rolling hills. */
+function dioramaHeightAt(x, z) {
+    const edge = Math.max(Math.abs(x), Math.abs(z)) / (DIO_TERRAIN_SIZE / 2);
+    const falloff = Math.max(0, 1 - edge * edge);
+    const h =
+        Math.sin(x * 0.12) * Math.cos(z * 0.10) * 1.8 +
+        Math.sin(x * 0.05 + 1.3) * Math.cos(z * 0.07 + 0.8) * 2.5 +
+        Math.sin(x * 0.22 + 2.1) * Math.sin(z * 0.18 + 1.5) * 0.8 +
+        Math.cos(x * 0.03 - 0.5) * Math.sin(z * 0.04 + 0.3) * 1.5;
+    return h * DIO_HILL_SCALE / 3.0 * falloff;
+}
+
+// ---------------------------------------------------------------
+//  Environment Props (trees, rocks, bushes, flowers)
+// ---------------------------------------------------------------
+
+function buildDioramaProps(scene, shadowGen) {
+    const treeMat    = makeFlatMat(scene, 'dioTreeMat',    0.12, 0.58, 0.08);
+    const trunkMat   = makeFlatMat(scene, 'dioTrunkMat',   0.30, 0.18, 0.06);
+    const coniferMat = makeFlatMat(scene, 'dioConiferMat', 0.06, 0.40, 0.08);
+    const rockMat    = makeFlatMat(scene, 'dioRockMat',    0.45, 0.43, 0.40);
+    const bushMat    = makeFlatMat(scene, 'dioBushMat',    0.18, 0.52, 0.12);
+    const flowerMats = [
+        makeFlatMat(scene, 'dioFlower1', 0.95, 0.35, 0.45),
+        makeFlatMat(scene, 'dioFlower2', 0.95, 0.80, 0.25),
+        makeFlatMat(scene, 'dioFlower3', 0.70, 0.40, 0.90),
+    ];
+
+    const half = DIO_TERRAIN_SIZE / 2 - 3;
+    const randPos = () => (Math.random() - 0.5) * 2 * half;
+
+    // --- Round-canopy trees (30) ---
+    for (let i = 0; i < 30; i++) {
+        const x = randPos(), z = randPos();
+        const y = dioramaHeightAt(x, z);
+        if (y < -0.2) continue; // skip submerged areas
+
+        const h = 1.5 + Math.random() * 2.0;
+        const root = new BABYLON.TransformNode('dioTree' + i, scene);
+        root.position.set(x, y, z);
+
+        const trunk = BABYLON.MeshBuilder.CreateCylinder('dt', { diameter: 0.25, height: h, tessellation: 6 }, scene);
+        trunk.position.y = h / 2; trunk.parent = root; trunk.material = trunkMat;
+        shadowGen.addShadowCaster(trunk);
+
+        const canopy = BABYLON.MeshBuilder.CreateSphere('dc', { diameter: 1.2 + Math.random() * 1.0, segments: 5 }, scene);
+        canopy.position.y = h + 0.2; canopy.parent = root; canopy.material = treeMat;
+        shadowGen.addShadowCaster(canopy);
+    }
+
+    // --- Conifers (20) ---
+    for (let i = 0; i < 20; i++) {
+        const x = randPos(), z = randPos();
+        const y = dioramaHeightAt(x, z);
+        if (y < -0.2) continue;
+
+        const h = 2.5 + Math.random() * 2.0;
+        const root = new BABYLON.TransformNode('dioCon' + i, scene);
+        root.position.set(x, y, z);
+
+        const trunk = BABYLON.MeshBuilder.CreateCylinder('dct', { diameter: 0.18, height: h * 0.4, tessellation: 5 }, scene);
+        trunk.position.y = h * 0.2; trunk.parent = root; trunk.material = trunkMat;
+
+        const cone1 = BABYLON.MeshBuilder.CreateCylinder('dcc1', { diameterTop: 0, diameterBottom: 1.8, height: h * 0.55, tessellation: 6 }, scene);
+        cone1.position.y = h * 0.5; cone1.parent = root; cone1.material = coniferMat;
+        shadowGen.addShadowCaster(cone1);
+
+        const cone2 = BABYLON.MeshBuilder.CreateCylinder('dcc2', { diameterTop: 0, diameterBottom: 1.1, height: h * 0.4, tessellation: 6 }, scene);
+        cone2.position.y = h * 0.82; cone2.parent = root; cone2.material = coniferMat;
+        shadowGen.addShadowCaster(cone2);
+    }
+
+    // --- Rocks (25) ---
+    for (let i = 0; i < 25; i++) {
+        const x = randPos(), z = randPos();
+        const y = dioramaHeightAt(x, z);
+
+        const s = 0.3 + Math.random() * 0.8;
+        const rock = BABYLON.MeshBuilder.CreateSphere('dRock' + i, { diameter: s, segments: 3 }, scene);
+        rock.scaling.set(1.0 + Math.random() * 0.5, 0.6 + Math.random() * 0.4, 1.0 + Math.random() * 0.5);
+        rock.position.set(x, y + s * 0.15, z);
+        rock.rotation.y = Math.random() * Math.PI * 2;
+        rock.material = rockMat;
+        shadowGen.addShadowCaster(rock);
+    }
+
+    // --- Bushes (35) ---
+    const bushTpl = BABYLON.MeshBuilder.CreateSphere('dioBushTpl', { diameter: 1, segments: 4 }, scene);
+    bushTpl.material = bushMat;
+    bushTpl.setEnabled(false);
+    for (let i = 0; i < 35; i++) {
+        const x = randPos(), z = randPos();
+        const y = dioramaHeightAt(x, z);
+        if (y < -0.15) continue;
+
+        const s = 0.4 + Math.random() * 0.5;
+        const b = bushTpl.createInstance('dioBush' + i);
+        b.scaling.set(s * 1.4, s, s * 1.3);
+        b.position.set(x, y + s * 0.3, z);
+    }
+
+    // --- Flowers (40) ---
+    for (let i = 0; i < 40; i++) {
+        const x = randPos(), z = randPos();
+        const y = dioramaHeightAt(x, z);
+        if (y < 0) continue;
+
+        const flower = BABYLON.MeshBuilder.CreateSphere('dFlower' + i, { diameter: 0.18, segments: 3 }, scene);
+        flower.position.set(x, y + 0.12, z);
+        flower.material = flowerMats[i % flowerMats.length];
+    }
+}
+
+// ---------------------------------------------------------------
+//  Animal Spawning
+// ---------------------------------------------------------------
+
+/**
+ * Spawns each unlocked animal on the terrain at a random position.
+ * Uses the same model builders as the main game.
+ * Animal entries stored in diorama.animalNodes for picking.
+ */
+function spawnDioramaAnimals(scene, animalDefs, shadowGen) {
+    // Lay animals out in a circle if more than one, with some randomness
+    const count = animalDefs.length;
+    const angleStep = (Math.PI * 2) / Math.max(count, 1);
+
+    animalDefs.forEach((animalDef, i) => {
+        const c3 = BABYLON.Color3.FromHexString(animalDef.color);
+        const mat = makeFlatMat(scene, 'dioAnimal_' + animalDef.id, c3.r, c3.g, c3.b);
+
+        // Build mesh using existing builders
+        const builders = {
+            quick_chick:   buildChickModel,
+            gentle_cow:    buildCowModel,
+            woolly_sheep:  buildSheepModel,
+            swift_rabbit:  buildRabbitModel,
+            lucky_duck:    buildDuckModel,
+        };
+        // For group animals, build the linked solo model as a single representative
+        const soloId = animalDef.linkedSoloId || animalDef.id;
+        const builder = builders[soloId] || buildPigModel;
+        const body = builder(scene, mat);
+
+        // Create a root node for positioning
+        const root = new BABYLON.TransformNode('dioAnimalRoot_' + animalDef.id, scene);
+        body.parent = root;
+        if (body.isVisible !== false) body.material = mat;
+
+        // Position on terrain
+        const radius = count <= 1 ? 0 : DIO_ANIMAL_SPREAD * 0.3 + Math.random() * DIO_ANIMAL_SPREAD * 0.5;
+        const angle = angleStep * i + (Math.random() - 0.5) * 0.5;
+        const px = Math.cos(angle) * radius;
+        const pz = Math.sin(angle) * radius;
+        const py = dioramaHeightAt(px, pz);
+        root.position.set(px, py, pz);
+
+        // Face toward center with some variation
+        root.rotation.y = Math.atan2(-px, -pz) + (Math.random() - 0.5) * 1.0;
+
+        // Scale up slightly for visibility
+        const scale = animalDef.form === 'group' ? 1.8 : 1.5;
+        root.scaling.setAll(scale);
+
+        // Register shadow casters
+        body.getChildMeshes().forEach(m => shadowGen.addShadowCaster(m));
+        if (body.isVisible !== false) shadowGen.addShadowCaster(body);
+
+        // Golden glow for well-fed animals
+        const meals = getAnimalMeals(animalDef.id);
+        if (meals >= BALANCE.MEAL_GOLDEN_THRESHOLD) {
+            const glow = new BABYLON.HighlightLayer('glow_' + animalDef.id, scene);
+            glow.addMesh(body, new BABYLON.Color3(1, 0.85, 0.2));
+            body.getChildMeshes().forEach(m => glow.addMesh(m, new BABYLON.Color3(1, 0.85, 0.2)));
+        }
+
+        // Store for picking
+        diorama.animalNodes.push({
+            node: root,
+            body: body,
+            animalDef: animalDef,
+            worldPos: root.position.clone(),
+        });
+    });
+}
+
+// ---------------------------------------------------------------
+//  Camera Focus
+// ---------------------------------------------------------------
+
+/** Smoothly focuses the camera on a specific animal. */
+function dioramaFocusAnimal(entry) {
+    if (diorama.animating) return;
+    diorama.focusedAnimal = entry;
+
+    // Update info panel
+    const meals = getAnimalMeals(entry.animalDef.id);
+    $('dioramaFocusEmoji').textContent = entry.animalDef.emoji;
+    $('dioramaFocusName').textContent = entry.animalDef.name;
+    $('dioramaFocusMeals').textContent = '🍎 ' + meals + ' meals';
+    $('dioramaFocusPanel').classList.remove('hidden');
+    $('dioramaHint').style.opacity = '0';
+
+    // Animate camera to focus on this animal
+    const cam = diorama.camera;
+    const targetPos = entry.worldPos.add(new BABYLON.Vector3(0, 1.0, 0));
+    const targetRadius = 12;
+
+    animateCameraTo(cam, targetPos, targetRadius, 800);
+}
+
+/** Unfocuses from current animal, returns camera to overview. */
+function dioramaUnfocus() {
+    if (diorama.animating) return;
+    diorama.focusedAnimal = null;
+    $('dioramaFocusPanel').classList.add('hidden');
+
+    // Return camera to overview
+    const cam = diorama.camera;
+    if (diorama.animalNodes.length > 0) {
+        const center = averagePosition(diorama.animalNodes.map(a => a.worldPos));
+        center.y += 1.0;
+        const spread = maxDistance(center, diorama.animalNodes.map(a => a.worldPos));
+        animateCameraTo(cam, center, Math.max(20, spread * 2.2), 800);
+    }
+}
+
+/** Smoothly animates the ArcRotateCamera target and radius. */
+function animateCameraTo(cam, targetPos, targetRadius, duration) {
+    diorama.animating = true;
+
+    const startTarget = cam.target.clone();
+    const startRadius = cam.radius;
+    const startTime = performance.now();
+
+    const anim = () => {
+        const elapsed = performance.now() - startTime;
+        const t = Math.min(1, elapsed / duration);
+        // Smooth ease-in-out
+        const ease = t < 0.5
+            ? 4 * t * t * t
+            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+        cam.target = BABYLON.Vector3.Lerp(startTarget, targetPos, ease);
+        cam.radius = startRadius + (targetRadius - startRadius) * ease;
+
+        if (t < 1) {
+            requestAnimationFrame(anim);
+        } else {
+            diorama.animating = false;
+        }
+    };
+    requestAnimationFrame(anim);
+}
+
+// ---------------------------------------------------------------
+//  Helpers
+// ---------------------------------------------------------------
+
+function averagePosition(positions) {
+    const avg = BABYLON.Vector3.Zero();
+    positions.forEach(p => avg.addInPlace(p));
+    if (positions.length > 0) avg.scaleInPlace(1 / positions.length);
+    return avg;
+}
+
+function maxDistance(center, positions) {
+    let max = 0;
+    positions.forEach(p => {
+        const d = BABYLON.Vector3.Distance(center, p);
+        if (d > max) max = d;
+    });
+    return max;
 }
 
 document.addEventListener('DOMContentLoaded', initStartScreen);

@@ -55,10 +55,33 @@
                 </button>
             </div>
 
+            <button class="diorama-btn" id="dioramaBtn">
+                <span class="diorama-btn-icon">🌍</span>
+                <span class="diorama-btn-text">VIEW SANCTUARY</span>
+                <span class="diorama-btn-sub">See your rescued animals in the wild</span>
+            </button>
+
             <div class="debug-buttons">
                 <button class="debug-btn" id="debugResetBtn">🗑️ Reset Progress</button>
                 <button class="debug-btn" id="debugCoinsBtn">🪙 +5000 Coins</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ===== DIORAMA SCREEN ===== -->
+    <div id="dioramaScreen" class="screen diorama-screen hidden">
+        <canvas id="dioramaCanvas"></canvas>
+        <div class="diorama-hud">
+            <button class="diorama-back-btn" id="dioramaBackBtn">← BACK</button>
+            <div class="diorama-title">🌿 SANCTUARY</div>
+            <div class="diorama-animal-count" id="dioramaCount">0 animals</div>
+        </div>
+        <div class="diorama-hint" id="dioramaHint">Drag to rotate · Pinch to zoom · Tap an animal to focus</div>
+        <div class="diorama-focus-panel hidden" id="dioramaFocusPanel">
+            <span class="diorama-focus-emoji" id="dioramaFocusEmoji"></span>
+            <span class="diorama-focus-name" id="dioramaFocusName"></span>
+            <span class="diorama-focus-meals" id="dioramaFocusMeals"></span>
+            <button class="diorama-focus-close" id="dioramaFocusClose">✕</button>
         </div>
     </div>
 
