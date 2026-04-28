@@ -2259,6 +2259,7 @@ function closeDiorama() {
         diorama.camera = null;
     }
     diorama.animalNodes = [];
+    diorama._idleNodes = [];
     diorama.focusedAnimal = null;
 
     $('dioramaScreen').classList.add('hidden');
@@ -2325,17 +2326,30 @@ function buildDioramaScene(engine, animalDefs) {
         cam.radius = Math.max(20, spread * 2.2);
     }
 
-    // --- Tap / click to focus animal ---
+    // --- Tap / click to focus animal (works on mobile + desktop) ---
+    let pointerDownPos = null;
+    const TAP_THRESHOLD = 12; // px — ignore drags
     scene.onPointerObservable.add(evt => {
-        if (evt.type !== BABYLON.PointerEventTypes.POINTERTAP) return;
-        const pick = scene.pick(evt.event.offsetX, evt.event.offsetY);
-        if (!pick.hit) return;
+        if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+            pointerDownPos = { x: evt.event.clientX, y: evt.event.clientY };
+        }
+        if (evt.type === BABYLON.PointerEventTypes.POINTERUP) {
+            if (!pointerDownPos) return;
+            const dx = evt.event.clientX - pointerDownPos.x;
+            const dy = evt.event.clientY - pointerDownPos.y;
+            if (dx * dx + dy * dy > TAP_THRESHOLD * TAP_THRESHOLD) {
+                pointerDownPos = null;
+                return; // was a drag, not a tap
+            }
+            pointerDownPos = null;
 
-        // Walk up parent chain to find if we hit an animal
-        let mesh = pick.pickedMesh;
-        const entry = findAnimalEntry(mesh);
-        if (entry) {
-            dioramaFocusAnimal(entry);
+            const pick = scene.pick(scene.pointerX, scene.pointerY);
+            if (!pick || !pick.hit) return;
+
+            const entry = findAnimalEntry(pick.pickedMesh);
+            if (entry) {
+                dioramaFocusAnimal(entry);
+            }
         }
     });
 
@@ -2517,6 +2531,7 @@ function buildDioramaProps(scene, shadowGen) {
 
 /**
  * Spawns each unlocked animal on the terrain at a random position.
+ * Group-form animals spawn as a family cluster (1 main + 3 smaller members).
  * Uses the same model builders as the main game.
  * Animal entries stored in diorama.animalNodes for picking.
  */
@@ -2525,27 +2540,22 @@ function spawnDioramaAnimals(scene, animalDefs, shadowGen) {
     const count = animalDefs.length;
     const angleStep = (Math.PI * 2) / Math.max(count, 1);
 
+    const builders = {
+        quick_chick:   buildChickModel,
+        gentle_cow:    buildCowModel,
+        woolly_sheep:  buildSheepModel,
+        swift_rabbit:  buildRabbitModel,
+        lucky_duck:    buildDuckModel,
+    };
+
     animalDefs.forEach((animalDef, i) => {
         const c3 = BABYLON.Color3.FromHexString(animalDef.color);
-        const mat = makeFlatMat(scene, 'dioAnimal_' + animalDef.id, c3.r, c3.g, c3.b);
-
-        // Build mesh using existing builders
-        const builders = {
-            quick_chick:   buildChickModel,
-            gentle_cow:    buildCowModel,
-            woolly_sheep:  buildSheepModel,
-            swift_rabbit:  buildRabbitModel,
-            lucky_duck:    buildDuckModel,
-        };
-        // For group animals, build the linked solo model as a single representative
         const soloId = animalDef.linkedSoloId || animalDef.id;
         const builder = builders[soloId] || buildPigModel;
-        const body = builder(scene, mat);
+        const isGroup = animalDef.form === 'group';
 
-        // Create a root node for positioning
-        const root = new BABYLON.TransformNode('dioAnimalRoot_' + animalDef.id, scene);
-        body.parent = root;
-        if (body.isVisible !== false) body.material = mat;
+        // Group root holds the entire family cluster; picking resolves to this
+        const groupRoot = new BABYLON.TransformNode('dioAnimalRoot_' + animalDef.id, scene);
 
         // Position on terrain
         const radius = count <= 1 ? 0 : DIO_ANIMAL_SPREAD * 0.3 + Math.random() * DIO_ANIMAL_SPREAD * 0.5;
@@ -2553,34 +2563,82 @@ function spawnDioramaAnimals(scene, animalDefs, shadowGen) {
         const px = Math.cos(angle) * radius;
         const pz = Math.sin(angle) * radius;
         const py = dioramaHeightAt(px, pz);
-        root.position.set(px, py, pz);
+        groupRoot.position.set(px, py, pz);
+        groupRoot.rotation.y = Math.atan2(-px, -pz) + (Math.random() - 0.5) * 1.0;
 
-        // Face toward center with some variation
-        root.rotation.y = Math.atan2(-px, -pz) + (Math.random() - 0.5) * 1.0;
-
-        // Scale up slightly for visibility
-        const scale = animalDef.form === 'group' ? 1.8 : 1.5;
-        root.scaling.setAll(scale);
-
-        // Register shadow casters
-        body.getChildMeshes().forEach(m => shadowGen.addShadowCaster(m));
-        if (body.isVisible !== false) shadowGen.addShadowCaster(body);
-
-        // Golden glow for well-fed animals
         const meals = getAnimalMeals(animalDef.id);
-        if (meals >= BALANCE.MEAL_GOLDEN_THRESHOLD) {
-            const glow = new BABYLON.HighlightLayer('glow_' + animalDef.id, scene);
-            glow.addMesh(body, new BABYLON.Color3(1, 0.85, 0.2));
-            body.getChildMeshes().forEach(m => glow.addMesh(m, new BABYLON.Color3(1, 0.85, 0.2)));
+        const isGolden = meals >= BALANCE.MEAL_GOLDEN_THRESHOLD;
+
+        // How many members: solo = 1, group = 4 (1 main + 3 family)
+        const memberCount = isGroup ? 4 : 1;
+        // Layout offsets for family members around the main animal
+        const familyOffsets = [
+            { x: 0,    z: 0,    scale: 1.0  },  // main (always first)
+            { x: 1.8,  z: 0.6,  scale: 0.72 },
+            { x: -1.5, z: 1.0,  scale: 0.65 },
+            { x: 0.5,  z: -1.6, scale: 0.78 },
+        ];
+
+        let mainBody = null;
+        for (let m = 0; m < memberCount; m++) {
+            const off = familyOffsets[m];
+            const mat = makeFlatMat(scene, 'dioAnimal_' + animalDef.id + '_' + m, c3.r, c3.g, c3.b);
+            const body = builder(scene, mat);
+
+            const memberRoot = new BABYLON.TransformNode('dioMember_' + animalDef.id + '_' + m, scene);
+            memberRoot.parent = groupRoot;
+            body.parent = memberRoot;
+            if (body.isVisible !== false) body.material = mat;
+
+            // Position within the cluster
+            memberRoot.position.set(off.x, 0, off.z);
+            // Add slight random rotation so they don't all face the same way
+            if (m > 0) memberRoot.rotation.y = (Math.random() - 0.5) * 1.2;
+
+            // Scale: main animal is full size, family members are smaller
+            const baseScale = isGroup ? 1.5 : 1.5;
+            memberRoot.scaling.setAll(baseScale * off.scale);
+
+            // Register shadow casters
+            body.getChildMeshes().forEach(mesh => shadowGen.addShadowCaster(mesh));
+            if (body.isVisible !== false) shadowGen.addShadowCaster(body);
+
+            // Golden glow only on the main animal (m === 0)
+            if (isGolden && m === 0) {
+                const glow = new BABYLON.HighlightLayer('glow_' + animalDef.id, scene);
+                glow.addMesh(body, new BABYLON.Color3(1, 0.85, 0.2));
+                body.getChildMeshes().forEach(mesh => glow.addMesh(mesh, new BABYLON.Color3(1, 0.85, 0.2)));
+            }
+
+            if (m === 0) mainBody = body;
+
+            // Register for idle bounce animation
+            diorama._idleNodes = diorama._idleNodes || [];
+            diorama._idleNodes.push({
+                node: memberRoot,
+                baseY: memberRoot.position.y,
+                phase: Math.random() * Math.PI * 2,          // random start phase
+                speed: 1.2 + Math.random() * 0.6,            // slightly varied speed
+                amplitude: 0.06 + Math.random() * 0.04,      // subtle height range
+            });
         }
 
-        // Store for picking
+        // Store for picking — the whole groupRoot is the pickable entry
         diorama.animalNodes.push({
-            node: root,
-            body: body,
+            node: groupRoot,
+            body: mainBody,
             animalDef: animalDef,
-            worldPos: root.position.clone(),
+            worldPos: groupRoot.position.clone(),
         });
+    });
+
+    // --- Idle bounce animation loop ---
+    scene.onBeforeRenderObservable.add(() => {
+        if (!diorama._idleNodes) return;
+        const t = performance.now() / 1000;
+        for (const entry of diorama._idleNodes) {
+            entry.node.position.y = entry.baseY + Math.sin(t * entry.speed + entry.phase) * entry.amplitude;
+        }
     });
 }
 
