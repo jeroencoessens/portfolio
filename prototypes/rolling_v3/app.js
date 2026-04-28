@@ -27,7 +27,7 @@ const TILE_SPACING      = 6;         // arc distance between tile centers
 
 // --- Dice & Rolls ---
 const STARTING_DICE     = 100;       // rolls given at start of each run
-const MAX_DICE          = 100;       // hard cap on stored rolls
+const MAX_DICE          = 125;       // hard cap on stored rolls
 const RUN_START_DICE_BONUS = 0;     // instant rolls granted when starting a run
 const END_RUN_DICE_BONUS = 15;       // base dice reward for completing a run
 const DICE_REFILL_AMT   = 10;        // rolls recovered per refill tick
@@ -50,7 +50,7 @@ const DICE_FACE_ROTATIONS = {
 const MULT_STEPS        = [1, 2, 3, 5, 10, 20, 50]; // cycle through these on tap
 
 // --- Auto-Roll ---
-const AUTO_HOLD_MS      = 800;       // how long to hold RUN to activate auto-mode
+const AUTO_HOLD_MS      = 1200;      // how long to hold RUN to activate auto-mode
 const AUTO_DELAY_MS     = 800;       // delay between auto-rolls after tile resolution
 const AUTO_FILL_DELAY   = 200;       // ms before the hold-bar starts filling (hides bar on quick taps)
 
@@ -132,8 +132,8 @@ const BALANCE = {
 // --- Seasons (cycle through each lap) ---
 const SEASONS = [
     { id: 'spring', name: '🌸 Spring',  rewardMult: 1.0, canPlant: true,  canWager: false, skyColor: [0.3, 0.65, 0.81],  coreColor: [0.1, 0.4, 0.1],  tileHue: null },
-    { id: 'summer', name: '☀️ Summer',  rewardMult: 1.25, canPlant: true,  canWager: true,  skyColor: [0.45, 0.72, 0.92], coreColor: [0.15, 0.5, 0.08], tileHue: null },
-    { id: 'fall',   name: '🍂 Fall',    rewardMult: 1.5, canPlant: true,  canWager: true, skyColor: [0.55, 0.38, 0.22], coreColor: [0.35, 0.22, 0.06], tileHue: null },
+    { id: 'summer', name: '☀️ Summer',  rewardMult: 1.5, canPlant: true,  canWager: true,  skyColor: [0.45, 0.72, 0.92], coreColor: [0.15, 0.5, 0.08], tileHue: null },
+    { id: 'fall',   name: '🍂 Fall',    rewardMult: 2.0, canPlant: true,  canWager: true, skyColor: [0.55, 0.38, 0.22], coreColor: [0.35, 0.22, 0.06], tileHue: null },
     { id: 'winter', name: '❄️ Winter',  rewardMult: 2.0, canPlant: false, canWager: false, skyColor: [0.6, 0.65, 0.75],  coreColor: [0.55, 0.6, 0.65], tileHue: null },
 ];
 
@@ -151,10 +151,10 @@ const TRACK_CITIES = [
 // Each animal has solo + linked group form. Group form unlocks only after solo form.
 const ANIMALS = [
     { id: 'brave_pig',       form: 'solo',  name: 'Brave Piggy',    emoji: '🐷', color: '#FFB6C1', speed: 0, armor: 1, stealth: 0, price: 0,    ability: 'Mud Slide',    desc: 'Loves the mud. Sturdy and reliable.' },
-    { id: 'quick_chick',     form: 'solo',  name: 'Swift Chick',    emoji: '🐤', color: '#FFF380', speed: 2, armor: 0, stealth: 0, price: 1500, ability: 'Wing Flutter',  desc: 'Fast but fragile.' },
+    { id: 'quick_chick',     form: 'solo',  name: 'Swift Chick',    emoji: '🐤', color: '#FFF380', speed: 1, armor: 0, stealth: 0, price: 1500, ability: 'Wing Flutter',  desc: 'Fast but fragile.' },
     { id: 'gentle_cow',      form: 'solo',  name: 'Gentle Cow',     emoji: '🐮', color: '#F0F0F0', speed: 0, armor: 2, stealth: 0, price: 3000, ability: 'Stampede',      desc: 'Very tough to stop.' },
     { id: 'woolly_sheep',    form: 'solo',  name: 'Woolly Sheep',   emoji: '🐑', color: '#EFEFEF', speed: 0, armor: 1, stealth: 1, price: 2000, ability: 'Fleece Veil',   desc: 'Blends in anywhere. Quiet and steady.' },
-    { id: 'swift_rabbit',    form: 'solo',  name: 'Swift Rabbit',   emoji: '🐰', color: '#D4C5B2', speed: 3, armor: 0, stealth: 1, price: 4000, ability: 'Burrow',        desc: 'Lightning fast. Gone in a flash.' },
+    { id: 'swift_rabbit',    form: 'solo',  name: 'Swift Rabbit',   emoji: '🐰', color: '#D4C5B2', speed: 2, armor: 0, stealth: 1, price: 4000, ability: 'Burrow',        desc: 'Lightning fast. Gone in a flash.' },
     { id: 'lucky_duck',      form: 'solo',  name: 'Lucky Duck',     emoji: '🦆', color: '#6B9E5E', speed: 1, armor: 0, stealth: 2, price: 5500, ability: 'Wing Splash',   desc: 'Master of disguise. Slips away unseen.' },
     { id: 'pig_stampede',    form: 'group', name: 'Pig Stampede',   emoji: '🐷', color: '#FFB6C1', speed: 1, armor: 2, stealth: 0, price: 2500, ability: 'Mud Rush',      desc: 'A coordinated pig rush across two tiles.', linkedSoloId: 'brave_pig' },
     { id: 'chicken_flock',   form: 'group', name: 'Chicken Flock',  emoji: '🐔', color: '#FFF380', speed: 1, armor: 0, stealth: 0, price: 3000, ability: 'Scatter',       desc: '5 chickens. Two tiles, double trouble!', linkedSoloId: 'quick_chick' },
@@ -183,6 +183,18 @@ const UPGRADES = [
     { id: 'vines',     name: 'Wild Vines',     icon: '🌿', desc: 'Road tiles now sometimes yield meals',            stat: 'none',    cost: 1800, tier: 'expensive',  mealEffect: 'tileAlter' },
     { id: 'flowers',   name: 'Blossom Path',   icon: '🌸', desc: 'Even more tiles become meal sources',             stat: 'none',    cost: 2500, tier: 'expensive',  mealEffect: 'tileAlter' },
     { id: 'provisions',name: 'Provisions',     icon: '🧺', desc: '+' + GENERAL_MEAL_AMOUNT + ' shared meals for all animals in the sanctuary', stat: 'none', cost: GENERAL_MEAL_COST, tier: 'cheap', mealEffect: 'general' },
+];
+
+// --- Permanent sanctuary upgrades (coin sinks, persist between runs) ---
+const SANCTUARY_UPGRADES = [
+    { id: 'comfy_nest',    name: 'Comfy Nest',      icon: '🪺', desc: 'Start each run with +5 bonus meals',            costs: [2000, 5000, 12000],  maxLevel: 3 },
+    { id: 'trail_map',     name: 'Trail Map',       icon: '🗺️', desc: 'Start each run with +1 SPD',                    costs: [3000, 8000, 20000],  maxLevel: 3 },
+    { id: 'thick_hide',    name: 'Thick Hide',      icon: '🛡️', desc: 'Start each run with +1 RES',                    costs: [3000, 8000, 20000],  maxLevel: 3 },
+    { id: 'shadow_cloak',  name: 'Shadow Cloak',    icon: '🌑', desc: 'Start each run with +1 STH',                    costs: [3000, 8000, 20000],  maxLevel: 3 },
+    { id: 'lucky_charm',   name: 'Lucky Charm',     icon: '🍀', desc: '+5 bonus dice on run start',                    costs: [4000, 10000],        maxLevel: 2 },
+    { id: 'deep_roots',    name: 'Deep Roots',      icon: '🌳', desc: 'Seeds grow faster (harvest same lap)',          costs: [6000],               maxLevel: 1 },
+    { id: 'foragers_eye',  name: "Forager's Eye",   icon: '👁️', desc: '+1 meal on every fuel tile',                    costs: [2500, 6000, 15000],  maxLevel: 3 },
+    { id: 'cozy_burrow',   name: 'Cozy Burrow',     icon: '🏠', desc: 'Pit tiles give +5 extra dice',                  costs: [3500, 9000],         maxLevel: 2 },
 ];
 
 // --- Tile pattern (repeats every 20 tiles to fill the 80-tile board) ---
@@ -225,6 +237,7 @@ let persist = {
     generalMeals: 0,       // shared meal pool usable by any animal
     lastDailyConsume: 0,   // timestamp of last daily sanctuary consumption
     animalStatus: {},      // { animal_id: 'ok' | 'hungry' | 'rewarded' }
+    sanctuaryUpgrades: {}, // { upgrade_id: level (1-based) }
 };
 
 // Runtime state — reset at the start of each run
@@ -279,8 +292,8 @@ const game = {
 
     // Run-specific flags
     abilityUsed: false,
+    trapShield: false,
     purchasedUpgrades: [],
-    diceTimer: null,
 
     // Group animal mode (split across two tile positions)
     flockMode: false,
@@ -296,6 +309,7 @@ let feedbackTimer = null;
 let diceRolling = false;     // whether the 3D dice animation is in progress
 let autoMode = false;        // whether auto-roll mode is active
 let autoHoldTimer = null;    // timer for hold-to-activate gesture
+let rollBtnAbort = null;     // AbortController for roll button listeners (prevents stacking)
 
 // ============================================================
 //  4. SAVE SYSTEM
@@ -315,12 +329,58 @@ function loadSave() {
         persist.generalMeals = data.generalMeals || 0;
         persist.lastDailyConsume = data.lastDailyConsume || 0;
         persist.animalStatus = data.animalStatus || {};
+        persist.sanctuaryUpgrades = data.sanctuaryUpgrades || {};
     } catch (_) { /* corrupt save — use defaults */ }
 }
 
 function writeSave() {
     persist.dice = game.dice;
     localStorage.setItem(SAVE_KEY, JSON.stringify(persist));
+}
+
+/** Returns the current level of a sanctuary upgrade (0 if not purchased). */
+function getSanctuaryLevel(id) { return persist.sanctuaryUpgrades[id] || 0; }
+
+/** Opens the sanctuary upgrades shop overlay. */
+function openSanctuaryUpgradeShop() {
+    $('sanctuaryUpgradeCash').textContent = '🪙 ' + persist.totalCash.toLocaleString();
+    const grid = $('sanctuaryUpgradeGrid');
+    grid.innerHTML = '';
+
+    SANCTUARY_UPGRADES.forEach(function(up) {
+        const level = getSanctuaryLevel(up.id);
+        const maxed = level >= up.maxLevel;
+        const cost = maxed ? 0 : up.costs[level];
+        const canAfford = !maxed && persist.totalCash >= cost;
+
+        const card = document.createElement('div');
+        card.className = 'sanctuary-upgrade-card' + (maxed ? ' maxed' : '') + (!canAfford && !maxed ? ' locked' : '');
+        card.innerHTML =
+            '<div class="sanc-up-icon">' + up.icon + '</div>' +
+            '<div class="sanc-up-info">' +
+                '<div class="sanc-up-name">' + up.name + '</div>' +
+                '<div class="sanc-up-desc">' + up.desc + '</div>' +
+                '<div class="sanc-up-level">Lv ' + level + ' / ' + up.maxLevel + '</div>' +
+            '</div>' +
+            '<div class="sanc-up-cost">' + (maxed ? '✅ MAX' : '🪙 ' + cost.toLocaleString()) + '</div>';
+
+        if (canAfford) {
+            card.addEventListener('click', function() {
+                // Re-check affordability at click time
+                const curLevel = getSanctuaryLevel(up.id);
+                if (curLevel >= up.maxLevel) return;
+                const curCost = up.costs[curLevel];
+                if (persist.totalCash < curCost) return;
+                persist.totalCash -= curCost;
+                persist.sanctuaryUpgrades[up.id] = curLevel + 1;
+                writeSave();
+                haptic(20);
+                openSanctuaryUpgradeShop(); // re-render
+                renderSanctuary();
+            });
+        }
+        grid.appendChild(card);
+    });
 }
 
 /**
@@ -377,7 +437,7 @@ function applyDailyConsumption() {
 
     for (const id of persist.unlockedAnimals) {
         const totalNeeded = DAILY_MEAL_CONSUME * daysPassed;
-        let available = Math.floor(persist.animalMeals[id] || 0);
+        let available = persist.animalMeals[id] || 0;
 
         if (available >= totalNeeded) {
             // Animal had enough — deduct and mark for reward collection
@@ -423,8 +483,9 @@ function startGlobalDiceTimer() {
 
         if (elapsed >= DICE_REFILL_TIME) {
             if (persist.dice < MAX_DICE) {
-                persist.dice = Math.min(MAX_DICE, persist.dice + DICE_REFILL_AMT);
-                game.dice = persist.dice;
+                // During a run, game.dice may differ from persist.dice — respect both
+                game.dice = Math.min(MAX_DICE, game.dice + DICE_REFILL_AMT);
+                persist.dice = game.dice;
                 // Update whichever screen is visible
                 if (!$('gameScreen').classList.contains('hidden')) updateUI();
                 updateSanctuaryDice();
@@ -438,7 +499,7 @@ function startGlobalDiceTimer() {
 /** Updates the dice display on the sanctuary/start screen. */
 function updateSanctuaryDice() {
     const el = $('sanctuaryDice');
-    if (el) el.textContent = '🎲 ' + persist.dice + '/100';
+    if (el) el.textContent = '🎲 ' + persist.dice + '/' + MAX_DICE;
 }
 
 // ============================================================
@@ -451,12 +512,23 @@ function initStartScreen() {
     applyDailyConsumption();
     game.dice = persist.dice;
     sanitizeUnlocks();
+
+    // Update dice hint spans to match constants
+    var refillEl = $('sanctuaryRefillAmt');
+    if (refillEl) refillEl.textContent = DICE_REFILL_AMT;
+    var timeEl = $('sanctuaryRefillTime');
+    if (timeEl) timeEl.textContent = Math.round(DICE_REFILL_TIME / 60000);
+    var maxEl = $('sanctuaryMaxDice');
+    if (maxEl) maxEl.textContent = MAX_DICE;
+
     renderSanctuary();
     startGlobalDiceTimer();
     $('debugResetBtn').onclick = debugReset;
     $('debugCoinsBtn').onclick = debugCoins;
     $('debugDiceBtn').onclick = debugDice;
     $('dioramaBtn').onclick = openDiorama;
+    $('sanctuaryUpgradesBtn').onclick = function() { openSanctuaryUpgradeShop(); openOverlay('sanctuaryUpgradeOverlay'); };
+    $('sanctuaryUpgradeCloseBtn').onclick = function() { closeOverlay('sanctuaryUpgradeOverlay'); };
 }
 
 function sanitizeUnlocks() {
@@ -531,13 +603,13 @@ function renderAnimalGroup(grid, animals) {
             (!owned ? '<div class="animal-card-lock">🔒</div>' : '');
 
         card.addEventListener('click', () => {
-            if (owned) {
+            if (persist.unlockedAnimals.includes(animal.id)) {
                 game.selectedAnimalId = animal.id;
                 renderSanctuary();
                 return;
             }
 
-            if (canUnlock) {
+            if (canUnlockAnimal(animal) && persist.totalCash >= animal.price) {
                 persist.totalCash -= animal.price;
                 persist.unlockedAnimals.push(animal.id);
                 game.selectedAnimalId = animal.id;
@@ -552,7 +624,9 @@ function renderAnimalGroup(grid, animals) {
 
 function getRunButtonHtml(animal, isOwned) {
     if (!isOwned) return '🔒 UNLOCK FOR 🪙 ' + animal.price.toLocaleString();
-    return '<span class="start-run-main">BEGIN ESCAPE<span class="run-spacer"></span>🎲 ' + persist.dice + '</span>';
+    const totalBonus = RUN_START_DICE_BONUS + getSanctuaryLevel('lucky_charm') * 5;
+    return '<span class="start-run-main">BEGIN ESCAPE<span class="run-spacer"></span>🎲 ' + persist.dice + '</span>' +
+        (totalBonus > 0 ? '<span class="start-run-bonus">+' + totalBonus + ' 🎲 on start</span>' : '');
 }
 
 /** Renders the animal selection grid and selected-animal detail panel. */
@@ -567,14 +641,15 @@ function renderSanctuary() {
     const selMeals = getAnimalMeals(animal.id);
     const selGolden = persist.goldenAnimals.includes(animal.id);
     const selCanUpgrade = !selGolden && selMeals >= GOLDEN_UPGRADE_COST;
+    const gb = selGolden ? 1 : 0;
     $('selAnimalEmoji').textContent = animal.emoji;
     $('selAnimalName').textContent = animal.name;
     $('selAnimalStats').innerHTML =
-        '<span class="sel-stat sel-stat-spd">SPD ' + animal.speed + '</span>' +
-        '<span class="sel-stat sel-stat-arm">RES ' + animal.armor + '</span>' +
-        '<span class="sel-stat sel-stat-stl">STH ' + animal.stealth + '</span>' +
+        '<span class="sel-stat sel-stat-spd">SPD ' + animal.speed + (gb ? '<span class="golden-plus">+' + gb + '</span>' : '') + '</span>' +
+        '<span class="sel-stat sel-stat-arm">RES ' + animal.armor + (gb ? '<span class="golden-plus">+' + gb + '</span>' : '') + '</span>' +
+        '<span class="sel-stat sel-stat-stl">STH ' + animal.stealth + (gb ? '<span class="golden-plus">+' + gb + '</span>' : '') + '</span>' +
         '<span class="sel-stat sel-stat-meals">🍎 ' + selMeals + ' MEALS</span>' +
-        (selGolden ? '<span class="sel-stat sel-stat-golden">✨ GOLDEN</span>' : '') +
+        (selGolden ? '<span class="sel-stat sel-stat-golden">✨ GOLDEN (+1 ALL)</span>' : '') +
         (selCanUpgrade ? '<span class="sel-stat sel-stat-upgrade">✨ Upgrade in Sanctuary!</span>' : '');
     $('selAnimalDesc').textContent = animal.desc;
 
@@ -597,6 +672,22 @@ function renderSanctuary() {
 
     // Show general meals pool
     $('generalMealsDisplay').textContent = '🍎 ' + persist.generalMeals + ' shared meals';
+
+    // Update wager slider
+    const wagerSlider = $('wagerSlider');
+    const wagerValue = $('wagerValue');
+    const wagerSection = $('wagerSection');
+    if (wagerSlider && wagerValue) {
+        const maxWager = Math.max(0, persist.totalCash);
+        wagerSlider.max = maxWager;
+        wagerSlider.value = 0;
+        wagerValue.textContent = '🪙 0';
+        // Show/hide section based on whether player has coins
+        if (wagerSection) wagerSection.style.display = maxWager > 0 && isOwned ? '' : 'none';
+        wagerSlider.oninput = () => {
+            wagerValue.textContent = '🪙 ' + parseInt(wagerSlider.value).toLocaleString();
+        };
+    }
 }
 
 /** Checks if any animals need attention and updates the diorama button badge. */
@@ -626,10 +717,11 @@ function updateDioramaBadge() {
 //  6. STATS & MEALS
 // ============================================================
 
-/** Combine base animal stats with upgrade bonuses. */
-function getSpeed()   { return (game.animalDef ? game.animalDef.speed : 0) + game.runSpeed; }
-function getArmor()   { return (game.animalDef ? game.animalDef.armor : 0) + game.runArmor; }
-function getStealth() { return (game.animalDef ? game.animalDef.stealth : 0) + game.runStealth; }
+/** Combine base animal stats with upgrade bonuses. Golden animals get +1 to all stats. */
+function goldenBonus() { return (game.animalDef && persist.goldenAnimals.includes(game.animalDef.id)) ? 1 : 0; }
+function getSpeed()   { return (game.animalDef ? game.animalDef.speed : 0) + game.runSpeed + goldenBonus(); }
+function getArmor()   { return (game.animalDef ? game.animalDef.armor : 0) + game.runArmor + goldenBonus(); }
+function getStealth() { return (game.animalDef ? game.animalDef.stealth : 0) + game.runStealth + goldenBonus(); }
 
 /**
  * Awards meals to the current animal. Updates both run total and persistent save.
@@ -687,14 +779,22 @@ function applyTileAlterations() {
 
 /** Transitions from sanctuary to gameplay, resets run state, boots 3D scene. */
 function startRun(animal) {
+    // Read wager amount from slider
+    const wagerSlider = $('wagerSlider');
+    const wager = wagerSlider ? Math.min(parseInt(wagerSlider.value) || 0, persist.totalCash) : 0;
+
+    // Deduct wager from bank
+    persist.totalCash -= wager;
+
     // Reset all run state
     game.animalDef = animal;
     game.runSpeed = 0;
     game.runArmor = 0;
     game.runStealth = 0;
-    game.dice = persist.dice;
+    game.dice = Math.min(MAX_DICE, persist.dice + RUN_START_DICE_BONUS);
+    persist.dice = game.dice;
 
-    game.cash = 0;
+    game.cash = wager;
     game.fuel = 0;
     game.laps = 0;
     game.tileIndex = 0;
@@ -703,6 +803,7 @@ function startRun(animal) {
     game.tiles = [];
     game.tileDefs = [];
     game.abilityUsed = false;
+    game.trapShield = false;
     game.purchasedUpgrades = [];
 
     // Meal system reset for new run
@@ -730,6 +831,21 @@ function startRun(animal) {
     game.frontGroupMeshes = [];
     game.rearGroupMeshes = [];
 
+    // Apply permanent sanctuary upgrades
+    game.runSpeed += getSanctuaryLevel('trail_map');
+    game.runArmor += getSanctuaryLevel('thick_hide');
+    game.runStealth += getSanctuaryLevel('shadow_cloak');
+    game.mealTileBonus += getSanctuaryLevel('foragers_eye');
+    const luckyCharmLevel = getSanctuaryLevel('lucky_charm');
+    if (luckyCharmLevel > 0) {
+        game.dice = Math.min(MAX_DICE, game.dice + luckyCharmLevel * 5);
+        persist.dice = game.dice;
+    }
+    const comfyNestLevel = getSanctuaryLevel('comfy_nest');
+    if (comfyNestLevel > 0) {
+        awardMeals(comfyNestLevel * 5);
+    }
+
     // Switch screens
     $('startScreen').classList.add('hidden');
     $('gameScreen').classList.remove('hidden');
@@ -747,12 +863,46 @@ function returnToSanctuary() {
     // Season multiplier: spring=1, summer=2, fall=3, winter=4, next spring=5, etc.
     const seasonProgress = game.seasonCycle * SEASONS.length + game.seasonIndex + 1;
     const endRunDice = END_RUN_DICE_BONUS * seasonProgress;
-    game.dice += endRunDice;
+    game.dice = Math.min(MAX_DICE, game.dice + endRunDice);
     persist.dice = game.dice;
 
     persist.totalCash += game.cash;
     // Meals are already persisted incrementally via awardMeals()
     writeSave();
+
+    teardownGameEngine();
+    renderSanctuary();
+}
+
+/** Abandons the run early — keeps meals already saved but forfeits coins. */
+function abandonRun() {
+    if (autoMode) disableAutoMode();
+
+    // Keep dice as-is (no end-run bonus for quitting)
+    persist.dice = game.dice;
+    // Meals are already persisted incrementally via awardMeals() — nothing to do
+    // Coins are NOT banked (forfeited)
+    writeSave();
+
+    teardownGameEngine();
+    renderSanctuary();
+}
+
+/** Tears down the BabylonJS engine and switches back to start screen. */
+function teardownGameEngine() {
+    // Close any open game overlays
+    ['eventOverlay', 'lapOverlay', 'upgradeOverlay'].forEach(function(id) { closeOverlay(id); });
+    $('eventCloseBtn').style.display = '';
+
+    // Clean up roll button listeners
+    if (rollBtnAbort) { rollBtnAbort.abort(); rollBtnAbort = null; }
+    if (autoHoldTimer) { clearTimeout(autoHoldTimer); autoHoldTimer = null; }
+
+    // Remove resize handler
+    if (game._resizeHandler) {
+        window.removeEventListener('resize', game._resizeHandler);
+        game._resizeHandler = null;
+    }
 
     if (game.engine) {
         game.engine.stopRenderLoop();
@@ -761,10 +911,8 @@ function returnToSanctuary() {
         game.engine = null;
     }
 
-    // Show end-of-run dice bonus feedback
     $('gameScreen').classList.add('hidden');
     $('startScreen').classList.remove('hidden');
-    renderSanctuary();
 }
 
 /** Boots BabylonJS, creates the 3D scene, wires up control buttons. */
@@ -778,19 +926,27 @@ function initGame() {
 
     game.scene = createScene();
     game.engine.runRenderLoop(() => game.scene.render());
-    window.addEventListener('resize', () => { if (game.engine) game.engine.resize(); });
+    game._resizeHandler = function() { if (game.engine) game.engine.resize(); };
+    window.addEventListener('resize', game._resizeHandler);
 
     // Wire controls
     wireRollButton();
     $('multBtn').onclick = cycleMultiplier;
     $('plantBtn').onclick = plantSeed;
+    $('abilityBtn').onclick = useAbility;
     $('eventCloseBtn').onclick = () => closeOverlay('eventOverlay');
     $('upgradeBtn').onclick = openUpgradeShop;
     $('upgradeCloseBtn').onclick = () => closeOverlay('upgradeOverlay');
+    $('exitRunBtn').onclick = () => {
+        if (confirm('Exit run? Meals are saved, but coins earned this run will be lost.')) {
+            abandonRun();
+        }
+    };
 
     updateUI();
     updateRibbon();
     updateSeasonUI();
+    updateAbilityButton();
     renderTrackCities();
 }
 
@@ -1386,6 +1542,11 @@ function growSeeds() {
             seed.grown = true;
             buildSeedMesh(idx); // rebuild as tree
         }
+        // Deep Roots: seeds grow on the same lap they were planted
+        if (!seed.grown && getSanctuaryLevel('deep_roots') >= 1 && game.laps >= seed.plantedLap) {
+            seed.grown = true;
+            buildSeedMesh(idx);
+        }
     });
 }
 
@@ -1409,8 +1570,8 @@ function checkSeedHarvest(prevTileIndex, newTileIndex) {
             const meals = Math.floor(BALANCE.SEED_LAND_MEALS * mult * winterMult);
             const dice = BALANCE.SEED_LAND_DICE;
             game.cash += coins;
-            awardMeals(meals);
             game.dice = Math.min(MAX_DICE, game.dice + dice);
+            awardMeals(meals);
             showEventPopup('🌳', 'PERFECT HARVEST!', 'Landed exactly on your tree!\n+🪙' + coins + ' +🍎' + meals + ' +🎲' + dice);
         } else {
             // Small reward — passed through a tree
@@ -1514,8 +1675,11 @@ function killUnharvestedWinterTrees() {
     });
 
     game.cash = Math.max(0, game.cash - totalCoinLoss);
-    // Meals are persistent, so we subtract from run fuel display only
+    // Deduct meals from persistent storage as well
     game.fuel = Math.max(0, game.fuel - totalMealLoss);
+    const id = game.animalDef ? game.animalDef.id : game.selectedAnimalId;
+    persist.animalMeals[id] = Math.max(0, (persist.animalMeals[id] || 0) - totalMealLoss);
+    writeSave();
 
     showEventPopup('🥀', 'TREES WITHERED!',
         treesToKill.length + ' unharvested tree(s) died in the cold!\n-🪙' + totalCoinLoss + ' -🍎' + totalMealLoss);
@@ -1561,6 +1725,8 @@ function applySeasonVisuals() {
 
         const color = palette[def.type] || palette.road;
         if (game.tiles[i] && game.scene) {
+            // Dispose old material to prevent memory leaks across season changes
+            if (game.tiles[i].material) game.tiles[i].material.dispose();
             const mat = new BABYLON.StandardMaterial('sMat_' + i + '_' + season.id, game.scene);
             mat.diffuseColor = BABYLON.Color3.FromHexString(color);
             mat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
@@ -1617,6 +1783,11 @@ function getTileRotation(index) {
 
 /** Wires the RUN button for tap (single roll / stop auto) and hold (start auto). */
 function wireRollButton() {
+    // Abort any listeners from a previous run to prevent stacking
+    if (rollBtnAbort) rollBtnAbort.abort();
+    rollBtnAbort = new AbortController();
+    const signal = rollBtnAbort.signal;
+
     const btn = $('rollBtn');
     let holdStarted = false;
     let ignoreNextUp = false; // skip the pointerup that ends the hold-to-activate gesture
@@ -1693,12 +1864,12 @@ function wireRollButton() {
         holdStarted = false;
     };
 
-    btn.addEventListener('pointerdown', startHold);
-    btn.addEventListener('pointerup', endHold);
-    btn.addEventListener('pointerleave', cancelHold);
-    btn.addEventListener('pointercancel', cancelHold);
+    btn.addEventListener('pointerdown', startHold, { signal });
+    btn.addEventListener('pointerup', endHold, { signal });
+    btn.addEventListener('pointerleave', cancelHold, { signal });
+    btn.addEventListener('pointercancel', cancelHold, { signal });
     // Prevent context menu on long-press (mobile)
-    btn.addEventListener('contextmenu', e => e.preventDefault());
+    btn.addEventListener('contextmenu', e => e.preventDefault(), { signal });
 }
 
 function enableAutoMode() {
@@ -1775,6 +1946,7 @@ function scheduleAutoRoll() {
 /** Main roll action — consumes dice, moves player, then triggers tile events. */
 function doRoll() {
     if (game.isMoving || diceRolling || game.dice < game.multiplier) return;
+    if (isOverlayOpen()) return;
     if (game.flockMode && game.frontGroup + game.rearGroup <= 0) return;
 
     haptic(15);
@@ -1786,7 +1958,7 @@ function doRoll() {
     // Roll 1-6, add speed bonus (backend result determined immediately)
     let roll = Math.floor(Math.random() * 6) + 1;
     const diceFace = Math.min(roll, 6); // face to show on the 3D die
-    roll += Math.floor(getSpeed() / 2);
+    roll += getSpeed();
 
     // Animate the 3D dice, then move the player once it lands
     rollDice3D(diceFace, () => {
@@ -1829,6 +2001,8 @@ function doRoll() {
             // Check for lap completion → advance season
             if (Math.floor(game.tileIndex / BOARD_SIZE) > Math.floor(prevIndex / BOARD_SIZE)) {
                 game.laps++;
+                game.abilityUsed = false;
+                updateAbilityButton();
                 const seasonMult = getSeasonRewardMult();
                 const lapCoins = Math.floor(BALANCE.COIN_LAP_BONUS * game.multiplier * seasonMult);
                 const lapMeals = Math.floor(BALANCE.MEAL_LAP_BONUS * game.multiplier * seasonMult);
@@ -1936,6 +2110,19 @@ function handleTileLanding(physIdx) {
 
     // --- Fall trap check ---
     if (game.fallTraps[physIdx]) {
+        // Trap shield blocks the trap
+        if (game.trapShield) {
+            game.trapShield = false;
+            showFeedback('🛡️ Your shield blocked the trap!');
+            updateUI();
+            return;
+        }
+        // Stealth chance to dodge trap entirely
+        if (Math.random() < getStealth() * 0.12) {
+            showFeedback('🌿 Slipped past the trap unseen!');
+            updateUI();
+            return;
+        }
         const trapRoll = Math.random();
         if (trapRoll < 0.4) {
             const loss = BALANCE.SEASON_FALL_TRAP_COIN_LOSS;
@@ -1944,6 +2131,10 @@ function handleTileLanding(physIdx) {
         } else if (trapRoll < 0.7) {
             const loss = BALANCE.SEASON_FALL_TRAP_MEAL_LOSS;
             game.fuel = Math.max(0, game.fuel - loss);
+            // Also deduct from persistent meals
+            const id = game.animalDef ? game.animalDef.id : game.selectedAnimalId;
+            persist.animalMeals[id] = Math.max(0, (persist.animalMeals[id] || 0) - loss);
+            writeSave();
             showFeedback('🍂 Food spoiled in the dampness! Lost 🍎' + loss);
         } else if (game.purchasedUpgrades.length > 0) {
             const idx = Math.floor(Math.random() * game.purchasedUpgrades.length);
@@ -1999,24 +2190,350 @@ function handleTileLanding(physIdx) {
             break;
         }
         case 'danger':
-            if (Math.random() > 0.3 + getArmor() * 0.1) {
+            if (game.trapShield) {
+                game.trapShield = false;
+                showFeedback('🛡️ Your shield blocked the danger!');
+            } else if (Math.random() > 0.3 + getArmor() * 0.1 + getStealth() * 0.08) {
                 game.cash = Math.max(0, game.cash - 100);
                 showEventPopup('🕸️', 'TRAPPED!', 'Got caught in a bramble! Lost 🪙100.');
             } else {
                 showFeedback('🛡️ Resilience saved you from a trap!');
             }
             break;
-        case 'pit':
-            game.dice += 15;
-            showFeedback('💤 Rested in a burrow. +15 Rolls');
+        case 'pit': {
+            const pitBonus = 15 + getSanctuaryLevel('cozy_burrow') * 5;
+            game.dice = Math.min(MAX_DICE, game.dice + pitBonus);
+            persist.dice = game.dice;
+            writeSave();
+            showFeedback('💤 Rested in a burrow. +' + pitBonus + ' Rolls');
+            break;
+        }
+        case 'bonus':
+            handleBonusTile(mult, seasonMult);
+            break;
+        case 'event':
+            handleEventTile(mult, seasonMult);
+            break;
+        case 'rival':
+            handleRivalTile(mult, seasonMult);
             break;
     }
 
     updateUI();
 }
 
-// ============================================================
-//  15. UI & OVERLAYS
+// --- Bonus tile: always a small, pleasant surprise ---
+function handleBonusTile(mult, seasonMult) {
+    const roll = Math.random();
+    if (roll < 0.3) {
+        // Free dice
+        const bonus = Math.floor(5 + Math.random() * 6); // 5-10
+        game.dice = Math.min(MAX_DICE, game.dice + bonus);
+        persist.dice = game.dice;
+        writeSave();
+        showEventPopup('🍀', 'LUCKY FIND!', 'Found a cozy resting spot! +' + bonus + ' 🎲');
+    } else if (roll < 0.6) {
+        // Double coins for this tile
+        const coins = Math.floor(BALANCE.COIN_CASH_HIGH * 2 * mult * seasonMult);
+        game.cash += coins;
+        showEventPopup('✨', 'SPARKLY PATH!', 'The trail glitters with coins! +🪙' + coins);
+    } else if (roll < 0.85) {
+        // Bonus meals
+        const meals = Math.floor(8 * mult * seasonMult);
+        awardMeals(meals);
+        showEventPopup('🌻', 'WILDFLOWER MEADOW!', 'A beautiful meadow full of food! +🍎' + meals);
+    } else {
+        // Free random upgrade effect
+        game.runArmor += 1;
+        game.runSpeed += 1;
+        showFeedback('🌈 Rainbow trail! +1 SPD +1 RES');
+        updateRibbon();
+    }
+}
+
+// --- Event tile: cozy choice-based encounters. Stealth influences outcomes. ---
+function handleEventTile(mult, seasonMult) {
+    const stealth = getStealth();
+    const events = [
+        // Friendly forager — share or keep
+        function() {
+            const meals = Math.floor(6 * mult * seasonMult);
+            showEventPopup('🦔', 'FRIENDLY HEDGEHOG', 'A hedgehog offers to share berries with you!', [
+                { label: '🤝 Share (+🍎' + meals + ' +🪙' + Math.floor(50 * mult) + ')', action: function() {
+                    awardMeals(meals);
+                    game.cash += Math.floor(50 * mult);
+                    showFeedback('🦔 The hedgehog smiles! +🍎' + meals + ' +🪙' + Math.floor(50 * mult));
+                    updateUI();
+                }},
+                { label: '🍎 Take all (+🍎' + Math.floor(meals * 2) + ')', action: function() {
+                    awardMeals(meals * 2);
+                    showFeedback('🍎 Took all the berries! +🍎' + Math.floor(meals * 2));
+                    updateUI();
+                }}
+            ]);
+        },
+        // Hidden shortcut — stealth check
+        function() {
+            const stealthBonus = Math.min(stealth * 3, 15);
+            const bonusTiles = 5 + stealthBonus;
+            showEventPopup('🌿', 'HIDDEN PATH', 'You notice a shortcut through the bushes!' + (stealth > 0 ? '\nYour stealth helps you find a longer one!' : ''), [
+                { label: '🌿 Take shortcut (+' + bonusTiles + ' tiles)', action: function() {
+                    showFeedback('🌿 Snuck ahead ' + bonusTiles + ' tiles!');
+                    teleportPlayer(bonusTiles);
+                }},
+                { label: '🍃 Stay on path (+🪙' + Math.floor(80 * mult) + ')', action: function() {
+                    game.cash += Math.floor(80 * mult);
+                    showFeedback('🍃 Enjoyed the scenery! +🪙' + Math.floor(80 * mult));
+                    updateUI();
+                }}
+            ]);
+        },
+        // Butterfly chase — stealth improves catch rate
+        function() {
+            const catchChance = Math.min(0.4 + stealth * 0.15, 0.95);
+            const diceReward = Math.floor(8 + stealth * 2);
+            showEventPopup('🦋', 'BUTTERFLY CHASE!', 'A shimmering butterfly flutters ahead! Try to follow it?', [
+                { label: '🦋 Chase! (' + Math.floor(catchChance * 100) + '% catch)', action: function() {
+                    if (Math.random() < catchChance) {
+                        game.dice = Math.min(MAX_DICE, game.dice + diceReward);
+                        persist.dice = game.dice;
+                        writeSave();
+                        showFeedback('🦋 Caught up! +' + diceReward + ' 🎲');
+                    } else {
+                        const consolation = Math.floor(3 * mult * seasonMult);
+                        awardMeals(consolation);
+                        showFeedback('🦋 It got away, but you found berries! +🍎' + consolation);
+                    }
+                    updateUI();
+                }},
+                { label: '😊 Just watch (+🍎' + Math.floor(4 * mult * seasonMult) + ')', action: function() {
+                    awardMeals(Math.floor(4 * mult * seasonMult));
+                    showFeedback('😊 Peaceful moment! +🍎' + Math.floor(4 * mult * seasonMult));
+                    updateUI();
+                }}
+            ]);
+        },
+        // Sleeping fox — stealth to sneak past
+        function() {
+            const sneakChance = Math.min(0.3 + stealth * 0.2, 0.95);
+            const treasure = Math.floor(200 * mult * seasonMult);
+            showEventPopup('🦊', 'SLEEPING FOX', 'A fox sleeps near a pile of forgotten coins!' + (stealth > 0 ? '\nYour stealth helps you move quietly!' : ''), [
+                { label: '🤫 Sneak past (' + Math.floor(sneakChance * 100) + '% success, +🪙' + treasure + ')', action: function() {
+                    if (Math.random() < sneakChance) {
+                        game.cash += treasure;
+                        showFeedback('🤫 Snuck past! +🪙' + treasure);
+                    } else {
+                        const loss = Math.floor(60 * mult);
+                        game.cash = Math.max(0, game.cash - loss);
+                        showFeedback('🦊 Fox woke up! Lost 🪙' + loss);
+                    }
+                    updateUI();
+                }},
+                { label: '🔄 Go around (safe, +🍎' + Math.floor(3 * mult * seasonMult) + ')', action: function() {
+                    awardMeals(Math.floor(3 * mult * seasonMult));
+                    showFeedback('🔄 Took the long way! +🍎' + Math.floor(3 * mult * seasonMult));
+                    updateUI();
+                }}
+            ]);
+        },
+        // Wishing well — spend coins for a random reward
+        function() {
+            const wishCost = Math.floor(100 * mult);
+            const canAfford = game.cash >= wishCost;
+            showEventPopup('⛲', 'WISHING WELL', 'An old stone well with a faint glow...', [
+                { label: canAfford ? '🪙 Toss coin (-🪙' + wishCost + ')' : '🪙 Not enough coins', action: function() {
+                    if (!canAfford) return;
+                    game.cash -= wishCost;
+                    const wish = Math.random();
+                    if (wish < 0.3) {
+                        const reward = Math.floor(wishCost * 3);
+                        game.cash += reward;
+                        showFeedback('⛲ Wish granted! +🪙' + reward);
+                    } else if (wish < 0.6) {
+                        const meals = Math.floor(12 * mult * seasonMult);
+                        awardMeals(meals);
+                        showFeedback('⛲ The well feeds you! +🍎' + meals);
+                    } else {
+                        const dice = 10 + Math.floor(Math.random() * 11);
+                        game.dice = Math.min(MAX_DICE, game.dice + dice);
+                        persist.dice = game.dice;
+                        writeSave();
+                        showFeedback('⛲ The well restores you! +' + dice + ' 🎲');
+                    }
+                    updateUI();
+                }},
+                { label: '🚶 Walk past', action: function() {
+                    showFeedback('⛲ Maybe next time...');
+                }}
+            ]);
+        }
+    ];
+    events[Math.floor(Math.random() * events.length)]();
+}
+
+// --- Rival tile: a friendly competition with another animal. Stealth gives edge. ---
+function handleRivalTile(mult, seasonMult) {
+    const stealth = getStealth();
+    const speed = getSpeed();
+    const rivals = [
+        // Race challenge — speed check
+        function() {
+            const winChance = Math.min(0.35 + speed * 0.12, 0.9);
+            const prize = Math.floor(150 * mult * seasonMult);
+            showEventPopup('🐿️', 'SQUIRREL RACE!', 'A squirrel challenges you to a dash!' + (speed > 0 ? '\nYour speed gives you an edge!' : ''), [
+                { label: '🏃 Race! (' + Math.floor(winChance * 100) + '% win, +🪙' + prize + ')', action: function() {
+                    if (Math.random() < winChance) {
+                        game.cash += prize;
+                        showFeedback('🏆 You won the race! +🪙' + prize);
+                    } else {
+                        showFeedback('🐿️ The squirrel was faster! Better luck next time.');
+                    }
+                    updateUI();
+                }},
+                { label: '👋 Cheer them on (+🍎' + Math.floor(3 * mult * seasonMult) + ')', action: function() {
+                    awardMeals(Math.floor(3 * mult * seasonMult));
+                    showFeedback('👋 Fun to watch! +🍎' + Math.floor(3 * mult * seasonMult));
+                    updateUI();
+                }}
+            ]);
+        },
+        // Hide and seek — stealth check
+        function() {
+            const winChance = Math.min(0.3 + stealth * 0.18, 0.92);
+            const diceWin = 8 + Math.floor(stealth * 2);
+            showEventPopup('🐰', 'HIDE & SEEK!', 'A bunny wants to play hide and seek!' + (stealth > 0 ? '\nYour stealth makes you hard to find!' : ''), [
+                { label: '🙈 Play! (' + Math.floor(winChance * 100) + '% win, +' + diceWin + ' 🎲)', action: function() {
+                    if (Math.random() < winChance) {
+                        game.dice = Math.min(MAX_DICE, game.dice + diceWin);
+                        persist.dice = game.dice;
+                        writeSave();
+                        showFeedback('🎉 Won hide & seek! +' + diceWin + ' 🎲');
+                    } else {
+                        showFeedback('🐰 Found you! Nice try!');
+                    }
+                    updateUI();
+                }},
+                { label: '😊 Just watch (+🪙' + Math.floor(40 * mult) + ')', action: function() {
+                    game.cash += Math.floor(40 * mult);
+                    showFeedback('😊 Cute game! +🪙' + Math.floor(40 * mult));
+                    updateUI();
+                }}
+            ]);
+        },
+        // Foraging contest — balanced check
+        function() {
+            const totalStat = speed + stealth + getArmor();
+            const winChance = Math.min(0.35 + totalStat * 0.06, 0.88);
+            const mealPrize = Math.floor(10 * mult * seasonMult);
+            showEventPopup('🐸', 'FORAGING CONTEST!', 'A frog challenges you to a berry-picking race!', [
+                { label: '🍓 Compete! (' + Math.floor(winChance * 100) + '% win, +🍎' + mealPrize + ')', action: function() {
+                    if (Math.random() < winChance) {
+                        awardMeals(mealPrize);
+                        showFeedback('🏆 Picked the most! +🍎' + mealPrize);
+                    } else {
+                        const consolation = Math.floor(mealPrize * 0.3);
+                        awardMeals(consolation);
+                        showFeedback('🐸 Frog wins! But you still got +🍎' + consolation);
+                    }
+                    updateUI();
+                }},
+                { label: '🤝 Share the patch (+🍎' + Math.floor(mealPrize * 0.5) + ')', action: function() {
+                    awardMeals(Math.floor(mealPrize * 0.5));
+                    showFeedback('🤝 Shared nicely! +🍎' + Math.floor(mealPrize * 0.5));
+                    updateUI();
+                }}
+            ]);
+        }
+    ];
+    rivals[Math.floor(Math.random() * rivals.length)]();
+}
+
+// --- Animal abilities: once-per-lap special actions ---
+
+/** Teleports the player forward N tiles, handling laps, seeds, tile effects, and 3D position. */
+function teleportPlayer(tiles) {
+    if (tiles <= 0) return;
+    const prevIndex = game.tileIndex;
+    game.tileIndex += tiles;
+    const physIdx = game.tileIndex % BOARD_SIZE;
+
+    // Update 3D position + camera
+    const pos = getTileWorldPosition(physIdx);
+    const rot = getTileRotation(physIdx);
+    if (game.playerRoot) {
+        game.playerRoot.position = pos;
+        game.playerRoot.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(rot);
+    }
+    if (game.cameraAnchor) {
+        game.cameraAnchor.position = pos.clone();
+        game.cameraAnchor.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(rot);
+    }
+    if (game.flockMode && game.rearPlayerRoot) {
+        const rearIdx = (game.tileIndex - 1 + BOARD_SIZE) % BOARD_SIZE;
+        game.rearPlayerRoot.position = getTileWorldPosition(rearIdx);
+        game.rearPlayerRoot.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(getTileRotation(rearIdx));
+    }
+
+    // Check for lap completion(s)
+    const prevLap = Math.floor(prevIndex / BOARD_SIZE);
+    const newLap = Math.floor(game.tileIndex / BOARD_SIZE);
+    for (let lap = prevLap + 1; lap <= newLap; lap++) {
+        game.laps++;
+        game.abilityUsed = false;
+        updateAbilityButton();
+        const seasonMult = getSeasonRewardMult();
+        const lapCoins = Math.floor(BALANCE.COIN_LAP_BONUS * game.multiplier * seasonMult);
+        const lapMeals = Math.floor(BALANCE.MEAL_LAP_BONUS * game.multiplier * seasonMult);
+        game.cash += lapCoins;
+        awardMeals(lapMeals);
+        growSeeds();
+        advanceSeason();
+    }
+
+    // Check seed harvests and tile landing
+    checkSeedHarvest(prevIndex, game.tileIndex);
+    if (!game.flockMode || game.frontGroup > 0) handleTileLanding(physIdx);
+
+    updateUI();
+    updateRibbon();
+}
+
+const ABILITY_DEFS = {
+    'Mud Slide':    { icon: '💦', desc: 'Gain +2 RES for this lap',          action: function() { game.runArmor += 2; showFeedback('💦 Mud Slide! +2 RES this lap'); updateUI(); updateRibbon(); } },
+    'Wing Flutter': { icon: '🪽', desc: 'Gain +8 bonus dice',                action: function() { game.dice = Math.min(MAX_DICE, game.dice + 8); persist.dice = game.dice; writeSave(); showFeedback('🪽 Wing Flutter! +8 🎲'); updateUI(); } },
+    'Stampede':     { icon: '🐂', desc: 'Rush forward 8 tiles',              action: function() { showFeedback('🐂 Stampede! Charged 8 tiles!'); teleportPlayer(8); } },
+    'Fleece Veil':  { icon: '☁️', desc: 'Gain +2 STH for this lap',          action: function() { game.runStealth += 2; showFeedback('☁️ Fleece Veil! +2 STH this lap'); updateUI(); updateRibbon(); } },
+    'Burrow':       { icon: '🕳️', desc: 'Teleport 12 tiles ahead',           action: function() { showFeedback('🕳️ Burrow! Dug ahead 12 tiles!'); teleportPlayer(12); } },
+    'Wing Splash':  { icon: '💧', desc: 'Gain +2 STH and avoid next trap',   action: function() { game.runStealth += 2; game.trapShield = true; showFeedback('💧 Wing Splash! +2 STH + trap shield!'); updateUI(); updateRibbon(); } },
+    'Mud Rush':     { icon: '🌊', desc: 'Gain +1 SPD +1 RES for this lap',   action: function() { game.runSpeed += 1; game.runArmor += 1; showFeedback('🌊 Mud Rush! +1 SPD +1 RES'); updateUI(); updateRibbon(); } },
+    'Scatter':      { icon: '🐔', desc: 'Gain +10 dice and +1 SPD',          action: function() { game.dice = Math.min(MAX_DICE, game.dice + 10); game.runSpeed += 1; persist.dice = game.dice; writeSave(); showFeedback('🐔 Scatter! +10 🎲 +1 SPD'); updateUI(); updateRibbon(); } },
+    'Herd Charge':  { icon: '🐄', desc: 'Rush forward 10 tiles with +1 RES', action: function() { game.runArmor += 1; showFeedback('🐄 Herd Charge! +10 tiles +1 RES'); updateRibbon(); teleportPlayer(10); } },
+    'Wool Screen':  { icon: '🌫️', desc: 'Gain +3 STH for this lap',          action: function() { game.runStealth += 3; showFeedback('🌫️ Wool Screen! +3 STH'); updateUI(); updateRibbon(); } },
+    'Flash Burrow': { icon: '⚡', desc: 'Teleport 15 tiles ahead',           action: function() { showFeedback('⚡ Flash Burrow! Zipped 15 tiles!'); teleportPlayer(15); } },
+    'Wing Curtain': { icon: '🪶', desc: 'Gain +2 STH +1 RES + trap shield',  action: function() { game.runStealth += 2; game.runArmor += 1; game.trapShield = true; showFeedback('🪶 Wing Curtain! +2 STH +1 RES + shield!'); updateUI(); updateRibbon(); } },
+};
+
+function useAbility() {
+    if (game.abilityUsed || !game.animalDef) return;
+    const def = ABILITY_DEFS[game.animalDef.ability];
+    if (!def) return;
+    game.abilityUsed = true;
+    haptic(20);
+    def.action();
+    updateAbilityButton();
+}
+
+function updateAbilityButton() {
+    const btn = $('abilityBtn');
+    if (!btn || !game.animalDef) return;
+    const def = ABILITY_DEFS[game.animalDef.ability];
+    if (!def) { btn.classList.add('hidden'); return; }
+    btn.classList.remove('hidden');
+    $('abilityIcon').textContent = def.icon;
+    $('abilityName').textContent = game.animalDef.ability;
+    btn.disabled = game.abilityUsed;
+    btn.title = game.abilityUsed ? 'Used this lap' : def.desc;
+}
 // ============================================================
 
 /** Cycles the roll multiplier through MULT_STEPS. */
@@ -2236,7 +2753,7 @@ function openUpgradeShop() {
 function applyUpgrade(up) {
     // --- Stat bonuses ---
     switch (up.stat) {
-        case 'dice':    game.dice += 30; break;
+        case 'dice':    game.dice = Math.min(MAX_DICE, game.dice + 30); break;
         case 'speed':   game.runSpeed += (up.id === 'mushrooms' ? 2 : 1); break;
         case 'stealth': game.runStealth += (up.id === 'feathers' ? 2 : 1); break;
         case 'armor':   game.runArmor += (up.id === 'stones' ? 2 : 1); break;
@@ -2310,6 +2827,7 @@ function debugReset() {
     persist.generalMeals = 0;
     persist.lastDailyConsume = 0;
     persist.animalStatus = {};
+    persist.sanctuaryUpgrades = {};
     game.dice = persist.dice;
     game.selectedAnimalId = 'brave_pig';
     renderSanctuary();

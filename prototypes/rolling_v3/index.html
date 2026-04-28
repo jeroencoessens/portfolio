@@ -26,7 +26,7 @@
                 <div class="sanctuary-dice-timer">
                     <div id="sanctuaryDiceTimerFill" class="dice-timer-fill"></div>
                 </div>
-                <div class="sanctuary-dice-hint">+<span id="sanctuaryRefillAmt">10</span> every <span id="sanctuaryRefillTime">10</span>min (max <span id="sanctuaryMaxDice">100</span>)</div>
+                <div class="sanctuary-dice-hint">+<span id="sanctuaryRefillAmt">10</span> every <span id="sanctuaryRefillTime">10</span>min (max <span id="sanctuaryMaxDice">125</span>)</div>
             </div>
 
             <div class="animal-section">
@@ -49,9 +49,18 @@
                     </div>
                 </div>
                 <div class="selected-animal-stats" id="selAnimalStats"></div>
+
+                <div class="wager-section" id="wagerSection">
+                    <div class="wager-label">
+                        <span>STARTING COINS</span>
+                        <span class="wager-value" id="wagerValue">🪙 0</span>
+                    </div>
+                    <input type="range" class="wager-slider" id="wagerSlider" min="0" max="0" value="0" step="50">
+                    <div class="wager-hint">Invest coins from your bank to start with more</div>
+                </div>
+
                 <button class="start-run-btn" id="startRunBtn">
                     <span class="start-run-main">BEGIN ESCAPE 🌿</span>
-                    <span class="start-run-bonus">+25 🎲 on start</span>
                 </button>
             </div>
 
@@ -63,6 +72,12 @@
             </button>
 
             <div class="general-meals-display" id="generalMealsDisplay">🍎 0 shared meals</div>
+
+            <button class="sanctuary-upgrades-btn" id="sanctuaryUpgradesBtn">
+                <span class="sanctuary-upgrades-icon">🏡</span>
+                <span class="sanctuary-upgrades-text">SANCTUARY UPGRADES</span>
+                <span class="sanctuary-upgrades-sub">Permanent improvements for all animals</span>
+            </button>
 
             <div class="debug-buttons">
                 <button class="debug-btn" id="debugResetBtn">🗑️ Reset Progress</button>
@@ -130,6 +145,9 @@
             </div>
             <div class="track-endpoint track-ny"><span>FREEDOM</span><span class="ep-emoji">🌳</span></div>
         </div>
+
+        <!-- Exit Run Button -->
+        <button class="exit-run-btn" id="exitRunBtn">🚪 EXIT RUN</button>
 
         <!-- Animal Stats Ribbon -->
         <div class="animal-stats-ribbon" id="animalStatsRibbon">
@@ -207,6 +225,10 @@
                 <span class="plant-text">🌱</span>
                 <span class="plant-cost">🪙150</span>
             </button>
+            <button class="ability-btn hidden" id="abilityBtn">
+                <span class="ability-icon" id="abilityIcon">⚡</span>
+                <span class="ability-name" id="abilityName">Ability</span>
+            </button>
         </div>
     </div>
 
@@ -242,6 +264,17 @@
             <p class="upgrade-cash" id="upgradeCash">🪙 0</p>
             <div class="upgrade-grid" id="upgradeGrid"></div>
             <button class="close-overlay-btn" id="upgradeCloseBtn">BACK TO PATH</button>
+        </div>
+    </div>
+
+    <!-- ===== SANCTUARY UPGRADES OVERLAY ===== -->
+    <div id="sanctuaryUpgradeOverlay" class="overlay">
+        <div class="overlay-content sanctuary-upgrade-content">
+            <h2>🏡 SANCTUARY UPGRADES</h2>
+            <p class="sanctuary-upgrade-hint">Permanent improvements for every run</p>
+            <p class="upgrade-cash" id="sanctuaryUpgradeCash">🪙 0</p>
+            <div class="sanctuary-upgrade-grid" id="sanctuaryUpgradeGrid"></div>
+            <button class="close-overlay-btn" id="sanctuaryUpgradeCloseBtn">BACK</button>
         </div>
     </div>
 
