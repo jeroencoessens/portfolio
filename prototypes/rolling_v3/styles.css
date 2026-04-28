@@ -1285,6 +1285,57 @@ body {
     opacity: 0.7;
 }
 
+/* Diorama status bar */
+.diorama-status-bar {
+    position: absolute;
+    top: 3rem;
+    top: calc(3rem + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.4rem 0.8rem;
+    background: rgba(10, 20, 10, 0.75);
+    border: 1px solid rgba(112, 224, 0, 0.15);
+    border-radius: 10px;
+    z-index: 10;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    max-width: 92vw;
+    width: auto;
+}
+.diorama-status-bar:empty { display: none; }
+
+.diorama-status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+}
+.diorama-status-row.urgent {
+    color: var(--gold);
+}
+.diorama-status-row .status-icon {
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+.diorama-status-row .status-text b {
+    color: var(--white);
+}
+.diorama-status-row .status-detail {
+    margin-left: auto;
+    opacity: 0.6;
+    font-size: 0.6rem;
+}
+.diorama-status-row .status-reward { color: var(--safe); }
+.diorama-status-row .status-hungry { color: #ff9999; }
+.diorama-status-row .status-ok { color: rgba(255,255,255,0.5); }
+
 .diorama-hint {
     position: absolute;
     bottom: 1.2rem;
@@ -1305,8 +1356,8 @@ body {
     bottom: 2.5rem;
     left: 50%; transform: translateX(-50%);
     display: flex;
-    align-items: center;
-    gap: 0.6rem;
+    flex-direction: column;
+    gap: 0;
     padding: 0.5rem 1rem;
     padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
     background: rgba(10,20,10,0.85);
@@ -1315,6 +1366,8 @@ body {
     z-index: 10;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    min-width: 240px;
+    max-width: 90vw;
 }
 .diorama-focus-panel.hidden { display: none; }
 .diorama-focus-emoji { font-size: 1.6rem; }
@@ -1342,3 +1395,104 @@ body {
     margin-left: 0.3rem;
 }
 .diorama-focus-close:active { opacity: 0.6; }
+
+/* Focus panel layout with action buttons */
+.diorama-focus-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.diorama-focus-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+}
+.diorama-focus-actions:empty { display: none; }
+
+.diorama-action-btn {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--white);
+    background: rgba(255,255,255,0.08);
+    transition: all 0.15s;
+}
+.diorama-action-btn:active { transform: scale(0.95); opacity: 0.8; }
+.diorama-action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.diorama-action-btn.upgrade {
+    background: linear-gradient(135deg, rgba(245,203,92,0.25), rgba(255,170,0,0.15));
+    border-color: rgba(245,203,92,0.5);
+    color: var(--gold);
+}
+.diorama-action-btn.revive {
+    background: linear-gradient(135deg, rgba(230,57,70,0.2), rgba(255,100,100,0.1));
+    border-color: rgba(230,57,70,0.4);
+    color: #ff9999;
+}
+.diorama-action-btn.reward {
+    background: linear-gradient(135deg, rgba(6,214,160,0.2), rgba(46,196,182,0.1));
+    border-color: rgba(6,214,160,0.4);
+    color: var(--safe);
+}
+
+/* Diorama button notification badge */
+.diorama-badge {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--gold);
+    margin-top: 0.15rem;
+    animation: badgePulse 2s ease-in-out infinite;
+}
+.diorama-badge.hidden { display: none; }
+@keyframes badgePulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+/* General meals display on start screen */
+.general-meals-display {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.75rem;
+    color: var(--safe);
+    opacity: 0.6;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+/* Animal card status badges */
+.animal-card-upgrade-badge {
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.06em;
+    animation: badgePulse 2s ease-in-out infinite;
+}
+.animal-card-status-badge {
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border-radius: 4px;
+    padding: 0.05rem 0.3rem;
+}
+.animal-card-status-badge.hungry {
+    color: #ff9999;
+    background: rgba(230,57,70,0.15);
+}
+.animal-card-status-badge.reward {
+    color: var(--safe);
+    background: rgba(6,214,160,0.15);
+}
+
+/* Upgrade hint in selected animal panel */
+.sel-stat-upgrade {
+    color: var(--gold);
+    animation: badgePulse 2s ease-in-out infinite;
+}

@@ -59,11 +59,15 @@
                 <span class="diorama-btn-icon">🌍</span>
                 <span class="diorama-btn-text">VIEW SANCTUARY</span>
                 <span class="diorama-btn-sub">See your rescued animals in the wild</span>
+                <span class="diorama-badge hidden" id="dioramaBadge"></span>
             </button>
+
+            <div class="general-meals-display" id="generalMealsDisplay">🍎 0 shared meals</div>
 
             <div class="debug-buttons">
                 <button class="debug-btn" id="debugResetBtn">🗑️ Reset Progress</button>
                 <button class="debug-btn" id="debugCoinsBtn">🪙 +5000 Coins</button>
+                <button class="debug-btn" id="debugDiceBtn">🎲 +30 Dice</button>
             </div>
         </div>
     </div>
@@ -76,12 +80,16 @@
             <div class="diorama-title">🌿 SANCTUARY</div>
             <div class="diorama-animal-count" id="dioramaCount">0 animals</div>
         </div>
+        <div class="diorama-status-bar" id="dioramaStatusBar"></div>
         <div class="diorama-hint" id="dioramaHint">Drag to rotate · Pinch to zoom · Tap an animal to focus</div>
         <div class="diorama-focus-panel hidden" id="dioramaFocusPanel">
-            <span class="diorama-focus-emoji" id="dioramaFocusEmoji"></span>
-            <span class="diorama-focus-name" id="dioramaFocusName"></span>
-            <span class="diorama-focus-meals" id="dioramaFocusMeals"></span>
-            <button class="diorama-focus-close" id="dioramaFocusClose">✕</button>
+            <div class="diorama-focus-header">
+                <span class="diorama-focus-emoji" id="dioramaFocusEmoji"></span>
+                <span class="diorama-focus-name" id="dioramaFocusName"></span>
+                <span class="diorama-focus-meals" id="dioramaFocusMeals"></span>
+                <button class="diorama-focus-close" id="dioramaFocusClose">✕</button>
+            </div>
+            <div class="diorama-focus-actions" id="dioramaFocusActions"></div>
         </div>
     </div>
 

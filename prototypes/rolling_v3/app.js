@@ -56,6 +56,14 @@ const AUTO_FILL_DELAY   = 200;       // ms before the hold-bar starts filling (h
 
 // --- Unlocks ---
 const GROUP_UNLOCK_MEALS = 200;      // meals required on linked solo animal to unlock group form
+const GOLDEN_UPGRADE_COST = 250;     // meals spent to upgrade an animal to golden (in diorama)
+
+// --- Daily Sanctuary ---
+const DAILY_MEAL_CONSUME  = 10;      // meals each animal consumes per day
+const DAILY_DICE_REWARD   = 5;       // dice reward per fed animal when player returns
+const REVIVE_COIN_COST    = 500;     // coins to revive a hungry animal
+const GENERAL_MEAL_AMOUNT = 50;      // general meals granted by shop purchase
+const GENERAL_MEAL_COST   = 800;     // coin cost for general meals in upgrade shop
 
 // --- 3D Positioning ---
 const PLAYER_TILE_OFFSET  = 0.5;     // height above tile surface for player mesh
@@ -174,6 +182,7 @@ const UPGRADES = [
     { id: 'stones',    name: 'River Stones',   icon: '🪨', desc: '+2 Resilience, boosts meal tiles',                stat: 'armor',   cost: 1400, tier: 'mid',       mealEffect: 'passive'   },
     { id: 'vines',     name: 'Wild Vines',     icon: '🌿', desc: 'Road tiles now sometimes yield meals',            stat: 'none',    cost: 1800, tier: 'expensive',  mealEffect: 'tileAlter' },
     { id: 'flowers',   name: 'Blossom Path',   icon: '🌸', desc: 'Even more tiles become meal sources',             stat: 'none',    cost: 2500, tier: 'expensive',  mealEffect: 'tileAlter' },
+    { id: 'provisions',name: 'Provisions',     icon: '🧺', desc: '+' + GENERAL_MEAL_AMOUNT + ' shared meals for all animals in the sanctuary', stat: 'none', cost: GENERAL_MEAL_COST, tier: 'cheap', mealEffect: 'general' },
 ];
 
 // --- Tile pattern (repeats every 20 tiles to fill the 80-tile board) ---
@@ -211,7 +220,11 @@ let persist = {
     unlockedAnimals: ['brave_pig'],
     dice: STARTING_DICE,
     lastDiceUpdate: Date.now(),
-    animalMeals: {},   // { animal_id: totalMeals } — permanent per-animal meal count
+    animalMeals: {},       // { animal_id: totalMeals } — permanent per-animal meal count
+    goldenAnimals: [],     // animal ids that have been upgraded to golden
+    generalMeals: 0,       // shared meal pool usable by any animal
+    lastDailyConsume: 0,   // timestamp of last daily sanctuary consumption
+    animalStatus: {},      // { animal_id: 'ok' | 'hungry' | 'rewarded' }
 };
 
 // Runtime state — reset at the start of each run
@@ -298,6 +311,10 @@ function loadSave() {
         persist.dice = data.dice !== undefined ? data.dice : STARTING_DICE;
         persist.lastDiceUpdate = data.lastDiceUpdate || Date.now();
         persist.animalMeals = data.animalMeals || {};
+        persist.goldenAnimals = data.goldenAnimals || [];
+        persist.generalMeals = data.generalMeals || 0;
+        persist.lastDailyConsume = data.lastDailyConsume || 0;
+        persist.animalStatus = data.animalStatus || {};
     } catch (_) { /* corrupt save — use defaults */ }
 }
 
@@ -322,6 +339,68 @@ function applyOfflineDiceRefill() {
         game.dice = persist.dice;
         writeSave();
     }
+}
+
+/**
+ * Daily sanctuary consumption — once per calendar day, each animal eats DAILY_MEAL_CONSUME meals.
+ * Animals with enough meals get status 'rewarded' (player can collect dice in diorama).
+ * Animals without enough meals get status 'hungry' (must be revived before playing).
+ * Uses general meals pool as fallback if animal's own meals are insufficient.
+ */
+function applyDailyConsumption() {
+    const now = Date.now();
+    const lastDate = persist.lastDailyConsume ? new Date(persist.lastDailyConsume) : null;
+    const today = new Date();
+
+    // Check if a new day has passed (different calendar date)
+    if (lastDate &&
+        lastDate.getFullYear() === today.getFullYear() &&
+        lastDate.getMonth() === today.getMonth() &&
+        lastDate.getDate() === today.getDate()) {
+        return; // already consumed today
+    }
+
+    // First time ever — just stamp today, no consumption
+    if (!persist.lastDailyConsume) {
+        persist.lastDailyConsume = now;
+        // Initialize all owned animals as 'ok'
+        persist.unlockedAnimals.forEach(id => {
+            if (!persist.animalStatus[id]) persist.animalStatus[id] = 'ok';
+        });
+        writeSave();
+        return;
+    }
+
+    // Calculate how many days passed (cap at 7 to prevent catastrophic offline loss)
+    const daysPassed = Math.min(7, Math.floor((now - persist.lastDailyConsume) / (24 * 60 * 60 * 1000)));
+    if (daysPassed < 1) return;
+
+    for (const id of persist.unlockedAnimals) {
+        const totalNeeded = DAILY_MEAL_CONSUME * daysPassed;
+        let available = Math.floor(persist.animalMeals[id] || 0);
+
+        if (available >= totalNeeded) {
+            // Animal had enough — deduct and mark for reward collection
+            persist.animalMeals[id] = available - totalNeeded;
+            persist.animalStatus[id] = 'rewarded';
+        } else {
+            // Try general meals as fallback
+            const deficit = totalNeeded - available;
+            if (persist.generalMeals >= deficit) {
+                persist.animalMeals[id] = 0;
+                persist.generalMeals -= deficit;
+                persist.animalStatus[id] = 'rewarded';
+            } else {
+                // Eat what's available, mark hungry
+                persist.animalMeals[id] = 0;
+                persist.generalMeals = Math.max(0, persist.generalMeals - Math.max(0, deficit));
+                persist.animalStatus[id] = 'hungry';
+            }
+        }
+    }
+
+    persist.lastDailyConsume = now;
+    writeSave();
 }
 
 /**
@@ -369,12 +448,14 @@ function updateSanctuaryDice() {
 function initStartScreen() {
     loadSave();
     applyOfflineDiceRefill();
+    applyDailyConsumption();
     game.dice = persist.dice;
     sanitizeUnlocks();
     renderSanctuary();
     startGlobalDiceTimer();
     $('debugResetBtn').onclick = debugReset;
     $('debugCoinsBtn').onclick = debugCoins;
+    $('debugDiceBtn').onclick = debugDice;
     $('dioramaBtn').onclick = openDiorama;
 }
 
@@ -423,7 +504,9 @@ function renderAnimalGroup(grid, animals) {
         const owned = persist.unlockedAnimals.includes(animal.id);
         const selected = animal.id === game.selectedAnimalId;
         const meals = getAnimalMeals(animal.id);
-        const isGolden = meals >= BALANCE.MEAL_GOLDEN_THRESHOLD;
+        const isGolden = persist.goldenAnimals.includes(animal.id);
+        const canUpgradeGolden = !isGolden && owned && meals >= GOLDEN_UPGRADE_COST;
+        const status = persist.animalStatus[animal.id] || 'ok';
         const lockHint = getAnimalLockHint(animal);
         const canUnlock = canUnlockAnimal(animal);
         const emojiDisplay = animal.form === 'group'
@@ -440,6 +523,9 @@ function renderAnimalGroup(grid, animals) {
             '<div class="animal-card-emoji">' + emojiDisplay + '</div>' +
             '<div class="animal-card-name">' + animal.name + '</div>' +
             (owned ? '<div class="animal-card-meals">🍎 ' + meals + '</div>' : '') +
+            (canUpgradeGolden ? '<div class="animal-card-upgrade-badge">✨ UPGRADE</div>' : '') +
+            (owned && status === 'hungry' ? '<div class="animal-card-status-badge hungry">💤 HUNGRY</div>' : '') +
+            (owned && status === 'rewarded' ? '<div class="animal-card-status-badge reward">🎁 REWARD</div>' : '') +
             (!owned ? '<div class="animal-card-price">🪙 ' + animal.price.toLocaleString() + '</div>' : '') +
             (lockHint ? '<div class="animal-card-require">' + lockHint + '</div>' : '') +
             (!owned ? '<div class="animal-card-lock">🔒</div>' : '');
@@ -479,7 +565,8 @@ function renderSanctuary() {
     // Update the selected-animal detail panel
     const animal = ANIMALS.find(a => a.id === game.selectedAnimalId) || ANIMALS[0];
     const selMeals = getAnimalMeals(animal.id);
-    const selGolden = selMeals >= BALANCE.MEAL_GOLDEN_THRESHOLD;
+    const selGolden = persist.goldenAnimals.includes(animal.id);
+    const selCanUpgrade = !selGolden && selMeals >= GOLDEN_UPGRADE_COST;
     $('selAnimalEmoji').textContent = animal.emoji;
     $('selAnimalName').textContent = animal.name;
     $('selAnimalStats').innerHTML =
@@ -487,13 +574,52 @@ function renderSanctuary() {
         '<span class="sel-stat sel-stat-arm">RES ' + animal.armor + '</span>' +
         '<span class="sel-stat sel-stat-stl">STH ' + animal.stealth + '</span>' +
         '<span class="sel-stat sel-stat-meals">🍎 ' + selMeals + ' MEALS</span>' +
-        (selGolden ? '<span class="sel-stat sel-stat-golden">✨ GOLDEN</span>' : '');
+        (selGolden ? '<span class="sel-stat sel-stat-golden">✨ GOLDEN</span>' : '') +
+        (selCanUpgrade ? '<span class="sel-stat sel-stat-upgrade">✨ Upgrade in Sanctuary!</span>' : '');
     $('selAnimalDesc').textContent = animal.desc;
 
     const isOwned = persist.unlockedAnimals.includes(animal.id);
     $('startRunBtn').disabled = !isOwned;
     $('startRunBtn').innerHTML = getRunButtonHtml(animal, isOwned);
-    $('startRunBtn').onclick = () => { if (isOwned) { haptic(25); startRun(animal); } };
+    $('startRunBtn').onclick = () => {
+        if (!isOwned) return;
+        const status = persist.animalStatus[animal.id] || 'ok';
+        if (status === 'hungry') {
+            alert(animal.name + ' is hungry! Visit the Sanctuary to revive them first.');
+            return;
+        }
+        haptic(25);
+        startRun(animal);
+    };
+
+    // Update diorama button badge
+    updateDioramaBadge();
+
+    // Show general meals pool
+    $('generalMealsDisplay').textContent = '🍎 ' + persist.generalMeals + ' shared meals';
+}
+
+/** Checks if any animals need attention and updates the diorama button badge. */
+function updateDioramaBadge() {
+    let badgeText = '';
+    const upgradeReady = persist.unlockedAnimals.some(id => {
+        return !persist.goldenAnimals.includes(id) && getAnimalMeals(id) >= GOLDEN_UPGRADE_COST;
+    });
+    const hungryCount = persist.unlockedAnimals.filter(id => persist.animalStatus[id] === 'hungry').length;
+    const rewardCount = persist.unlockedAnimals.filter(id => persist.animalStatus[id] === 'rewarded').length;
+
+    const parts = [];
+    if (upgradeReady) parts.push('✨ Upgrade');
+    if (hungryCount > 0) parts.push('💤 ' + hungryCount + ' hungry');
+    if (rewardCount > 0) parts.push('🎁 ' + rewardCount + ' rewards');
+
+    const badge = $('dioramaBadge');
+    if (parts.length > 0) {
+        badge.textContent = parts.join(' · ');
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
 }
 
 // ============================================================
@@ -2144,6 +2270,10 @@ function applyUpgrade(up) {
         applyTileAlterations();
     }
 
+    if (up.mealEffect === 'general') {
+        persist.generalMeals += GENERAL_MEAL_AMOUNT;
+    }
+
     showFeedback('🍃 ' + up.name + ' used!');
     writeSave();
 }
@@ -2176,6 +2306,10 @@ function debugReset() {
     persist.dice = STARTING_DICE;
     persist.lastDiceUpdate = Date.now();
     persist.animalMeals = {};
+    persist.goldenAnimals = [];
+    persist.generalMeals = 0;
+    persist.lastDailyConsume = 0;
+    persist.animalStatus = {};
     game.dice = persist.dice;
     game.selectedAnimalId = 'brave_pig';
     renderSanctuary();
@@ -2183,6 +2317,13 @@ function debugReset() {
 
 function debugCoins() {
     persist.totalCash += 5000;
+    writeSave();
+    renderSanctuary();
+}
+
+function debugDice() {
+    persist.dice = Math.min(MAX_DICE, persist.dice + 30);
+    game.dice = persist.dice;
     writeSave();
     renderSanctuary();
 }
@@ -2243,6 +2384,9 @@ function openDiorama() {
     // Wire up buttons
     $('dioramaBackBtn').onclick = closeDiorama;
     $('dioramaFocusClose').onclick = dioramaUnfocus;
+
+    // Update status bar
+    updateDioramaStatusBar();
 }
 
 /** Closes the diorama and tears down the 3D engine. */
@@ -2264,6 +2408,7 @@ function closeDiorama() {
 
     $('dioramaScreen').classList.add('hidden');
     $('startScreen').classList.remove('hidden');
+    renderSanctuary();
 }
 
 // ---------------------------------------------------------------
@@ -2567,7 +2712,8 @@ function spawnDioramaAnimals(scene, animalDefs, shadowGen) {
         groupRoot.rotation.y = Math.atan2(-px, -pz) + (Math.random() - 0.5) * 1.0;
 
         const meals = getAnimalMeals(animalDef.id);
-        const isGolden = meals >= BALANCE.MEAL_GOLDEN_THRESHOLD;
+        const isGolden = persist.goldenAnimals.includes(animalDef.id);
+        const status = persist.animalStatus[animalDef.id] || 'ok';
 
         // How many members: solo = 1, group = 4 (1 main + 3 family)
         const memberCount = isGroup ? 4 : 1;
@@ -2582,7 +2728,10 @@ function spawnDioramaAnimals(scene, animalDefs, shadowGen) {
         let mainBody = null;
         for (let m = 0; m < memberCount; m++) {
             const off = familyOffsets[m];
-            const mat = makeFlatMat(scene, 'dioAnimal_' + animalDef.id + '_' + m, c3.r, c3.g, c3.b);
+            // Hungry animals appear desaturated (grayish tint)
+            const mat = status === 'hungry'
+                ? makeFlatMat(scene, 'dioAnimal_' + animalDef.id + '_' + m, c3.r * 0.4 + 0.3, c3.g * 0.4 + 0.3, c3.b * 0.4 + 0.3)
+                : makeFlatMat(scene, 'dioAnimal_' + animalDef.id + '_' + m, c3.r, c3.g, c3.b);
             const body = builder(scene, mat);
 
             const memberRoot = new BABYLON.TransformNode('dioMember_' + animalDef.id + '_' + m, scene);
@@ -2610,17 +2759,26 @@ function spawnDioramaAnimals(scene, animalDefs, shadowGen) {
                 body.getChildMeshes().forEach(mesh => glow.addMesh(mesh, new BABYLON.Color3(1, 0.85, 0.2)));
             }
 
+            // Reward-ready animals get a soft green highlight
+            if (status === 'rewarded' && m === 0) {
+                const rwGlow = new BABYLON.HighlightLayer('rewardGlow_' + animalDef.id, scene);
+                rwGlow.addMesh(body, new BABYLON.Color3(0.2, 0.9, 0.4));
+                body.getChildMeshes().forEach(mesh => rwGlow.addMesh(mesh, new BABYLON.Color3(0.2, 0.9, 0.4)));
+            }
+
             if (m === 0) mainBody = body;
 
-            // Register for idle bounce animation
+            // Register for idle bounce animation (hungry animals don't bounce — they sleep)
             diorama._idleNodes = diorama._idleNodes || [];
-            diorama._idleNodes.push({
-                node: memberRoot,
-                baseY: memberRoot.position.y,
-                phase: Math.random() * Math.PI * 2,          // random start phase
-                speed: 1.2 + Math.random() * 0.6,            // slightly varied speed
-                amplitude: 0.06 + Math.random() * 0.04,      // subtle height range
-            });
+            if (status !== 'hungry') {
+                diorama._idleNodes.push({
+                    node: memberRoot,
+                    baseY: memberRoot.position.y,
+                    phase: Math.random() * Math.PI * 2,
+                    speed: 1.2 + Math.random() * 0.6,
+                    amplitude: 0.06 + Math.random() * 0.04,
+                });
+            }
         }
 
         // Store for picking — the whole groupRoot is the pickable entry
@@ -2643,6 +2801,77 @@ function spawnDioramaAnimals(scene, animalDefs, shadowGen) {
 }
 
 // ---------------------------------------------------------------
+//  Diorama Status Bar
+// ---------------------------------------------------------------
+
+/** Updates the diorama status bar with consumption timing and reward summary. */
+function updateDioramaStatusBar() {
+    const bar = $('dioramaStatusBar');
+    if (!bar) return;
+
+    const now = new Date();
+    const lastConsume = persist.lastDailyConsume ? new Date(persist.lastDailyConsume) : null;
+
+    // Calculate time until next consumption (midnight tonight)
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const msUntil = midnight - now;
+    const hoursLeft = Math.floor(msUntil / (1000 * 60 * 60));
+    const minsLeft = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
+
+    // Count statuses
+    const total = persist.unlockedAnimals.length;
+    const rewardCount = persist.unlockedAnimals.filter(id => persist.animalStatus[id] === 'rewarded').length;
+    const hungryCount = persist.unlockedAnimals.filter(id => persist.animalStatus[id] === 'hungry').length;
+    const okCount = total - rewardCount - hungryCount;
+
+    // Check if consumption already happened today
+    const consumedToday = lastConsume &&
+        lastConsume.getFullYear() === now.getFullYear() &&
+        lastConsume.getMonth() === now.getMonth() &&
+        lastConsume.getDate() === now.getDate();
+
+    let html = '';
+
+    // Timing row
+    if (consumedToday) {
+        html += '<div class="diorama-status-row">' +
+            '<span class="status-icon">⏰</span>' +
+            '<span class="status-text">Next feeding in <b>' + hoursLeft + 'h ' + minsLeft + 'm</b></span>' +
+            '<span class="status-detail">🍎 ' + DAILY_MEAL_CONSUME + '/animal</span>' +
+            '</div>';
+    } else {
+        html += '<div class="diorama-status-row urgent">' +
+            '<span class="status-icon">🍽️</span>' +
+            '<span class="status-text">Feeding time! Animals are consuming meals now.</span>' +
+            '</div>';
+    }
+
+    // Summary row
+    const parts = [];
+    if (rewardCount > 0) parts.push('<span class="status-reward">🎁 ' + rewardCount + ' reward' + (rewardCount > 1 ? 's' : '') + ' (+' + DAILY_DICE_REWARD + '🎲 each)</span>');
+    if (hungryCount > 0) parts.push('<span class="status-hungry">💤 ' + hungryCount + ' hungry</span>');
+    if (okCount > 0) parts.push('<span class="status-ok">✅ ' + okCount + ' fed</span>');
+
+    if (parts.length > 0) {
+        html += '<div class="diorama-status-row">' +
+            '<span class="status-icon">📊</span>' +
+            parts.join(' · ') +
+            '</div>';
+    }
+
+    // Shared meals row
+    if (persist.generalMeals > 0) {
+        html += '<div class="diorama-status-row">' +
+            '<span class="status-icon">🧺</span>' +
+            '<span class="status-text">Shared meals: <b>' + persist.generalMeals + '</b></span>' +
+            '</div>';
+    }
+
+    bar.innerHTML = html;
+}
+
+// ---------------------------------------------------------------
 //  Camera Focus
 // ---------------------------------------------------------------
 
@@ -2651,11 +2880,46 @@ function dioramaFocusAnimal(entry) {
     if (diorama.animating) return;
     diorama.focusedAnimal = entry;
 
+    const animalDef = entry.animalDef;
+    const meals = getAnimalMeals(animalDef.id);
+    const isGolden = persist.goldenAnimals.includes(animalDef.id);
+    const canUpgrade = !isGolden && meals >= GOLDEN_UPGRADE_COST;
+    const status = persist.animalStatus[animalDef.id] || 'ok';
+
     // Update info panel
-    const meals = getAnimalMeals(entry.animalDef.id);
-    $('dioramaFocusEmoji').textContent = entry.animalDef.emoji;
-    $('dioramaFocusName').textContent = entry.animalDef.name;
-    $('dioramaFocusMeals').textContent = '🍎 ' + meals + ' meals';
+    $('dioramaFocusEmoji').textContent = animalDef.emoji;
+    $('dioramaFocusName').textContent = animalDef.name;
+    $('dioramaFocusMeals').textContent = '🍎 ' + meals + ' meals' + (isGolden ? ' ✨' : '');
+
+    // Build action buttons
+    const actionsEl = $('dioramaFocusActions');
+    actionsEl.innerHTML = '';
+
+    if (canUpgrade) {
+        const btn = document.createElement('button');
+        btn.className = 'diorama-action-btn upgrade';
+        btn.textContent = '✨ UPGRADE TO GOLDEN (🍎' + GOLDEN_UPGRADE_COST + ')';
+        btn.onclick = () => dioramaUpgradeGolden(entry);
+        actionsEl.appendChild(btn);
+    }
+
+    if (status === 'hungry') {
+        const btn = document.createElement('button');
+        btn.className = 'diorama-action-btn revive';
+        btn.textContent = '💊 REVIVE (🪙' + REVIVE_COIN_COST + ')';
+        btn.disabled = persist.totalCash < REVIVE_COIN_COST;
+        btn.onclick = () => dioramaReviveAnimal(entry);
+        actionsEl.appendChild(btn);
+    }
+
+    if (status === 'rewarded') {
+        const btn = document.createElement('button');
+        btn.className = 'diorama-action-btn reward';
+        btn.textContent = '🎁 COLLECT REWARD (+' + DAILY_DICE_REWARD + ' 🎲)';
+        btn.onclick = () => dioramaCollectReward(entry);
+        actionsEl.appendChild(btn);
+    }
+
     $('dioramaFocusPanel').classList.remove('hidden');
     $('dioramaHint').style.opacity = '0';
 
@@ -2665,6 +2929,183 @@ function dioramaFocusAnimal(entry) {
     const targetRadius = 12;
 
     animateCameraTo(cam, targetPos, targetRadius, 800);
+}
+
+/** Upgrades an animal to golden — spends meals, plays particle effect. */
+function dioramaUpgradeGolden(entry) {
+    const id = entry.animalDef.id;
+    const meals = getAnimalMeals(id);
+    if (meals < GOLDEN_UPGRADE_COST || persist.goldenAnimals.includes(id)) return;
+
+    persist.animalMeals[id] = (persist.animalMeals[id] || 0) - GOLDEN_UPGRADE_COST;
+    persist.goldenAnimals.push(id);
+    writeSave();
+    haptic(40);
+
+    // Add golden highlight to the main body
+    if (entry.body && diorama.scene) {
+        const glow = new BABYLON.HighlightLayer('glow_' + id, diorama.scene);
+        glow.addMesh(entry.body, new BABYLON.Color3(1, 0.85, 0.2));
+        entry.body.getChildMeshes().forEach(m => glow.addMesh(m, new BABYLON.Color3(1, 0.85, 0.2)));
+    }
+
+    // Particle burst celebration
+    playGoldenParticles(entry.worldPos.add(new BABYLON.Vector3(0, 2.0, 0)));
+
+    // Refresh the focus panel
+    setTimeout(() => dioramaFocusAnimal(entry), 600);
+}
+
+/** Plays a spectacular golden particle burst at the given position. */
+function playGoldenParticles(position) {
+    if (!diorama.scene) return;
+
+    const ps = new BABYLON.ParticleSystem('goldenBurst', 300, diorama.scene);
+    // Use a simple circle texture generated from a data URL
+    const dt = new BABYLON.DynamicTexture('pTex', 32, diorama.scene, false);
+    const ctx = dt.getContext();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(16, 16, 14, 0, Math.PI * 2);
+    ctx.fill();
+    dt.update();
+    ps.particleTexture = dt;
+
+    ps.emitter = position;
+    ps.minLifeTime = 0.5;
+    ps.maxLifeTime = 2.0;
+    ps.minSize = 0.08;
+    ps.maxSize = 0.25;
+    ps.emitRate = 0;
+    ps.manualEmitCount = 250;
+    ps.minEmitPower = 3;
+    ps.maxEmitPower = 8;
+    ps.direction1 = new BABYLON.Vector3(-3, 5, -3);
+    ps.direction2 = new BABYLON.Vector3(3, 8, 3);
+    ps.gravity = new BABYLON.Vector3(0, -6, 0);
+    ps.color1 = new BABYLON.Color4(1, 0.92, 0.2, 1);
+    ps.color2 = new BABYLON.Color4(1, 0.75, 0.1, 1);
+    ps.colorDead = new BABYLON.Color4(1, 0.6, 0, 0);
+    ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+    ps.targetStopDuration = 2.5;
+    ps.disposeOnStop = true;
+    ps.start();
+
+    // Second layer — sparkle stars
+    const ps2 = new BABYLON.ParticleSystem('goldenSparkle', 80, diorama.scene);
+    ps2.particleTexture = dt;
+    ps2.emitter = position;
+    ps2.minLifeTime = 0.8;
+    ps2.maxLifeTime = 3.0;
+    ps2.minSize = 0.15;
+    ps2.maxSize = 0.35;
+    ps2.emitRate = 0;
+    ps2.manualEmitCount = 60;
+    ps2.minEmitPower = 1;
+    ps2.maxEmitPower = 4;
+    ps2.direction1 = new BABYLON.Vector3(-2, 3, -2);
+    ps2.direction2 = new BABYLON.Vector3(2, 6, 2);
+    ps2.gravity = new BABYLON.Vector3(0, -2, 0);
+    ps2.color1 = new BABYLON.Color4(1, 1, 0.8, 1);
+    ps2.color2 = new BABYLON.Color4(1, 0.95, 0.5, 0.8);
+    ps2.colorDead = new BABYLON.Color4(1, 0.9, 0.3, 0);
+    ps2.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+    ps2.targetStopDuration = 3.0;
+    ps2.disposeOnStop = true;
+    ps2.start();
+}
+
+/** Revives a hungry animal by spending coins. */
+function dioramaReviveAnimal(entry) {
+    const id = entry.animalDef.id;
+    if (persist.totalCash < REVIVE_COIN_COST) return;
+
+    persist.totalCash -= REVIVE_COIN_COST;
+    persist.animalStatus[id] = 'ok';
+    writeSave();
+    haptic(20);
+
+    // Quick green particle puff
+    if (diorama.scene) {
+        const ps = new BABYLON.ParticleSystem('revive', 60, diorama.scene);
+        const dt = new BABYLON.DynamicTexture('rvTex', 32, diorama.scene, false);
+        const ctx = dt.getContext();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(16, 16, 14, 0, Math.PI * 2);
+        ctx.fill();
+        dt.update();
+        ps.particleTexture = dt;
+        ps.emitter = entry.worldPos.add(new BABYLON.Vector3(0, 1.5, 0));
+        ps.minLifeTime = 0.3;
+        ps.maxLifeTime = 1.2;
+        ps.minSize = 0.1;
+        ps.maxSize = 0.2;
+        ps.emitRate = 0;
+        ps.manualEmitCount = 50;
+        ps.minEmitPower = 2;
+        ps.maxEmitPower = 5;
+        ps.direction1 = new BABYLON.Vector3(-2, 3, -2);
+        ps.direction2 = new BABYLON.Vector3(2, 5, 2);
+        ps.gravity = new BABYLON.Vector3(0, -4, 0);
+        ps.color1 = new BABYLON.Color4(0.2, 0.9, 0.3, 1);
+        ps.color2 = new BABYLON.Color4(0.1, 0.8, 0.2, 0.8);
+        ps.colorDead = new BABYLON.Color4(0.1, 0.6, 0.1, 0);
+        ps.targetStopDuration = 1.5;
+        ps.disposeOnStop = true;
+        ps.start();
+    }
+
+    updateDioramaStatusBar();
+    setTimeout(() => dioramaFocusAnimal(entry), 400);
+}
+
+/** Collects dice reward from a well-fed animal. */
+function dioramaCollectReward(entry) {
+    const id = entry.animalDef.id;
+    if (persist.animalStatus[id] !== 'rewarded') return;
+
+    persist.animalStatus[id] = 'ok';
+    persist.dice = Math.min(MAX_DICE, persist.dice + DAILY_DICE_REWARD);
+    game.dice = persist.dice;
+    writeSave();
+    haptic(15);
+
+    // Small blue particle puff
+    if (diorama.scene) {
+        const ps = new BABYLON.ParticleSystem('reward', 40, diorama.scene);
+        const dt = new BABYLON.DynamicTexture('rwTex', 32, diorama.scene, false);
+        const ctx = dt.getContext();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(16, 16, 14, 0, Math.PI * 2);
+        ctx.fill();
+        dt.update();
+        ps.particleTexture = dt;
+        ps.emitter = entry.worldPos.add(new BABYLON.Vector3(0, 1.5, 0));
+        ps.minLifeTime = 0.3;
+        ps.maxLifeTime = 1.0;
+        ps.minSize = 0.08;
+        ps.maxSize = 0.18;
+        ps.emitRate = 0;
+        ps.manualEmitCount = 35;
+        ps.minEmitPower = 2;
+        ps.maxEmitPower = 4;
+        ps.direction1 = new BABYLON.Vector3(-1.5, 3, -1.5);
+        ps.direction2 = new BABYLON.Vector3(1.5, 5, 1.5);
+        ps.gravity = new BABYLON.Vector3(0, -3, 0);
+        ps.color1 = new BABYLON.Color4(0.3, 0.5, 1.0, 1);
+        ps.color2 = new BABYLON.Color4(0.2, 0.4, 0.9, 0.8);
+        ps.colorDead = new BABYLON.Color4(0.1, 0.3, 0.7, 0);
+        ps.targetStopDuration = 1.2;
+        ps.disposeOnStop = true;
+        ps.start();
+    }
+
+    // Update HUD count
+    $('dioramaCount').textContent = persist.dice + ' 🎲';
+    updateDioramaStatusBar();
+    setTimeout(() => dioramaFocusAnimal(entry), 400);
 }
 
 /** Unfocuses from current animal, returns camera to overview. */
