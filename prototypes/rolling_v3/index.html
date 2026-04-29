@@ -29,55 +29,61 @@
                 <div class="sanctuary-dice-hint">+<span id="sanctuaryRefillAmt">10</span> every <span id="sanctuaryRefillTime">10</span>min (max <span id="sanctuaryMaxDice">125</span>)</div>
             </div>
 
-            <div class="animal-section">
-                <p class="start-prompt">SOLO ESCAPERS</p>
-                <div class="animal-grid" id="soloAnimalGrid"></div>
-            </div>
+            <div class="start-main-layout">
+                <div class="start-animals-column">
+                    <div class="animal-section">
+                        <p class="start-prompt">SOLO ESCAPERS</p>
+                        <div class="animal-grid" id="soloAnimalGrid"></div>
+                    </div>
 
-            <div class="animal-section">
-                <p class="start-prompt">GROUP FORMS</p>
-                <p class="section-note">Unlock each solo animal first, then buy its linked group.</p>
-                <div class="animal-grid" id="groupAnimalGrid"></div>
-            </div>
-
-            <div class="selected-animal-panel" id="selectedAnimalPanel">
-                <div class="selected-animal-header">
-                    <span class="selected-animal-emoji" id="selAnimalEmoji">🐷</span>
-                    <div class="selected-animal-info">
-                        <div class="selected-animal-name" id="selAnimalName">Brave Piggy</div>
-                        <div class="selected-animal-desc" id="selAnimalDesc">Eager to see the green fields.</div>
+                    <div class="animal-section">
+                        <p class="start-prompt">GROUP FORMS</p>
+                        <p class="section-note">Unlock each solo animal first, then buy its linked group.</p>
+                        <div class="animal-grid" id="groupAnimalGrid"></div>
                     </div>
                 </div>
-                <div class="selected-animal-stats" id="selAnimalStats"></div>
 
-                <div class="wager-section" id="wagerSection">
-                    <div class="wager-label">
-                        <span>STARTING COINS</span>
-                        <span class="wager-value" id="wagerValue">🪙 0</span>
+                <div class="start-detail-column">
+                    <div class="selected-animal-panel" id="selectedAnimalPanel">
+                        <div class="selected-animal-header">
+                            <span class="selected-animal-emoji" id="selAnimalEmoji">🐷</span>
+                            <div class="selected-animal-info">
+                                <div class="selected-animal-name" id="selAnimalName">Brave Piggy</div>
+                                <div class="selected-animal-desc" id="selAnimalDesc">Eager to see the green fields.</div>
+                            </div>
+                        </div>
+                        <div class="selected-animal-stats" id="selAnimalStats"></div>
+
+                        <div class="wager-section" id="wagerSection">
+                            <div class="wager-label">
+                                <span>STARTING COINS</span>
+                                <span class="wager-value" id="wagerValue">🪙 0</span>
+                            </div>
+                            <input type="range" class="wager-slider" id="wagerSlider" min="0" max="0" value="0" step="50">
+                            <div class="wager-hint">Invest coins from your bank to start with more</div>
+                        </div>
+
+                        <button class="start-run-btn" id="startRunBtn">
+                            <span class="start-run-main">BEGIN ESCAPE 🌿</span>
+                        </button>
                     </div>
-                    <input type="range" class="wager-slider" id="wagerSlider" min="0" max="0" value="0" step="50">
-                    <div class="wager-hint">Invest coins from your bank to start with more</div>
                 </div>
+            </div>
 
-                <button class="start-run-btn" id="startRunBtn">
-                    <span class="start-run-main">BEGIN ESCAPE 🌿</span>
+            <div class="start-bottom-actions">
+                <button class="diorama-btn" id="dioramaBtn">
+                    <span class="diorama-btn-icon">🌍</span>
+                    <span class="diorama-btn-text">VIEW SANCTUARY</span>
+                    <span class="diorama-btn-meals" id="generalMealsDisplay">🍎 0 shared meals</span>
+                    <span class="diorama-badge hidden" id="dioramaBadge"></span>
+                </button>
+
+                <button class="sanctuary-upgrades-btn" id="sanctuaryUpgradesBtn">
+                    <span class="sanctuary-upgrades-icon">🏡</span>
+                    <span class="sanctuary-upgrades-text">SANCTUARY UPGRADES</span>
+                    <span class="sanctuary-upgrades-sub">Permanent improvements for all animals</span>
                 </button>
             </div>
-
-            <button class="diorama-btn" id="dioramaBtn">
-                <span class="diorama-btn-icon">🌍</span>
-                <span class="diorama-btn-text">VIEW SANCTUARY</span>
-                <span class="diorama-btn-sub">See your rescued animals in the wild</span>
-                <span class="diorama-badge hidden" id="dioramaBadge"></span>
-            </button>
-
-            <div class="general-meals-display" id="generalMealsDisplay">🍎 0 shared meals</div>
-
-            <button class="sanctuary-upgrades-btn" id="sanctuaryUpgradesBtn">
-                <span class="sanctuary-upgrades-icon">🏡</span>
-                <span class="sanctuary-upgrades-text">SANCTUARY UPGRADES</span>
-                <span class="sanctuary-upgrades-sub">Permanent improvements for all animals</span>
-            </button>
 
             <div class="debug-buttons">
                 <button class="debug-btn" id="debugResetBtn">🗑️ Reset Progress</button>
@@ -163,9 +169,20 @@
             <div class="feedback-text" id="feedbackText"></div>
         </div>
 
-        <!-- 3D Dice -->
+        <!-- 3D Dice + Dice Count + Multiplier -->
         <div class="dice-stage" id="diceStage">
             <div class="auto-hold-fill" id="autoHoldFill"></div>
+            <div class="dice-stage-left">
+                <div class="bottom-dice" id="statDice">
+                    <div class="dice-count-wrapper">
+                        <span class="hud-stat-icon">🎲</span>
+                        <span class="hud-stat-val">200</span>
+                    </div>
+                    <div class="dice-timer-bar">
+                        <div id="diceTimerFill" class="dice-timer-fill"></div>
+                    </div>
+                </div>
+            </div>
             <div class="auto-mode-badge" id="autoModeBadge">AUTO MODE ON</div>
             <div class="dice-cube" id="diceCube">
                 <div class="dice-face dice-face-1">
@@ -202,28 +219,21 @@
                     <span class="pip bottom-right"></span>
                 </div>
             </div>
+            <div class="dice-stage-right">
+                <button class="mult-btn" id="multBtn">x1</button>
+            </div>
         </div>
 
         <!-- Bottom Controls -->
         <div class="bottom-controls">
-            <div class="bottom-dice" id="statDice">
-                <div class="dice-count-wrapper">
-                    <span class="hud-stat-icon">🎲</span>
-                    <span class="hud-stat-val">200</span>
-                </div>
-                <div class="dice-timer-bar">
-                    <div id="diceTimerFill" class="dice-timer-fill"></div>
-                </div>
-            </div>
-            <button class="mult-btn" id="multBtn">x1</button>
+            <button class="plant-btn" id="plantBtn">
+                <span class="plant-text">🌱</span>
+                <span class="plant-cost">🪙150</span>
+            </button>
             <button class="roll-btn" id="rollBtn">
                 <span class="roll-text" id="rollText">RUN!</span>
                 <span class="roll-sub" id="rollSub">HOLD FOR AUTO</span>
                 <span class="roll-cost" id="rollCost">Cost: 1 🎲</span>
-            </button>
-            <button class="plant-btn" id="plantBtn">
-                <span class="plant-text">🌱</span>
-                <span class="plant-cost">🪙150</span>
             </button>
             <button class="ability-btn hidden" id="abilityBtn">
                 <span class="ability-icon" id="abilityIcon">⚡</span>
@@ -260,6 +270,7 @@
     <!-- ===== UPGRADE SHOP OVERLAY ===== -->
     <div id="upgradeOverlay" class="overlay">
         <div class="overlay-content upgrade-content">
+            <button class="overlay-close-x" id="upgradeCloseX">✕</button>
             <h2>🍃 NATURE'S BOUNTY</h2>
             <p class="upgrade-cash" id="upgradeCash">🪙 0</p>
             <div class="upgrade-grid" id="upgradeGrid"></div>
@@ -270,6 +281,7 @@
     <!-- ===== SANCTUARY UPGRADES OVERLAY ===== -->
     <div id="sanctuaryUpgradeOverlay" class="overlay">
         <div class="overlay-content sanctuary-upgrade-content">
+            <button class="overlay-close-x" id="sanctuaryUpgradeCloseX">✕</button>
             <h2>🏡 SANCTUARY UPGRADES</h2>
             <p class="sanctuary-upgrade-hint">Permanent improvements for every run</p>
             <p class="upgrade-cash" id="sanctuaryUpgradeCash">🪙 0</p>

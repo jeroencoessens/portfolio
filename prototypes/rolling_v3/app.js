@@ -529,6 +529,8 @@ function initStartScreen() {
     $('dioramaBtn').onclick = openDiorama;
     $('sanctuaryUpgradesBtn').onclick = function() { openSanctuaryUpgradeShop(); openOverlay('sanctuaryUpgradeOverlay'); };
     $('sanctuaryUpgradeCloseBtn').onclick = function() { closeOverlay('sanctuaryUpgradeOverlay'); };
+    $('sanctuaryUpgradeCloseX').onclick = function() { closeOverlay('sanctuaryUpgradeOverlay'); };
+    $('upgradeCloseX').onclick = function() { closeOverlay('upgradeOverlay'); };
 }
 
 function sanitizeUnlocks() {
