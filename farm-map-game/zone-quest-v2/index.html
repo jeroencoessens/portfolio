@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Zone Quest — Farm Verification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Help identify factory farms using satellite imagery. Explore zones, vote on farms, and earn rewards.">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Tutorial overlay -->
+  <div class="tutorial-overlay" id="tutorialOverlay">
+    <div class="tutorial-modal">
+      <h2>Welcome to Zone Quest</h2>
+      <p>Help identify factory farms through satellite imagery verification. Explore zones, cast votes, and contribute to transparency in agriculture.</p>
+
+      <ol class="tutorial-steps">
+        <li>Select a <strong>zone</strong> to explore</li>
+        <li>Click on <strong>farms</strong> and vote Yes / No</li>
+        <li>Earn <strong>points</strong> for each vote</li>
+        <li>Unlock <strong>new zones and features</strong></li>
+      </ol>
+
+      <button id="tutorialStart" class="btn-primary">Get Started</button>
+    </div>
+  </div>
+
+  <!-- Map container -->
+  <div id="map"></div>
+
+  <!-- Header bar -->
+  <header class="header-bar">
+    <button class="btn-icon" onclick="window.location.href='../index.html'" aria-label="Back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </button>
+
+    <div class="header-center">
+      <div class="header-chip">
+        <span id="userTitle" class="header-title">Observer</span>
+      </div>
+      <div class="header-chip header-points">
+        <span class="header-label">Pts</span>
+        <span id="userPoints" class="header-value">0</span>
+      </div>
+      <button class="header-chip header-rewards" onclick="openMysteryBoxModal()" aria-label="Mystery boxes">
+        <span class="header-label">Rewards</span>
+        <span id="mysteryBoxCount" class="header-badge">0</span>
+      </button>
+    </div>
+
+    <button id="menuBtn" class="btn-icon" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
+  </header>
+
+  <!-- Active Power-up Banner -->
+  <div id="activePowerUp" class="powerup-banner" style="display:none;"></div>
+
+  <!-- Satellite toggle (bottom-left) -->
+  <div class="satellite-controls" id="historicalControls">
+    <button id="historicalToggle" class="btn-satellite" onclick="toggleHistoricalMode()">Switch to Google</button>
+    <div id="historicalSlider" class="satellite-slider" style="display:none;">
+      <div class="provider-selector">
+        <button id="providerToggle" class="btn-provider" onclick="toggleProviderMenu()">
+          <span id="currentProviderDisplay">Esri WorldImagery</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div id="providerMenu" class="provider-menu" style="display:none;"></div>
+      </div>
+      <div class="slider-label">Satellite Provider Timeline</div>
+      <div class="slider-wrap">
+        <input type="range" id="providerSlider" min="0" max="0" value="0" step="1" oninput="handleProviderSlide(this.value)">
+        <div class="provider-markers" id="providerMarkers"></div>
+        <div class="slider-note" id="historicalNote">Slide to explore different satellite providers and time periods</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side menu -->
+  <nav class="side-menu" id="sideMenu">
+    <div class="menu-header">
+      <h3>Menu</h3>
+      <button id="closeMenu" class="btn-close" aria-label="Close menu">&times;</button>
+    </div>
+
+    <div class="menu-group">
+      <button id="shopBtn" class="menu-btn">Shop</button>
+      <button id="badgesBtn" class="menu-btn">Badges</button>
+      <button id="powerUpsBtn" class="menu-btn">Power-Ups</button>
+      <button id="leaderboardBtn" class="menu-btn">Leaderboard</button>
+      <button id="statsBtn" class="menu-btn">Statistics</button>
+    </div>
+
+    <div class="menu-group">
+      <h4>Avatar</h4>
+      <div id="avatarOptions" class="option-grid"></div>
+    </div>
+
+    <div class="menu-group">
+      <h4>Visual Theme</h4>
+      <div id="themeOptions" class="option-grid"></div>
+    </div>
+
+    <div class="menu-group">
+      <h4>Cursor Style</h4>
+      <div id="cursorOptions" class="option-grid"></div>
+    </div>
+
+    <div class="menu-group">
+      <h4>Progress</h4>
+      <div class="stat-list">
+        <div class="stat-row"><span>Total Votes</span><span id="totalVotes">0</span></div>
+        <div class="stat-row"><span>Zones Unlocked</span><span id="zonesUnlocked">1</span></div>
+        <div class="stat-row"><span>Badges Earned</span><span id="badgesEarned">0</span></div>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <h4>Explore</h4>
+      <button class="menu-btn menu-btn--accent" onclick="enterProbBrowseMode()">Browse by Probability</button>
+    </div>
+
+    <div class="menu-group">
+      <h4>AI Assistants</h4>
+      <label class="toggle-row">
+        <span>Show AI buttons on farms</span>
+        <input type="checkbox" id="aiToggle" checked onchange="toggleAiButtons()">
+        <span class="toggle-track"></span>
+      </label>
+      <small class="menu-hint">Toggle Gemini and Claude analysis buttons on farm panels</small>
+    </div>
+
+    <div class="menu-group">
+      <h4>Data</h4>
+      <button class="menu-btn" onclick="exportVotes()">Export Votes (.json)</button>
+      <button class="menu-btn menu-btn--danger" onclick="resetAllData()">Reset All Data</button>
+      <small class="menu-hint">Reset clears all votes, points, and progress</small>
+    </div>
+
+    <div class="menu-group" id="debugSection">
+      <h4>Developer Tools</h4>
+      <button class="menu-btn" onclick="addDebugPoints()">Add 1000 Points</button>
+      <button class="menu-btn menu-btn--danger" onclick="resetDebugPoints()">Reset Points to 0</button>
+      <small class="menu-hint">For testing and development only</small>
+    </div>
+  </nav>
+
+  <!-- Zone info panel -->
+  <div class="panel zone-panel" id="zonePanel">
+    <div class="panel-header">
+      <h3 id="zoneName">Select a zone</h3>
+      <button id="closeZone" class="btn-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="panel-body">
+      <div class="progress-ring-wrap">
+        <svg class="progress-ring" width="90" height="90">
+          <circle class="progress-ring__bg" cx="45" cy="45" r="40"/>
+          <circle id="zoneProgressRing" class="progress-ring__fill" cx="45" cy="45" r="40"/>
+        </svg>
+        <div class="progress-ring__text" id="zoneProgressText">0%</div>
+      </div>
+      <div class="stat-row"><span>Farms</span><span id="zoneFarmCount">0</span></div>
+      <div class="stat-row"><span>Your votes</span><span id="zoneVoteCount">0</span></div>
+      <div class="stat-row"><span>Avg. Probability</span><span id="zoneAvgProb">0%</span></div>
+      <button id="exploreZone" class="btn-primary">Explore Zone</button>
+    </div>
+  </div>
+
+  <!-- Farm detail panel -->
+  <div class="panel farm-panel" id="farmPanel">
+    <div class="panel-header">
+      <h3>Farm Details</h3>
+      <button id="closeFarm" class="btn-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="panel-body">
+      <div class="info-grid">
+        <div class="info-row"><span>Farm ID</span><span id="farmId">&ndash;</span></div>
+        <div class="info-row"><span>Probability</span><span id="farmProb">&ndash;</span></div>
+        <div class="info-row"><span>Votes</span><span id="farmVotes">0</span></div>
+        <div class="info-row"><span>Points reward</span><span id="farmPoints" class="text-accent">100</span></div>
+        <div class="info-row"><span>Latitude</span><span id="farmLat" class="text-mono">&ndash;</span></div>
+        <div class="info-row"><span>Longitude</span><span id="farmLng" class="text-mono">&ndash;</span></div>
+      </div>
+
+      <div id="votingSection" class="voting-section">
+        <p class="voting-prompt">Is this a factory farm?</p>
+        <div class="voting-buttons">
+          <button id="voteNo" class="btn-vote btn-vote--no">No</button>
+          <button id="voteYes" class="btn-vote btn-vote--yes">Yes</button>
+        </div>
+        <button id="zoomInBtn" class="btn-secondary">Zoom In</button>
+        <div class="ai-row" id="aiBtnsVoting">
+          <button class="btn-ai btn-ai--gemini" onclick="openGeminiPanel()">Ask Gemini</button>
+          <button class="btn-ai btn-ai--claude" onclick="openClaudePanel()">Ask Claude</button>
+        </div>
+      </div>
+
+      <div id="votedSection" class="voted-section" style="display:none;">
+        <div class="voted-badge">Voted</div>
+        <p class="voted-text">Your vote: <strong id="userVote"></strong></p>
+        <button id="changeVoteBtn" class="btn-secondary">Change Vote</button>
+        <div class="ai-row" id="aiBtnsVoted">
+          <button class="btn-ai btn-ai--gemini" onclick="openGeminiPanel()">Ask Gemini</button>
+          <button class="btn-ai btn-ai--claude" onclick="openClaudePanel()">Ask Claude</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shop modal -->
+  <div class="modal" id="shopModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Shop</h2>
+        <button class="btn-close" onclick="closeModal('shopModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="shop-balance">Your Points: <strong id="shopPoints">0</strong></div>
+        <div class="tab-bar">
+          <button class="tab active" data-tab="zones">Zones</button>
+          <button class="tab" data-tab="cosmetics">Cosmetics</button>
+          <button class="tab" data-tab="features">Features</button>
+        </div>
+        <div class="tab-content active" id="zonesTab"><div id="zoneShopItems" class="shop-grid"></div></div>
+        <div class="tab-content" id="cosmeticsTab">
+          <h4>Color Themes</h4>
+          <div id="themeShopItems" class="shop-grid"></div>
+          <h4>Cursors</h4>
+          <div id="cursorShopItems" class="shop-grid"></div>
+        </div>
+        <div class="tab-content" id="featuresTab">
+          <h4>Special Features</h4>
+          <div id="featureShopItems" class="shop-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Badges modal -->
+  <div class="modal" id="badgesModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Your Badges</h2>
+        <button class="btn-close" onclick="closeModal('badgesModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="badgesList" class="badges-grid"></div>
+        <button id="shareBadges" class="btn-primary" style="margin-top:16px;">Share Your Badges</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard modal -->
+  <div class="modal" id="leaderboardModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Leaderboard</h2>
+        <button class="btn-close" onclick="closeModal('leaderboardModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="filter-bar">
+          <button class="filter-btn active" data-period="all">All Time</button>
+          <button class="filter-btn" data-period="month">This Month</button>
+          <button class="filter-btn" data-period="week">This Week</button>
+        </div>
+        <div id="leaderboardList" class="leaderboard-list"></div>
+        <div class="your-rank">Your Rank: <strong id="yourRank">&ndash;</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats modal -->
+  <div class="modal" id="statsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Your Statistics</h2>
+        <button class="btn-close" onclick="closeModal('statsModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-card__value" id="statsVotes">0</div><div class="stat-card__label">Total Votes</div></div>
+          <div class="stat-card"><div class="stat-card__value" id="statsPoints">0</div><div class="stat-card__label">Points</div></div>
+          <div class="stat-card"><div class="stat-card__value" id="statsZones">1</div><div class="stat-card__label">Zones</div></div>
+          <div class="stat-card"><div class="stat-card__value" id="statsBadges">0</div><div class="stat-card__label">Badges</div></div>
+          <div class="stat-card"><div class="stat-card__value" id="statsYes">0</div><div class="stat-card__label">Yes Votes</div></div>
+          <div class="stat-card"><div class="stat-card__value" id="statsNo">0</div><div class="stat-card__label">No Votes</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Power-Ups modal -->
+  <div class="modal" id="powerUpsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Power-Ups</h2>
+        <button class="btn-close" onclick="closeModal('powerUpsModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="shop-balance">Your Points: <strong id="powerUpPoints">0</strong></div>
+        <div class="shop-grid">
+          <div class="shop-item">
+            <div class="shop-item__info">
+              <div class="shop-item__name">2&times; Points</div>
+              <div class="shop-item__desc">Double points for 10 minutes</div>
+            </div>
+            <button class="btn-buy" onclick="activatePowerUp('double_points')">500 pts</button>
+          </div>
+          <div class="shop-item">
+            <div class="shop-item__info">
+              <div class="shop-item__name">3&times; Points</div>
+              <div class="shop-item__desc">Triple points for 5 minutes</div>
+            </div>
+            <button class="btn-buy" onclick="activatePowerUp('triple_points')">1000 pts</button>
+          </div>
+          <div class="shop-item">
+            <div class="shop-item__info">
+              <div class="shop-item__name">Mystery Box</div>
+              <div class="shop-item__desc">Random reward</div>
+            </div>
+            <button class="btn-buy" onclick="activatePowerUp('mystery_reveal')">300 pts</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mystery Box modal -->
+  <div class="modal" id="mysteryBoxModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Mystery Boxes</h2>
+        <button class="btn-close" onclick="closeModal('mysteryBoxModal')">&times;</button>
+      </div>
+      <div class="modal-body" style="text-align:center;">
+        <p class="mystery-count">You have <strong id="modalBoxCount">0</strong> mystery boxes</p>
+        <p class="menu-hint">Earn 1 box every 25 votes or buy them in Power-Ups</p>
+        <button id="openBoxBtn" class="btn-primary" onclick="openMysteryBox()" style="margin-top:16px;">Open Box</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Probability Browse Panel -->
+  <div id="probBrowsePanel" class="prob-panel" style="display:none;">
+    <div class="prob-panel__header">
+      <span class="prob-panel__title">Browse by Probability</span>
+      <button class="btn-close" onclick="exitProbBrowseMode()">&times;</button>
+    </div>
+    <div class="prob-panel__body">
+      <div class="prob-pct" id="probBrowsePct">&ndash;</div>
+      <div class="prob-label">Detection Probability</div>
+      <div class="prob-info-grid">
+        <div><small>Farm ID</small><div id="probFarmId">&ndash;</div></div>
+        <div><small>Your Vote</small><div id="probFarmVote">&ndash;</div></div>
+        <div><small>Latitude</small><div id="probFarmLat">&ndash;</div></div>
+        <div><small>Longitude</small><div id="probFarmLng">&ndash;</div></div>
+      </div>
+    </div>
+    <div class="prob-panel__nav">
+      <button class="btn-secondary" onclick="probBrowsePrev()">&larr; Prev</button>
+      <span id="probBrowseCounter">1 / 0</span>
+      <button class="btn-secondary" onclick="probBrowseNext()">Next &rarr;</button>
+    </div>
+  </div>
+
+  <!-- Claude Analysis Panel -->
+  <div class="ai-panel" id="claudePanel" style="display:none;">
+    <div class="ai-panel__header ai-panel__header--claude">
+      <span>Claude Analysis</span>
+      <button class="btn-close" onclick="closeClaudePanel()">&times;</button>
+    </div>
+    <div id="claudeKeySection" class="ai-section">
+      <p>Enter your Anthropic API key. Your key is stored locally and never sent to any server other than Anthropic's API.</p>
+      <p>Don't have a key? <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer" class="ai-link">Get your Anthropic API key &rarr;</a></p>
+      <div class="ai-key-row">
+        <input type="password" id="claudeApiKeyInput" class="input" placeholder="Paste your Anthropic API key">
+        <button class="btn-icon-sm" id="claudeKeyToggle" onclick="toggleClaudeKeyVisibility()">Show</button>
+      </div>
+      <button class="btn-primary" onclick="saveClaudeApiKey()">Save Key</button>
+      <div id="claudeKeyStatus" class="ai-status" style="display:none;"></div>
+    </div>
+    <div id="claudeAnalysisSection" class="ai-section" style="display:none;">
+      <div class="ai-model-row">
+        <label for="claudeModelSelect">Model:</label>
+        <select id="claudeModelSelect" class="select" onchange="updateClaudeCostHint()">
+          <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+          <option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6</option>
+          <option value="claude-opus-4-6">Claude Opus 4.6</option>
+        </select>
+      </div>
+      <div class="ai-hint" id="claudeCostHint">Good balance — fast with strong vision capabilities</div>
+      <div class="ai-farm-info">Location: <strong id="claudeFarmLat">&ndash;</strong>, <strong id="claudeFarmLng">&ndash;</strong></div>
+      <div class="ai-preview-wrap">
+        <div class="ai-preview-label">Captured satellite view:</div>
+        <img id="claudePreviewImg" class="ai-preview-img" alt="Satellite capture preview">
+      </div>
+      <button class="btn-primary" id="claudeAnalyzeBtn" onclick="analyzeWithClaude()">Analyze with Claude</button>
+      <div id="claudeLoading" class="ai-loading" style="display:none;">
+        <div class="spinner spinner--claude"></div>
+        <span id="claudeLoadingText">Sending to Claude...</span>
+      </div>
+      <div id="claudeResult" class="ai-result" style="display:none;"></div>
+      <button class="btn-link" onclick="changeClaudeApiKey()">Change API Key</button>
+    </div>
+  </div>
+
+  <!-- Gemini Analysis Panel -->
+  <div class="ai-panel" id="geminiPanel" style="display:none;">
+    <div class="ai-panel__header ai-panel__header--gemini">
+      <span>Gemini Analysis</span>
+      <button class="btn-close" onclick="closeGeminiPanel()">&times;</button>
+    </div>
+    <div id="geminiKeySection" class="ai-section">
+      <p>Enter your Gemini API key. Your key is stored locally and never sent to any server other than Google's Gemini API.</p>
+      <p>Don't have a key? <a href="https://aistudio.google.com/app/api-keys" target="_blank" rel="noopener noreferrer" class="ai-link">Get your free Gemini API key &rarr;</a></p>
+      <div class="ai-key-row">
+        <input type="password" id="geminiApiKeyInput" class="input" placeholder="Paste your Gemini API key">
+        <button class="btn-icon-sm" id="geminiKeyToggle" onclick="toggleGeminiKeyVisibility()">Show</button>
+      </div>
+      <button class="btn-primary" onclick="saveGeminiApiKey()">Save Key</button>
+      <div id="geminiKeyStatus" class="ai-status" style="display:none;"></div>
+    </div>
+    <div id="geminiAnalysisSection" class="ai-section" style="display:none;">
+      <div class="ai-model-row">
+        <label for="geminiModelSelect">Model:</label>
+        <select id="geminiModelSelect" class="select" onchange="updateGeminiCostHint()">
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="gemini-3-flash-preview">Gemini 3 Flash (Preview)</option>
+          <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite (Preview)</option>
+          <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Preview)</option>
+        </select>
+      </div>
+      <div class="ai-hint" id="geminiCostHint">Recommended — good balance of speed and quality</div>
+      <div class="ai-farm-info">Location: <strong id="geminiFarmLat">&ndash;</strong>, <strong id="geminiFarmLng">&ndash;</strong></div>
+      <div class="ai-preview-wrap">
+        <div class="ai-preview-label">Captured satellite view:</div>
+        <canvas id="geminiCaptureCanvas" style="display:none;"></canvas>
+        <img id="geminiPreviewImg" class="ai-preview-img" alt="Satellite capture preview">
+      </div>
+      <button class="btn-primary" id="geminiAnalyzeBtn" onclick="analyzeWithGemini()">Analyze with Gemini</button>
+      <div id="geminiLoading" class="ai-loading" style="display:none;">
+        <div class="spinner"></div>
+        <span id="geminiLoadingText">Sending to Gemini...</span>
+      </div>
+      <div id="geminiResult" class="ai-result" style="display:none;"></div>
+      <button class="btn-link" onclick="changeGeminiApiKey()">Change API Key</button>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- App logic -->
+  <script src="app.js"></script>
+</body>
+</html>
