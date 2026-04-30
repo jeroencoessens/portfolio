@@ -279,37 +279,45 @@ a { color: var(--c-primary); }
 .satellite-slider {
   background: var(--c-surface);
   border-radius: var(--radius-lg);
-  padding: 14px 18px;
+  padding: 18px 22px;
   box-shadow: var(--shadow-md);
   border: 1px solid var(--c-border);
-  max-width: 400px;
+  width: 460px;
+  max-width: calc(100vw - 32px);
 }
 
-.provider-selector { margin-bottom: 10px; }
+.provider-selector {
+  position: relative;
+  margin-bottom: 14px;
+}
 
 .btn-provider {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
   background: var(--c-surface-alt);
   border: 1px solid var(--c-border);
   border-radius: var(--radius);
-  padding: 8px 14px;
+  padding: 10px 14px;
   font-size: 13px; font-weight: 600;
   color: var(--c-text);
   width: 100%; transition: all var(--transition);
 }
 .btn-provider:hover { background: var(--c-border); }
 
+/* Dropdown opens UPWARD so it doesn't clip off-screen */
 .provider-menu {
   position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  max-height: 280px;
+  max-height: 320px;
   overflow-y: auto;
   z-index: 10;
   width: 100%;
-  margin-top: 4px;
 }
 
 .provider-option {
@@ -329,7 +337,11 @@ a { color: var(--c-primary); }
   color: var(--c-text-muted);
   text-transform: uppercase;
   letter-spacing: .5px;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
+}
+
+.slider-wrap {
+  padding: 0 2px;
 }
 
 .slider-wrap input[type="range"] {
@@ -342,7 +354,7 @@ a { color: var(--c-primary); }
 }
 .slider-wrap input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 18px; height: 18px;
+  width: 20px; height: 20px;
   background: var(--c-primary);
   border-radius: 50%;
   cursor: pointer;
@@ -350,7 +362,7 @@ a { color: var(--c-primary); }
   box-shadow: var(--shadow-sm);
 }
 .slider-wrap input[type="range"]::-moz-range-thumb {
-  width: 18px; height: 18px;
+  width: 20px; height: 20px;
   background: var(--c-primary);
   border-radius: 50%;
   cursor: pointer;
@@ -360,25 +372,38 @@ a { color: var(--c-primary); }
 
 .provider-markers {
   display: flex; justify-content: space-between;
-  margin-top: 6px; position: relative;
-  min-height: 36px;
+  margin-top: 10px; position: relative;
+  min-height: 40px;
+  gap: 4px;
 }
 
 .provider-marker {
   display: flex; flex-direction: column;
-  align-items: center; gap: 2px;
+  align-items: center; gap: 3px;
   cursor: pointer;
+  flex: 1;
+  min-width: 0;
 }
 .provider-marker-icon { font-size: 14px; }
 .provider-marker-name {
-  font-size: 9px; font-weight: 600;
+  font-size: 10px; font-weight: 600;
   color: var(--c-text-muted);
-  text-align: center; max-width: 52px;
+  text-align: center;
+  max-width: 60px;
   overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
-.provider-marker-era { font-size: 8px; color: var(--c-text-muted); }
-.provider-marker.active .provider-marker-name { color: var(--c-primary); font-weight: 700; }
+.provider-marker-era {
+  font-size: 9px;
+  color: var(--c-text-muted);
+}
+.provider-marker.active .provider-marker-name {
+  color: var(--c-primary);
+  font-weight: 700;
+}
+.provider-marker.active .provider-marker-era {
+  color: var(--c-primary);
+}
 
 .modern-section-background {
   position: absolute; left: 0; top: 0; bottom: 0;
@@ -386,7 +411,7 @@ a { color: var(--c-primary); }
   border-radius: 4px; z-index: -1;
 }
 .modern-section-label {
-  position: absolute; top: -14px; left: 0;
+  position: absolute; top: -16px; left: 0;
   font-size: 8px; font-weight: 700;
   color: var(--c-primary);
   text-transform: uppercase;
@@ -397,7 +422,7 @@ a { color: var(--c-primary); }
   font-size: 11px;
   color: var(--c-text-muted);
   font-style: italic;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 /* ----- Side Menu ----- */
@@ -885,26 +910,74 @@ a { color: var(--c-primary); }
 /* ----- Zone Markers ----- */
 .zone-marker { border: none !important; background: none !important; }
 .zone-marker-content {
-  background: var(--c-surface);
-  border: 2px solid var(--c-primary);
   border-radius: var(--radius);
-  padding: 8px 14px;
+  padding: 7px 12px;
   text-align: center;
-  font-size: 13px; font-weight: 700;
-  color: var(--c-primary-dark);
-  box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: all var(--transition);
   white-space: nowrap;
+  line-height: 1.3;
 }
-.zone-marker-content:hover {
+
+/* Unlocked zones — prominent */
+.zone-marker-content.unlocked {
+  background: var(--c-surface);
+  border: 2px solid var(--c-primary);
+  color: var(--c-primary-dark);
   box-shadow: var(--shadow-md);
+}
+.zone-marker-content.unlocked:hover {
+  box-shadow: var(--shadow-lg);
   transform: translateY(-2px);
 }
+
+/* Zone #1 — extra emphasis */
+.zone-marker-content.first.unlocked {
+  background: var(--c-primary);
+  color: #fff;
+  border-color: var(--c-primary-dark);
+  box-shadow: 0 4px 14px rgba(45,106,79,.35);
+}
+.zone-marker-content.first.unlocked:hover {
+  background: var(--c-primary-dark);
+  box-shadow: 0 6px 20px rgba(45,106,79,.4);
+}
+.zone-marker-content.first.unlocked .zone-marker-detail {
+  color: rgba(255,255,255,.8);
+}
+
+/* Locked zones — subdued */
 .zone-marker-content.locked {
-  border-color: var(--c-text-muted);
+  background: rgba(255,255,255,.55);
+  border: 1.5px dashed var(--c-text-muted);
   color: var(--c-text-muted);
-  opacity: .7;
+  box-shadow: none;
+  font-size: 11px;
+  padding: 5px 10px;
+  opacity: .55;
+}
+.zone-marker-content.locked:hover {
+  opacity: .8;
+  box-shadow: var(--shadow-sm);
+}
+
+.zone-marker-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+.zone-marker-content.locked .zone-marker-name {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.zone-marker-detail {
+  font-size: 10px;
+  font-weight: 500;
+  margin-top: 1px;
+  color: var(--c-text-muted);
+}
+.zone-marker-content.unlocked .zone-marker-detail {
+  color: var(--c-text-secondary);
 }
 
 /* ----- Farm Markers ----- */
@@ -1134,7 +1207,9 @@ body.dark-mode {
   .panel-body { max-height: 45vh; }
 
   .satellite-controls { bottom: 10px; left: 10px; }
-  .satellite-slider { max-width: calc(100vw - 40px); }
+  .satellite-slider { width: calc(100vw - 20px); max-width: calc(100vw - 20px); }
+  .provider-menu { max-height: 240px; }
+  .provider-marker-name { font-size: 9px; max-width: 48px; }
 
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 

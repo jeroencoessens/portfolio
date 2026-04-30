@@ -209,23 +209,36 @@ function showZoneMarkers() {
   zoneMarkers.forEach(m => map.removeLayer(m));
   zoneMarkers = [];
 
-  zones.forEach((zone, index) => {
-    const isUnlocked = gameState.unlockedZones.includes(index);
-    const icon = L.divIcon({
-      className: 'zone-marker',
-      html: `
-        <div class="zone-marker-content ${isUnlocked ? '' : 'locked'}">
-          ${isUnlocked ? '' : '(Locked) '}${zone.name}
-          <div style="font-size:11px;margin-top:2px;font-weight:500;color:inherit;opacity:.8">
-            ${zone.farms.length} farms
-          </div>
-        </div>
-      `,
-      iconSize: [120, 50],
-      iconAnchor: [60, 25]
+  // Render locked zones first (back), then unlocked (front), Zone #1 last (top)
+  const sorted = zones.map((zone, index) => ({ zone, index }))
+    .sort((a, b) => {
+      const aUnlocked = gameState.unlockedZones.includes(a.index);
+      const bUnlocked = gameState.unlockedZones.includes(b.index);
+      if (aUnlocked !== bUnlocked) return aUnlocked ? 1 : -1;
+      // Among unlocked, put index 0 (Zone #1) last so it renders on top
+      if (aUnlocked && bUnlocked) return a.index === 0 ? 1 : b.index === 0 ? -1 : a.index - b.index;
+      return a.index - b.index;
     });
 
-    const marker = L.marker([zone.centerLat, zone.centerLng], { icon }).addTo(map);
+  sorted.forEach(({ zone, index }, renderOrder) => {
+    const isUnlocked = gameState.unlockedZones.includes(index);
+    const isFirst = index === 0;
+    const icon = L.divIcon({
+      className: `zone-marker ${isUnlocked ? 'zone-marker--unlocked' : 'zone-marker--locked'}${isFirst ? ' zone-marker--first' : ''}`,
+      html: `
+        <div class="zone-marker-content ${isUnlocked ? 'unlocked' : 'locked'}${isFirst ? ' first' : ''}">
+          <div class="zone-marker-name">${zone.name}</div>
+          <div class="zone-marker-detail">${zone.farms.length} farms${!isUnlocked ? ' · ' + zone.unlockPrice + ' pts' : ''}</div>
+        </div>
+      `,
+      iconSize: [130, 50],
+      iconAnchor: [65, 25]
+    });
+
+    const marker = L.marker([zone.centerLat, zone.centerLng], {
+      icon,
+      zIndexOffset: isFirst ? 2000 : isUnlocked ? 1000 : 0
+    }).addTo(map);
     marker.on('click', () => selectZone(index));
     zoneMarkers.push(marker);
   });
