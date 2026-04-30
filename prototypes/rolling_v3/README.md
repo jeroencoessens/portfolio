@@ -10,17 +10,24 @@ A cozy, mobile-first 3D dice-rolling board game built with BabylonJS. Players ro
 
 - **Engine:** BabylonJS (loaded via CDN)
 - **Rendering:** WebGL via `<canvas>`
+- **Native wrapper:** Capacitor (iOS + Android)
 - **Persistence:** `localStorage` (key: `animal_escape_p1_save`)
 - **Styling:** Vanilla CSS with CSS custom properties
-- **No build step.** Single HTML file, single JS file, single CSS file. Open `index.html` in a browser.
+- **No bundler.** Source files are `index.html`, `app.js`, `styles.css`. Capacitor copies them to native projects via `npm run cap:sync`.
 
 ## File Structure
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `index.html` | ~238 | All screen layouts: sanctuary, game, diorama, overlays |
-| `app.js` | ~3690 | All game logic, 3D scene creation, UI wiring |
-| `styles.css` | ~1730 | All styling, animations, responsive breakpoints |
+| File / Folder | Purpose |
+|---------------|---------|
+| `index.html` | All screen layouts: sanctuary, game, diorama, overlays |
+| `app.js` | All game logic, 3D scene creation, UI wiring |
+| `styles.css` | All styling, animations, responsive breakpoints |
+| `capacitor.config.json` | Capacitor config (app ID, plugins, webDir) |
+| `package.json` | npm scripts for build/sync/run |
+| `.gitignore` | Ignores `node_modules/`, `www/`, native projects |
+| `ios/` | Generated Xcode project (do not edit directly unless customizing native code) |
+| `android/` | Generated Android Studio project |
+| `www/` | Build output — web files copied here for Capacitor (auto-generated) |
 
 ## Code Organization (app.js)
 
@@ -253,3 +260,157 @@ fallTraps, flockMode, frontGroup, rearGroup, BabylonJS refs...
 - Group animals (flock mode) have `frontGroup` (3) and `rearGroup` (2) member counts set at run start but never decremented during play — the split mechanic is visual only.
 - The 3D dice is a CSS cube, not a BabylonJS mesh. It lives in a separate DOM element (`#diceStage`).
 - Auto-roll uses `AbortController` to prevent event listener stacking across runs.
+
+## Native App (Capacitor)
+
+The game is wrapped as a native iOS and Android app using [Capacitor](https://capacitorjs.com/). This embeds the web code inside a native WebView and provides access to platform APIs (haptics, status bar, etc.) that browsers restrict.
+
+### Why Capacitor?
+
+| Option | Why not |
+|--------|---------|
+| PWA | Apple blocks haptics and other native APIs in Safari PWAs. Won't pass App Store review. |
+| Cordova | Predecessor to Capacitor — older, less maintained. |
+| React Native / Flutter | Would require a full rewrite of the game. |
+| **Capacitor** ✅ | Wraps existing HTML/CSS/JS. Edit in VS Code. Native plugins. App Store approved. Actively maintained. |
+
+### Prerequisites
+
+- **Node.js** ≥ 18
+- **Xcode** ≥ 15 (for iOS) — install from Mac App Store
+- **CocoaPods** — `sudo gem install cocoapods` (if not using Swift Package Manager)
+- **Android Studio** (for Android) — [download](https://developer.android.com/studio)
+- **Apple Developer account** ($99/year) for App Store submission
+- **Google Play Developer account** ($25 one-time) for Play Store submission
+
+### Development Workflow
+
+**The core workflow is: edit source → build → sync → run.**
+
+```bash
+# 1. Edit your web files (index.html, app.js, styles.css) in VS Code
+
+# 2. Build & sync to native projects
+npm run cap:sync
+
+# 3. Open in Xcode / Android Studio
+npm run cap:open:ios
+npm run cap:open:android
+
+# 4. Or run directly on a connected device/simulator
+npm run cap:run:ios
+npm run cap:run:android
+```
+
+### Available npm Scripts
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| `npm run build` | Copies web files to `www/` | Prepare web assets |
+| `npm run cap:sync` | Build + `npx cap sync` | Full sync to native projects |
+| `npm run cap:open:ios` | `npx cap open ios` | Open Xcode project |
+| `npm run cap:open:android` | `npx cap open android` | Open Android Studio project |
+| `npm run cap:run:ios` | Build + sync + run on iOS device/sim | Quick test on iOS |
+| `npm run cap:run:android` | Build + sync + run on Android device/emu | Quick test on Android |
+
+### Native Plugins Installed
+
+| Plugin | Package | Purpose |
+|--------|---------|---------|
+| **Haptics** | `@capacitor/haptics` | Native haptic feedback (replaces browser Vibration API) |
+| **Status Bar** | `@capacitor/status-bar` | Control status bar appearance (dark mode, background color) |
+| **Splash Screen** | `@capacitor/splash-screen` | Native splash screen on app launch |
+
+### Haptics Implementation
+
+The `haptic()` function in `app.js` automatically detects the runtime environment:
+
+- **Native app (Capacitor):** Uses `Capacitor.Plugins.Haptics` for real iOS Taptic Engine / Android haptic feedback
+- **Browser:** Falls back to the Vibration API (`navigator.vibrate`)
+- **Desktop browser:** No-ops silently
+
+```javascript
+// Duration hint maps to iOS haptic styles:
+haptic(10);  // LIGHT impact — subtle tap
+haptic(20);  // MEDIUM impact — noticeable tap
+haptic(30);  // HEAVY impact — strong thud
+
+// Special haptic types:
+haptic(0, 'notification', 'success');  // Success pattern
+haptic(0, 'notification', 'warning');  // Warning pattern
+haptic(0, 'notification', 'error');    // Error pattern
+haptic(0, 'selection');                // Selection tick
+```
+
+### App Store Submission Checklist
+
+#### iOS (App Store)
+
+1. **Apple Developer Program** — Enroll at [developer.apple.com](https://developer.apple.com/programs/) ($99/year)
+2. **Bundle ID** — Currently set to `com.animalEscape.app` in `capacitor.config.json`
+3. **App Icons** — Add 1024×1024 icon to `ios/App/App/Assets.xcassets/AppIcon.appiconset/`
+4. **Splash Screen** — Replace default splash in `ios/App/App/Assets.xcassets/Splash.imageset/`
+5. **Signing** — In Xcode: select your Team under Signing & Capabilities
+6. **Privacy** — No special permissions needed (no camera, location, etc.)
+7. **App Store Connect** — Create app listing with screenshots, description, age rating
+8. **Archive & Upload** — In Xcode: Product → Archive → Distribute App → App Store Connect
+9. **Review** — Apple reviews typically take 1-3 days
+
+#### Android (Google Play)
+
+1. **Google Play Console** — Register at [play.google.com/console](https://play.google.com/console/) ($25 one-time)
+2. **App Icons** — Configure in `android/app/src/main/res/` (multiple density folders)
+3. **Signing** — Generate a keystore: `keytool -genkey -v -keystore release.keystore -alias animal-escape -keyalg RSA -keysize 2048 -validity 10000`
+4. **Build release APK/AAB** — In Android Studio: Build → Generate Signed Bundle/APK
+5. **Store listing** — Screenshots, description, content rating questionnaire
+6. **Upload & Review** — Upload AAB to Play Console, submit for review
+
+### Adding New Native Features
+
+To add more native capabilities (e.g., push notifications, in-app purchases, audio):
+
+```bash
+# 1. Install the Capacitor plugin
+npm install @capacitor/push-notifications
+
+# 2. Sync to native projects
+npm run cap:sync
+
+# 3. Use in app.js via Capacitor.Plugins
+if (IS_NATIVE) {
+    const { PushNotifications } = Capacitor.Plugins;
+    // ... use the plugin
+}
+```
+
+Browse available plugins: [capacitorjs.com/docs/plugins](https://capacitorjs.com/docs/plugins)
+
+### Capacitor Config Reference
+
+`capacitor.config.json` controls native behavior:
+
+```json
+{
+  "appId": "com.animalEscape.app",     // Bundle ID (must match App Store / Play Store)
+  "appName": "Animal Escape",           // Display name on device
+  "webDir": "www",                       // Where built web files live
+  "server": {
+    "androidScheme": "https"             // Required for modern Android WebView security
+  },
+  "plugins": {
+    "SplashScreen": { ... },
+    "StatusBar": { ... }
+  }
+}
+```
+
+### Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `"www" is not a valid webDir` | Run `npm run build` first to create the `www/` folder |
+| Xcode build fails on plugins | Run `npm run cap:sync` to update native plugin bindings |
+| Changes not showing on device | Always run `npm run cap:sync` after editing web files |
+| Haptics not working in simulator | Haptics only work on real devices, not simulators |
+| White screen on launch | Check Xcode console for JS errors; ensure BabylonJS CDN is reachable |
+| `localStorage` not persisting | Capacitor uses `WKWebView` on iOS which persists localStorage correctly |

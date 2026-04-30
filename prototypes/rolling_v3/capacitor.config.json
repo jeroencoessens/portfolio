@@ -1,0 +1,19 @@
+{
+  "appId": "com.animalEscape.app",
+  "appName": "Animal Escape",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0a140a"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0a140a"
+    }
+  }
+}

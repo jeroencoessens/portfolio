@@ -11,9 +11,42 @@
 // DOM shorthand
 const $ = id => document.getElementById(id);
 
-// Haptic feedback (Vibration API — works on Android mobile browsers; no-ops elsewhere)
-function haptic(ms = 15) {
-    if (navigator.vibrate) navigator.vibrate(ms);
+// True when running inside a Capacitor native shell (iOS/Android app)
+const IS_NATIVE = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+
+// Native Haptics plugin reference (Capacitor)
+const NativeHaptics = IS_NATIVE ? Capacitor.Plugins.Haptics : null;
+
+/**
+ * Haptic feedback — uses native iOS/Android haptic engine when available,
+ * falls back to Vibration API in browsers.
+ * @param {number} ms  Duration hint: ≤15 = light, ≤25 = medium, >25 = heavy
+ * @param {'impact'|'notification'|'selection'} [type='impact']  Haptic type
+ * @param {string} [notifType]  For notification type: 'success'|'warning'|'error'
+ */
+function haptic(ms = 15, type = 'impact', notifType) {
+    if (NativeHaptics) {
+        if (type === 'notification' && notifType) {
+            NativeHaptics.notification({ type: notifType });
+        } else if (type === 'selection') {
+            NativeHaptics.selectionChanged();
+        } else {
+            // Map duration hint to impact style
+            const style = ms <= 15 ? 'LIGHT' : ms <= 25 ? 'MEDIUM' : 'HEAVY';
+            NativeHaptics.impact({ style });
+        }
+    } else if (navigator.vibrate) {
+        navigator.vibrate(ms);
+    }
+}
+
+// Initialize native-only features (StatusBar, SplashScreen)
+if (IS_NATIVE) {
+    const { StatusBar, SplashScreen } = Capacitor.Plugins;
+    document.addEventListener('DOMContentLoaded', () => {
+        if (StatusBar) StatusBar.setStyle({ style: 'DARK' });
+        if (SplashScreen) SplashScreen.hide();
+    });
 }
 
 // ============================================================

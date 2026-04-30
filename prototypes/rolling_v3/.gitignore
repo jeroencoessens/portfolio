@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Capacitor build output
+www/
+
+# Native projects (regenerated from cap sync)
+# Uncomment the lines below if you want to track native project customizations:
+# ios/
+# android/
+
+# OS files
+.DS_Store

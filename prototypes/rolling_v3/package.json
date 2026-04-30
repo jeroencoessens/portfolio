@@ -1,0 +1,26 @@
+{
+  "name": "animal-escape",
+  "version": "1.0.0",
+  "description": "A cozy, mobile-first 3D dice-rolling board game built with BabylonJS.",
+  "main": "app.js",
+  "scripts": {
+    "build": "rm -rf www && mkdir -p www && cp index.html app.js styles.css www/",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "cap:run:ios": "npm run build && npx cap sync ios && npx cap run ios",
+    "cap:run:android": "npm run build && npx cap sync android && npx cap run android"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.3.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2"
+  }
+}
