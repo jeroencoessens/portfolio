@@ -696,6 +696,41 @@ body {
 .ribbon-arm { color: var(--sky); background: rgba(58,134,255,0.12); }
 .ribbon-stl { color: var(--purple); background: rgba(168,85,247,0.12); }
 
+/* Ribbon stat flash animation — pulses when a stat changes */
+@keyframes ribbonFlash {
+    0%   { transform: scale(1);   filter: brightness(1); }
+    25%  { transform: scale(1.35); filter: brightness(1.8); }
+    50%  { transform: scale(1.1);  filter: brightness(1.4); }
+    75%  { transform: scale(1.25); filter: brightness(1.6); }
+    100% { transform: scale(1);   filter: brightness(1); }
+}
+.ribbon-stat.flash {
+    animation: ribbonFlash 0.7s ease-out;
+}
+
+/* Floating stat popup (RPG-style "+1 SPD" numbers) */
+.stat-popup {
+    position: absolute;
+    top: 18%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+    z-index: 55;
+    opacity: 0;
+    white-space: nowrap;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+    animation: statPopupRise 1.2s ease-out forwards;
+}
+@keyframes statPopupRise {
+    0%   { opacity: 1; transform: translate(-50%, 0); }
+    70%  { opacity: 1; transform: translate(-50%, -30px); }
+    100% { opacity: 0; transform: translate(-50%, -50px); }
+}
+
 /* ===== CANVAS ===== */
 .canvas-wrapper {
     flex: 1;
@@ -2006,7 +2041,7 @@ body {
     .track-endpoint .ep-emoji { font-size: 1.1rem; }
 
     /* Exit button */
-    .exit-run-btn { font-size: 0.82rem; padding: 0.4rem 0.9rem; }
+    .exit-run-btn { font-size: 0.82rem; padding: 0.4rem 0.9rem; top: calc(env(safe-area-inset-top, 0px) + 130px); }
     .exit-run-btn:hover { color: #fff; border-color: rgba(255,0,110,0.5); background: rgba(255,0,110,0.2); }
 
     /* Animal stats ribbon */

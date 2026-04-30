@@ -23,7 +23,7 @@ function haptic(ms = 15) {
 // --- Board ---
 const BOARD_SIZE        = 80;        // total tiles on the circular track
 const TILE_SIZE         = 3;         // visual width of a tile (BabylonJS units)
-const TILE_SPACING      = 6;         // arc distance between tile centers
+const TILE_SPACING      = 4.5;       // arc distance between tile centers
 
 // --- Dice & Rolls ---
 const STARTING_DICE     = 100;       // rolls given at start of each run
@@ -68,6 +68,13 @@ const GENERAL_MEAL_COST   = 800;     // coin cost for general meals in upgrade s
 // --- 3D Positioning ---
 const PLAYER_TILE_OFFSET  = 0.5;     // height above tile surface for player mesh
 const PROP_SURFACE_OFFSET = 1.0;     // depth below tile center for world props
+const PROP_DENSITY        = 5.0;     // multiplier for environment prop counts (1.0 = default)
+
+// --- Camera ---
+const CAM_HEIGHT          = 16;      // height above the player (local Y)
+const CAM_DISTANCE        = -8;      // distance behind the player (local Z, negative = behind)
+const CAM_LOOK_Y          = -5;      // look-at vertical offset (negative = look down)
+const CAM_LOOK_Z          = 10;      // look-at forward offset (positive = look ahead)
 
 // --- Persistence ---
 const SAVE_KEY          = 'animal_escape_p1_save';
@@ -848,6 +855,16 @@ function startRun(animal) {
         awardMeals(comfyNestLevel * 5);
     }
 
+    // Build sanctuary bonus summary for run-start feedback
+    const bonusParts = [];
+    if (getSanctuaryLevel('trail_map') > 0)    bonusParts.push('+' + getSanctuaryLevel('trail_map') + ' SPD');
+    if (getSanctuaryLevel('thick_hide') > 0)   bonusParts.push('+' + getSanctuaryLevel('thick_hide') + ' RES');
+    if (getSanctuaryLevel('shadow_cloak') > 0) bonusParts.push('+' + getSanctuaryLevel('shadow_cloak') + ' STH');
+    if (luckyCharmLevel > 0)                   bonusParts.push('+' + (luckyCharmLevel * 5) + ' 🎲');
+    if (comfyNestLevel > 0)                    bonusParts.push('+' + (comfyNestLevel * 5) + ' 🍎');
+    if (goldenBonus() > 0)                     bonusParts.push('✨ Golden +1 all');
+    game._runStartBonuses = bonusParts;
+
     // Switch screens
     $('startScreen').classList.add('hidden');
     $('gameScreen').classList.remove('hidden');
@@ -950,6 +967,16 @@ function initGame() {
     updateSeasonUI();
     updateAbilityButton();
     renderTrackCities();
+
+    // Show run-start bonus summary after a brief delay so the player sees it
+    if (game._runStartBonuses && game._runStartBonuses.length > 0) {
+        setTimeout(() => {
+            showFeedback('🏕️ Sanctuary bonuses: ' + game._runStartBonuses.join(' | '));
+            if (getSpeed() > 0) flashRibbonStat('ribbonSpd');
+            if (getArmor() > 0) flashRibbonStat('ribbonArm');
+            if (getStealth() > 0) flashRibbonStat('ribbonStl');
+        }, 800);
+    }
 }
 
 // ============================================================
@@ -999,9 +1026,9 @@ function createScene() {
     game.cameraAnchor.position = startPos.clone();
     game.cameraAnchor.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(startRot);
 
-    game.camera = new BABYLON.UniversalCamera('cam', new BABYLON.Vector3(0, 10, -20), scene);
+    game.camera = new BABYLON.UniversalCamera('cam', new BABYLON.Vector3(0, CAM_HEIGHT, CAM_DISTANCE), scene);
     game.camera.parent = game.cameraAnchor;
-    game.camera.setTarget(BABYLON.Vector3.Zero());
+    game.camera.setTarget(new BABYLON.Vector3(0, CAM_LOOK_Y, CAM_LOOK_Z));
 
     return scene;
 }
@@ -1020,7 +1047,7 @@ function buildBoard(scene) {
     for (let i = 0; i < BOARD_SIZE; i++) {
         const tileDef = Object.assign({}, TILE_PATTERN[i % TILE_PATTERN.length]);
         const tile = BABYLON.MeshBuilder.CreateBox('tile_' + i, {
-            width: TILE_SIZE * 2.5, height: 0.5, depth: TILE_SIZE * 1.8
+            width: TILE_SIZE * 2.5, height: 0.5, depth: TILE_SIZE * 1.3
         }, scene);
 
         // Position tile along the circular track
@@ -1050,7 +1077,7 @@ function buildBoard(scene) {
 
     // Planet core — a dark green sphere inside the tile ring
     const core = BABYLON.MeshBuilder.CreateSphere('core', {
-        diameter: (game.boardRadius - 0.5) * 2, segments: 48
+        diameter: (game.boardRadius - 0.75) * 2, segments: 48
     }, scene);
     core.position.set(0, -game.boardRadius, 0);
     const coreMat = new BABYLON.StandardMaterial('coreMat', scene);
@@ -1065,9 +1092,15 @@ function buildBoard(scene) {
  * Scatters decorative vegetation around the planet:
  * round-canopy trees, conifers, bushes, and grass tufts.
  * Uses GPU instancing for bushes and grass for performance.
+ *
+ * Props are placed on the sphere surface using two-angle spherical
+ * positioning (track angle θ + lateral angle φ) via a nested transform
+ * hierarchy so that every prop sits flush on the globe with correct
+ * outward orientation regardless of lateral offset.
  */
 function buildPlanetProps(scene) {
     const propRoot = new BABYLON.TransformNode('propRoot', scene);
+    const R_surface = game.boardRadius - 0.75; // planet surface radius (matches core sphere)
 
     // Shared flat materials (no specular highlight for a toon look)
     const treeMat    = makeFlatMat(scene, 'treeMat',    0.15, 0.65, 0.10);
@@ -1076,16 +1109,32 @@ function buildPlanetProps(scene) {
     const bushMat    = makeFlatMat(scene, 'bushMat',    0.10, 0.52, 0.07);
     const grassMat   = makeFlatMat(scene, 'grassMat',   0.28, 0.74, 0.12);
 
-    /** Anchors a prop to the planet surface at a given angle and lateral offset. */
-    const anchor = (side, angle) => {
+    /**
+     * Anchors a prop to the planet sphere surface using proper spherical coords.
+     * @param {number} lateralDist — arc-distance from the track centerline (signed)
+     * @param {number} theta       — track angle (0 … 2π around the planet)
+     * @returns {TransformNode} anchor whose local Y points radially outward
+     */
+    const anchor = (lateralDist, theta) => {
+        // Convert lateral arc-distance to an angle on the sphere
+        const phi = lateralDist / R_surface;
+
+        // Outer node sits at planet center, rotated by track angle θ around X
+        const outer = new BABYLON.TransformNode('ao', scene);
+        outer.position.set(0, -game.boardRadius, 0);
+        outer.rotation.x = theta;
+        outer.parent = propRoot;
+
+        // Inner node tilts laterally by φ around Z (perpendicular to track)
+        const inner = new BABYLON.TransformNode('ai', scene);
+        inner.rotation.z = -phi;
+        inner.parent = outer;
+
+        // Anchor sits at surface radius along local Y (radially outward)
         const a = new BABYLON.TransformNode('a', scene);
-        a.position.set(
-            side,
-            (game.boardRadius - PROP_SURFACE_OFFSET) * Math.cos(angle) - game.boardRadius,
-            (game.boardRadius - PROP_SURFACE_OFFSET) * Math.sin(angle)
-        );
-        a.rotation.x = angle;
-        a.parent = propRoot;
+        a.position.y = R_surface;
+        a.parent = inner;
+
         return a;
     };
 
@@ -1093,8 +1142,8 @@ function buildPlanetProps(scene) {
     const randSide = (minGap, spread) =>
         (Math.random() < 0.5 ? -1 : 1) * (minGap + Math.random() * spread);
 
-    // --- Round-canopy trees (55) ---
-    for (let i = 0; i < 55; i++) {
+    // --- Round-canopy trees ---
+    for (let i = 0; i < Math.round(55 * PROP_DENSITY); i++) {
         const a = anchor(randSide(TILE_SIZE + 2, 8), Math.random() * Math.PI * 2);
         const h = 0.7 + Math.random() * 0.9;
         const trunk = BABYLON.MeshBuilder.CreateCylinder('t', { diameter: 0.15, height: h, tessellation: 6 }, scene);
@@ -1103,8 +1152,8 @@ function buildPlanetProps(scene) {
         canopy.position.y = h; canopy.parent = a; canopy.material = treeMat;
     }
 
-    // --- Conifer / pine trees (35) ---
-    for (let i = 0; i < 35; i++) {
+    // --- Conifer / pine trees ---
+    for (let i = 0; i < Math.round(35 * PROP_DENSITY); i++) {
         const a = anchor(randSide(TILE_SIZE + 1.5, 9), Math.random() * Math.PI * 2);
         const h = 1.3 + Math.random() * 1.0;
         const trunk = BABYLON.MeshBuilder.CreateCylinder('ct', { diameter: 0.12, height: h * 0.45, tessellation: 5 }, scene);
@@ -1118,8 +1167,8 @@ function buildPlanetProps(scene) {
     // --- Bushes (48) — GPU instanced for performance ---
     const bushTpl = BABYLON.MeshBuilder.CreateSphere('bushTpl', { diameter: 1, segments: 4 }, scene);
     bushTpl.material = bushMat;
-    bushTpl.setEnabled(false); // template invisible; instances are drawn
-    for (let i = 0; i < 48; i++) {
+    bushTpl.setEnabled(false);
+    for (let i = 0; i < Math.round(48 * PROP_DENSITY); i++) {
         const a = anchor(randSide(TILE_SIZE + 1, 5.5), Math.random() * Math.PI * 2);
         const s = 0.32 + Math.random() * 0.38;
         const b1 = bushTpl.createInstance('b1_' + i);
@@ -1140,7 +1189,7 @@ function buildPlanetProps(scene) {
     }, scene);
     grassTpl.material = grassMat;
     grassTpl.setEnabled(false);
-    for (let i = 0; i < 75; i++) {
+    for (let i = 0; i < Math.round(75 * PROP_DENSITY); i++) {
         const a = anchor(randSide(TILE_SIZE * 0.4, 11), Math.random() * Math.PI * 2);
         const blades = 2 + (Math.random() > 0.5 ? 1 : 0);
         for (let g = 0; g < blades; g++) {
@@ -1945,6 +1994,35 @@ function scheduleAutoRoll() {
     }, AUTO_DELAY_MS);
 }
 
+/** Highlights a set of tiles to preview the upcoming move. */
+/** Highlights the destination tiles the player will travel to. */
+function highlightTiles(startTile, count) {
+    game._highlightedTiles = [];
+    const playerPhys = startTile % BOARD_SIZE;
+    for (let i = 1; i <= count; i++) {
+        const idx = (startTile + i) % BOARD_SIZE;
+        if (idx === playerPhys) continue; // never highlight the tile the player is on
+        const tile = game.tiles[idx];
+        tile._origMaterial = tile.material;
+        const hl = tile.material.clone('hl_' + idx);
+        hl.diffuseColor = new BABYLON.Color3(1, 1, 0.7);
+        hl.emissiveColor = new BABYLON.Color3(0.6, 0.55, 0.15);
+        hl.specularColor = new BABYLON.Color3(0.4, 0.4, 0.2);
+        tile.material = hl;
+        game._highlightedTiles.push(tile);
+    }
+}
+
+/** Removes the highlight from all previewed tiles. */
+function unhighlightTiles() {
+    if (!game._highlightedTiles) return;
+    for (const tile of game._highlightedTiles) {
+        tile.material.dispose();
+        tile.material = tile._origMaterial;
+    }
+    game._highlightedTiles = null;
+}
+
 /** Main roll action — consumes dice, moves player, then triggers tile events. */
 function doRoll() {
     if (game.isMoving || diceRolling || game.dice < game.multiplier) return;
@@ -1960,11 +2038,19 @@ function doRoll() {
     // Roll 1-6, add speed bonus (backend result determined immediately)
     let roll = Math.floor(Math.random() * 6) + 1;
     const diceFace = Math.min(roll, 6); // face to show on the 3D die
-    roll += getSpeed();
+    const speedBonus = getSpeed();
+    roll += speedBonus;
 
     // Animate the 3D dice, then move the player once it lands
     rollDice3D(diceFace, () => {
-        showFeedback('Moved ' + roll + ' fields!');
+        const msg = speedBonus > 0
+            ? 'Rolled ' + diceFace + ' + ' + speedBonus + ' speed = ' + roll + ' fields!'
+            : 'Moved ' + roll + ' fields!';
+        showFeedback(msg);
+        if (speedBonus > 0) {
+            showStatPopup('+' + speedBonus + ' SPD bonus', '#ff9f1c');
+            flashRibbonStat('ribbonSpd');
+        }
 
         // Build the sequence of positions to animate through
         const currentTile = game.tileIndex;
@@ -1989,8 +2075,12 @@ function doRoll() {
             }
         }
 
+        // Highlight the tiles the player will traverse
+        highlightTiles(currentTile, roll);
+
         game.isMoving = true;
         movePlayer(positions, rotations, () => {
+            unhighlightTiles();
             game.isMoving = false;
             haptic(10);
             const prevIndex = game.tileIndex;
@@ -2116,12 +2206,15 @@ function handleTileLanding(physIdx) {
         if (game.trapShield) {
             game.trapShield = false;
             showFeedback('🛡️ Your shield blocked the trap!');
+            showStatPopup('🛡️ Shield blocked!', '#3a86ff');
             updateUI();
             return;
         }
         // Stealth chance to dodge trap entirely
         if (Math.random() < getStealth() * 0.12) {
-            showFeedback('🌿 Slipped past the trap unseen!');
+            showFeedback('🌿 STH ' + getStealth() + ' — Slipped past the trap unseen!');
+            showStatPopup('STH saved you!', '#a855f7');
+            flashRibbonStat('ribbonStl');
             updateUI();
             return;
         }
@@ -2195,11 +2288,14 @@ function handleTileLanding(physIdx) {
             if (game.trapShield) {
                 game.trapShield = false;
                 showFeedback('🛡️ Your shield blocked the danger!');
+                showStatPopup('🛡️ Shield blocked!', '#3a86ff');
             } else if (Math.random() > 0.3 + getArmor() * 0.1 + getStealth() * 0.08) {
                 game.cash = Math.max(0, game.cash - 100);
                 showEventPopup('🕸️', 'TRAPPED!', 'Got caught in a bramble! Lost 🪙100.');
             } else {
-                showFeedback('🛡️ Resilience saved you from a trap!');
+                showFeedback('🛡️ RES ' + getArmor() + ' — Resilience saved you!');
+                showStatPopup('RES saved you!', '#3a86ff');
+                flashRibbonStat('ribbonArm');
             }
             break;
         case 'pit': {
@@ -2501,18 +2597,18 @@ function teleportPlayer(tiles) {
 }
 
 const ABILITY_DEFS = {
-    'Mud Slide':    { icon: '💦', desc: 'Gain +2 RES for this lap',          action: function() { game.runArmor += 2; showFeedback('💦 Mud Slide! +2 RES this lap'); updateUI(); updateRibbon(); } },
-    'Wing Flutter': { icon: '🪽', desc: 'Gain +8 bonus dice',                action: function() { game.dice = Math.min(MAX_DICE, game.dice + 8); persist.dice = game.dice; writeSave(); showFeedback('🪽 Wing Flutter! +8 🎲'); updateUI(); } },
-    'Stampede':     { icon: '🐂', desc: 'Rush forward 8 tiles',              action: function() { showFeedback('🐂 Stampede! Charged 8 tiles!'); teleportPlayer(8); } },
-    'Fleece Veil':  { icon: '☁️', desc: 'Gain +2 STH for this lap',          action: function() { game.runStealth += 2; showFeedback('☁️ Fleece Veil! +2 STH this lap'); updateUI(); updateRibbon(); } },
-    'Burrow':       { icon: '🕳️', desc: 'Teleport 12 tiles ahead',           action: function() { showFeedback('🕳️ Burrow! Dug ahead 12 tiles!'); teleportPlayer(12); } },
-    'Wing Splash':  { icon: '💧', desc: 'Gain +2 STH and avoid next trap',   action: function() { game.runStealth += 2; game.trapShield = true; showFeedback('💧 Wing Splash! +2 STH + trap shield!'); updateUI(); updateRibbon(); } },
-    'Mud Rush':     { icon: '🌊', desc: 'Gain +1 SPD +1 RES for this lap',   action: function() { game.runSpeed += 1; game.runArmor += 1; showFeedback('🌊 Mud Rush! +1 SPD +1 RES'); updateUI(); updateRibbon(); } },
-    'Scatter':      { icon: '🐔', desc: 'Gain +10 dice and +1 SPD',          action: function() { game.dice = Math.min(MAX_DICE, game.dice + 10); game.runSpeed += 1; persist.dice = game.dice; writeSave(); showFeedback('🐔 Scatter! +10 🎲 +1 SPD'); updateUI(); updateRibbon(); } },
-    'Herd Charge':  { icon: '🐄', desc: 'Rush forward 10 tiles with +1 RES', action: function() { game.runArmor += 1; showFeedback('🐄 Herd Charge! +10 tiles +1 RES'); updateRibbon(); teleportPlayer(10); } },
-    'Wool Screen':  { icon: '🌫️', desc: 'Gain +3 STH for this lap',          action: function() { game.runStealth += 3; showFeedback('🌫️ Wool Screen! +3 STH'); updateUI(); updateRibbon(); } },
-    'Flash Burrow': { icon: '⚡', desc: 'Teleport 15 tiles ahead',           action: function() { showFeedback('⚡ Flash Burrow! Zipped 15 tiles!'); teleportPlayer(15); } },
-    'Wing Curtain': { icon: '🪶', desc: 'Gain +2 STH +1 RES + trap shield',  action: function() { game.runStealth += 2; game.runArmor += 1; game.trapShield = true; showFeedback('🪶 Wing Curtain! +2 STH +1 RES + shield!'); updateUI(); updateRibbon(); } },
+    'Mud Slide':    { icon: '💦', desc: 'Gain +2 RES for this lap',          action: function() { game.runArmor += 2; showFeedback('💦 Mud Slide! +2 RES this lap'); showStatPopup('+2 RES', '#3a86ff'); flashRibbonStat('ribbonArm'); updateUI(); updateRibbon(); } },
+    'Wing Flutter': { icon: '🪽', desc: 'Gain +8 bonus dice',                action: function() { game.dice = Math.min(MAX_DICE, game.dice + 8); persist.dice = game.dice; writeSave(); showFeedback('🪽 Wing Flutter! +8 🎲'); showStatPopup('+8 🎲', '#ffffff'); updateUI(); } },
+    'Stampede':     { icon: '🐂', desc: 'Rush forward 8 tiles',              action: function() { showFeedback('🐂 Stampede! Charged 8 tiles!'); showStatPopup('⚡ 8 TILES', '#ff9f1c'); teleportPlayer(8); } },
+    'Fleece Veil':  { icon: '☁️', desc: 'Gain +2 STH for this lap',          action: function() { game.runStealth += 2; showFeedback('☁️ Fleece Veil! +2 STH this lap'); showStatPopup('+2 STH', '#a855f7'); flashRibbonStat('ribbonStl'); updateUI(); updateRibbon(); } },
+    'Burrow':       { icon: '🕳️', desc: 'Teleport 12 tiles ahead',           action: function() { showFeedback('🕳️ Burrow! Dug ahead 12 tiles!'); showStatPopup('⚡ 12 TILES', '#ff9f1c'); teleportPlayer(12); } },
+    'Wing Splash':  { icon: '💧', desc: 'Gain +2 STH and avoid next trap',   action: function() { game.runStealth += 2; game.trapShield = true; showFeedback('💧 Wing Splash! +2 STH + trap shield!'); showStatPopup('+2 STH + 🛡️', '#a855f7'); flashRibbonStat('ribbonStl'); updateUI(); updateRibbon(); } },
+    'Mud Rush':     { icon: '🌊', desc: 'Gain +1 SPD +1 RES for this lap',   action: function() { game.runSpeed += 1; game.runArmor += 1; showFeedback('🌊 Mud Rush! +1 SPD +1 RES'); showStatPopup('+1 SPD +1 RES', '#ff9f1c'); flashRibbonStat('ribbonSpd'); flashRibbonStat('ribbonArm'); updateUI(); updateRibbon(); } },
+    'Scatter':      { icon: '🐔', desc: 'Gain +10 dice and +1 SPD',          action: function() { game.dice = Math.min(MAX_DICE, game.dice + 10); game.runSpeed += 1; persist.dice = game.dice; writeSave(); showFeedback('🐔 Scatter! +10 🎲 +1 SPD'); showStatPopup('+10 🎲 +1 SPD', '#ff9f1c'); flashRibbonStat('ribbonSpd'); updateUI(); updateRibbon(); } },
+    'Herd Charge':  { icon: '🐄', desc: 'Rush forward 10 tiles with +1 RES', action: function() { game.runArmor += 1; showFeedback('🐄 Herd Charge! +10 tiles +1 RES'); showStatPopup('+1 RES ⚡ 10 TILES', '#3a86ff'); flashRibbonStat('ribbonArm'); updateRibbon(); teleportPlayer(10); } },
+    'Wool Screen':  { icon: '🌫️', desc: 'Gain +3 STH for this lap',          action: function() { game.runStealth += 3; showFeedback('🌫️ Wool Screen! +3 STH'); showStatPopup('+3 STH', '#a855f7'); flashRibbonStat('ribbonStl'); updateUI(); updateRibbon(); } },
+    'Flash Burrow': { icon: '⚡', desc: 'Teleport 15 tiles ahead',           action: function() { showFeedback('⚡ Flash Burrow! Zipped 15 tiles!'); showStatPopup('⚡ 15 TILES', '#ff9f1c'); teleportPlayer(15); } },
+    'Wing Curtain': { icon: '🪶', desc: 'Gain +2 STH +1 RES + trap shield',  action: function() { game.runStealth += 2; game.runArmor += 1; game.trapShield = true; showFeedback('🪶 Wing Curtain! +2 STH +1 RES + shield!'); showStatPopup('+2 STH +1 RES + 🛡️', '#a855f7'); flashRibbonStat('ribbonStl'); flashRibbonStat('ribbonArm'); updateUI(); updateRibbon(); } },
 };
 
 function useAbility() {
@@ -2658,6 +2754,26 @@ function showFeedback(txt) {
     feedbackTimer = setTimeout(() => el.classList.remove('visible'), 2000);
 }
 
+/** Flashes a ribbon stat element to draw attention to a stat change. */
+function flashRibbonStat(statId) {
+    const el = $(statId);
+    if (!el) return;
+    el.classList.remove('flash');
+    void el.offsetWidth; // reflow to restart animation
+    el.classList.add('flash');
+    el.addEventListener('animationend', () => el.classList.remove('flash'), { once: true });
+}
+
+/** Shows a floating stat-change popup that rises and fades (RPG style). */
+function showStatPopup(text, color) {
+    const el = document.createElement('div');
+    el.className = 'stat-popup';
+    el.textContent = text;
+    el.style.color = color || '#ffffff';
+    document.getElementById('gameScreen').appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+}
+
 /** Opens a generic event popup with optional choice buttons. */
 function showEventPopup(icon, title, desc, choices) {
     $('eventIcon').textContent = icon;
@@ -2753,6 +2869,11 @@ function openUpgradeShop() {
 
 /** Applies a purchased upgrade's stat bonus and meal effect. */
 function applyUpgrade(up) {
+    // Capture before-values for feedback
+    const prevSpd = getSpeed();
+    const prevRes = getArmor();
+    const prevSth = getStealth();
+
     // --- Stat bonuses ---
     switch (up.stat) {
         case 'dice':    game.dice = Math.min(MAX_DICE, game.dice + 30); break;
@@ -2793,7 +2914,17 @@ function applyUpgrade(up) {
         persist.generalMeals += GENERAL_MEAL_AMOUNT;
     }
 
-    showFeedback('🍃 ' + up.name + ' used!');
+    showFeedback('🍃 ' + up.name + ' activated!');
+
+    // Show stat change popups and flash ribbon for changed stats
+    const newSpd = getSpeed();
+    const newRes = getArmor();
+    const newSth = getStealth();
+    if (newSpd > prevSpd) { showStatPopup('SPD ' + prevSpd + ' → ' + newSpd, '#ff9f1c'); flashRibbonStat('ribbonSpd'); }
+    if (newRes > prevRes) { showStatPopup('RES ' + prevRes + ' → ' + newRes, '#3a86ff'); flashRibbonStat('ribbonArm'); }
+    if (newSth > prevSth) { showStatPopup('STH ' + prevSth + ' → ' + newSth, '#a855f7'); flashRibbonStat('ribbonStl'); }
+    if (up.stat === 'dice') { showStatPopup('+30 🎲', '#ffffff'); }
+
     writeSave();
 }
 
