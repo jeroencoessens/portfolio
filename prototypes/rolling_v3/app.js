@@ -317,6 +317,7 @@ let diceRolling = false;     // whether the 3D dice animation is in progress
 let autoMode = false;        // whether auto-roll mode is active
 let autoHoldTimer = null;    // timer for hold-to-activate gesture
 let rollBtnAbort = null;     // AbortController for roll button listeners (prevents stacking)
+let autoDismissTimer = null; // timer for auto-dismissing popups during auto-roll
 
 // ============================================================
 //  4. SAVE SYSTEM
@@ -1103,11 +1104,13 @@ function buildPlanetProps(scene) {
     const R_surface = game.boardRadius - 0.75; // planet surface radius (matches core sphere)
 
     // Shared flat materials (no specular highlight for a toon look)
+    // Stored on game so applySeasonVisuals() can recolor foliage per season
     const treeMat    = makeFlatMat(scene, 'treeMat',    0.15, 0.65, 0.10);
     const trunkMat   = makeFlatMat(scene, 'trunkMat',   0.30, 0.15, 0.05);
     const coniferMat = makeFlatMat(scene, 'coniferMat', 0.05, 0.42, 0.06);
     const bushMat    = makeFlatMat(scene, 'bushMat',    0.10, 0.52, 0.07);
     const grassMat   = makeFlatMat(scene, 'grassMat',   0.28, 0.74, 0.12);
+    game.propMats = { treeMat, coniferMat, bushMat, grassMat };
 
     /**
      * Anchors a prop to the planet sphere surface using proper spherical coords.
@@ -1789,6 +1792,21 @@ function applySeasonVisuals() {
     Object.keys(game.seeds).forEach(key => {
         buildSeedMesh(Number(key));
     });
+
+    // Recolor environment props for the current season
+    if (game.propMats) {
+        const propColors = {
+            spring: { tree: [0.15, 0.65, 0.10], conifer: [0.05, 0.42, 0.06], bush: [0.10, 0.52, 0.07], grass: [0.28, 0.74, 0.12] },
+            summer: { tree: [0.20, 0.70, 0.12], conifer: [0.08, 0.50, 0.08], bush: [0.12, 0.58, 0.10], grass: [0.35, 0.78, 0.15] },
+            fall:   { tree: [0.85, 0.55, 0.10], conifer: [0.72, 0.42, 0.08], bush: [0.80, 0.60, 0.15], grass: [0.75, 0.65, 0.20] },
+            winter: { tree: [0.85, 0.90, 0.95], conifer: [0.75, 0.82, 0.90], bush: [0.80, 0.85, 0.92], grass: [0.70, 0.78, 0.85] },
+        };
+        const pc = propColors[season.id] || propColors.spring;
+        game.propMats.treeMat.diffuseColor    = new BABYLON.Color3(pc.tree[0],    pc.tree[1],    pc.tree[2]);
+        game.propMats.coniferMat.diffuseColor = new BABYLON.Color3(pc.conifer[0], pc.conifer[1], pc.conifer[2]);
+        game.propMats.bushMat.diffuseColor    = new BABYLON.Color3(pc.bush[0],    pc.bush[1],    pc.bush[2]);
+        game.propMats.grassMat.diffuseColor   = new BABYLON.Color3(pc.grass[0],   pc.grass[1],   pc.grass[2]);
+    }
 }
 
 /** Updates the season HUD indicator. */
@@ -1938,6 +1956,7 @@ function enableAutoMode() {
 function disableAutoMode() {
     autoMode = false;
     haptic(15);
+    clearAutoDismiss();
     // Reset the hold fill bar
     const fillBar = $('autoHoldFill');
     fillBar.classList.remove('filling', 'done');
@@ -2776,6 +2795,9 @@ function showStatPopup(text, color) {
 
 /** Opens a generic event popup with optional choice buttons. */
 function showEventPopup(icon, title, desc, choices) {
+    // Clear any previous auto-dismiss timer
+    clearAutoDismiss();
+
     $('eventIcon').textContent = icon;
     $('eventTitle').textContent = title;
     $('eventDesc').textContent = desc;
@@ -2786,21 +2808,69 @@ function showEventPopup(icon, title, desc, choices) {
 
     if (choices && choices.length > 0) {
         closeBtn.style.display = 'none';
-        choices.forEach(ch => {
+        choices.forEach((ch, i) => {
             const btn = document.createElement('button');
             btn.className = 'choice-btn';
-            btn.textContent = ch.label;
+            btn.innerHTML = '<span class="choice-btn-text">' + ch.label + '</span>';
             btn.addEventListener('click', () => {
+                clearAutoDismiss();
                 ch.action();
                 closeOverlay('eventOverlay');
                 closeBtn.style.display = '';
             });
             choicesDiv.appendChild(btn);
         });
+        // Auto-dismiss: fill the first button in auto-mode
+        if (autoMode) {
+            const firstBtn = choicesDiv.querySelector('.choice-btn');
+            startAutoDismiss(firstBtn, () => firstBtn.click());
+        }
     } else {
         closeBtn.style.display = '';
+        // Auto-dismiss: fill the close button in auto-mode
+        if (autoMode) {
+            startAutoDismiss(closeBtn, () => {
+                closeOverlay('eventOverlay');
+                closeBtn.style.display = '';
+            });
+        }
     }
     openOverlay('eventOverlay');
+}
+
+const AUTO_DISMISS_MS = 3000; // time before auto-dismissing popups during auto-roll
+
+/** Starts the auto-dismiss countdown: adds a fill-bar to the target button. */
+function startAutoDismiss(btn, onComplete) {
+    if (!btn) return;
+
+    // Create the fill overlay element inside the button
+    const fill = document.createElement('span');
+    fill.className = 'auto-dismiss-fill';
+    btn.appendChild(fill);
+
+    // Force the browser to render the element at width:0 first,
+    // then start the transition to 100% on the next frame
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            fill.style.width = '100%';
+        });
+    });
+
+    autoDismissTimer = setTimeout(() => {
+        autoDismissTimer = null;
+        onComplete();
+    }, AUTO_DISMISS_MS);
+}
+
+/** Cancels any active auto-dismiss timer and removes fill bars. */
+function clearAutoDismiss() {
+    if (autoDismissTimer) {
+        clearTimeout(autoDismissTimer);
+        autoDismissTimer = null;
+    }
+    // Remove any leftover fill elements
+    document.querySelectorAll('.auto-dismiss-fill').forEach(el => el.remove());
 }
 
 /** Shows the lap completion celebration overlay. */
@@ -2942,7 +3012,7 @@ function renderTrackCities() {
 }
 
 function openOverlay(id) { $(id).classList.add('active'); }
-function closeOverlay(id) { $(id).classList.remove('active'); }
+function closeOverlay(id) { clearAutoDismiss(); $(id).classList.remove('active'); }
 
 // ============================================================
 //  16. ENTRY POINT

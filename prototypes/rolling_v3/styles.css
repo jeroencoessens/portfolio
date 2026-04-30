@@ -507,17 +507,33 @@ body {
 
 .upgrade-btn {
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    width: 44px;
+    gap: 0.25rem;
+    padding: 0 0.6rem;
     border: none;
     background: rgba(112,224,0,0.08);
     color: var(--leaf);
-    font-size: 1.3rem;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
     cursor: pointer;
     border-left: 1px solid rgba(112,224,0,0.1);
     transition: background 0.15s;
     flex-shrink: 0;
+}
+.upgrade-btn .upgrade-btn-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+.upgrade-btn .upgrade-btn-label {
+    font-family: inherit;
+    font-size: inherit;
+    letter-spacing: inherit;
+    line-height: 1;
+    color: var(--leaf);
 }
 .upgrade-btn:active { background: rgba(112,224,0,0.2); }
 
@@ -768,17 +784,15 @@ body {
 
 .dice-stage-left,
 .dice-stage-right {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
     pointer-events: auto;
     z-index: 5;
+    flex-shrink: 0;
 }
 .dice-stage-left {
-    left: 0.8rem;
+    margin-right: 1.2rem;
 }
 .dice-stage-right {
-    right: 0.8rem;
+    margin-left: 1.2rem;
 }
 
 /* Dice count now lives inside dice-stage */
@@ -1157,6 +1171,8 @@ body {
 .event-choices { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.6rem 0; }
 
 .choice-btn {
+    position: relative;
+    overflow: hidden;
     padding: 0.55rem 1rem;
     border: 1px solid rgba(112,224,0,0.2);
     background: rgba(255,255,255,0.04);
@@ -1167,10 +1183,26 @@ body {
     cursor: pointer;
     transition: all 0.15s;
 }
+.choice-btn-text { position: relative; z-index: 1; }
 .choice-btn:hover { background: rgba(112,224,0,0.1); border-color: rgba(112,224,0,0.4); }
 .choice-btn:active { transform: scale(0.97); }
 
+/* Auto-dismiss fill bar — fills a button/close-btn from left to right */
+.auto-dismiss-fill {
+    position: absolute;
+    top: 0; left: 0;
+    width: 0;
+    height: 100%;
+    background: rgba(112, 224, 0, 0.35);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+    transition: width 3s linear;
+}
+
 .close-overlay-btn {
+    position: relative;
+    overflow: hidden;
     margin-top: 0.6rem;
     padding: 0.5rem 1.5rem;
     border: 2px solid var(--leaf);
@@ -1399,8 +1431,9 @@ body {
     .dice-stage .mult-btn { width: 32px; height: 32px; font-size: 0.8rem; border-width: 2px; }
     .dice-stage .bottom-dice .hud-stat-val { font-size: 0.9rem; }
     .dice-stage .bottom-dice .hud-stat-icon { font-size: 0.85rem; }
-    .dice-stage-left { left: 0.4rem; }
-    .dice-stage-right { right: 0.4rem; }
+    .dice-stage-left { margin-right: 0.6rem; }
+    .dice-stage-right { margin-left: 0.6rem; }
+    .upgrade-btn { font-size: 0.7rem; padding: 0 0.35rem; }
     .plant-btn { padding: 0.3rem 0.4rem; min-width: 44px; }
     .plant-text { font-size: 1rem; }
     .plant-cost { font-size: 0.48rem; }
@@ -1408,7 +1441,7 @@ body {
     .hud-stat-icon { font-size: 1rem; }
     .hud-stat-val { font-size: 1rem; }
     .season-indicator { font-size: 0.7rem; padding: 0 0.35rem; }
-    .upgrade-btn { width: 36px; font-size: 1.1rem; }
+    .upgrade-btn { font-size: 0.7rem; padding: 0 0.35rem; }
 }
 
 /* ===== DIORAMA / SANCTUARY VIEW ===== */
@@ -2033,7 +2066,7 @@ body {
     }
 
     .season-indicator { font-size: 0.95rem; padding: 0 1rem; }
-    .upgrade-btn { width: 54px; font-size: 1.5rem; }
+    .upgrade-btn { font-size: 0.95rem; padding: 0 1rem; }
 
     /* Track */
     .cannonball-track { padding: 0.5rem 1.5rem; }
@@ -2051,8 +2084,8 @@ body {
 
     /* Dice stage */
     .dice-stage { height: 90px; }
-    .dice-stage-left { left: 1.5rem; }
-    .dice-stage-right { right: 1.5rem; }
+    .dice-stage-left { margin-right: 1.5rem; }
+    .dice-stage-right { margin-left: 1.5rem; }
     .dice-stage .mult-btn { width: 50px; height: 50px; font-size: 1.15rem; }
     .dice-stage .mult-btn:hover { background: rgba(112,224,0,0.25); }
     .dice-stage .bottom-dice .hud-stat-val { font-size: 1.4rem; }
